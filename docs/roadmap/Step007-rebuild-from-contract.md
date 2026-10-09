@@ -53,7 +53,7 @@ Date: 2026-10-09.
 |---|---|---|
 | G1 | `npx tsc --noEmit` | PASS |
 | G2 | `npx eslint .` | PASS |
-| G3 | `npx vitest run` | PASS — 6 files / 91 tests, 0 failed |
+| G3 | `npx vitest run` | PASS — 8 files / 91 tests, 0 failed |
 | G8 | `pnpm build` (tsc -p tsconfig.build.json && vite build) | PASS |
 | G9 | `pnpm test:e2e` (Playwright, chromium) | PASS — 5/5 scenarios |
 | G7 visual | dev server + browser inspection at P0/P8/P9 | PASS — canvas renders, UI panels correct, ticks advance at 1× |

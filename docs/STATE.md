@@ -32,7 +32,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-09) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-09) |
-| Unit tests | PASS — `npx vitest run`: 6 files / 91 tests, all green (2026-10-09) |
+| Unit tests | PASS — `npx vitest run`: 8 files / 91 tests, all green (2026-10-09) |
 | E2E | PASS — Playwright: 5/5 scenarios (2026-10-09, P10) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-09) |
 
