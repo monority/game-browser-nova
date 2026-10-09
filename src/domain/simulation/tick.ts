@@ -2,6 +2,7 @@ import type { GameState } from "./state.js";
 import { produceFood, produceWater, consumeFood, consumeWater } from "../production/production.js";
 import { updatePopulation } from "../population/population.js";
 import { assignJobs } from "../jobs/jobs.js";
+import { collectRevenue, payMaintenance } from "../economy/economy.js";
 
 /**
  * Fixed deterministic simulation tick (ADR-002).
@@ -14,6 +15,7 @@ import { assignJobs } from "../jobs/jobs.js";
  *   5. consumeFood (all-or-nothing) / consumeWater
  *   6. updatePopulation (starvation + admission)
  *   7. assignJobs (next tick's staffing)
+ *   8. collectRevenue → 9. payMaintenance (money model, same-tick inflow)
  */
 export function stepSimulation(state: GameState): GameState {
   state.tick += 1;
@@ -29,6 +31,9 @@ export function stepSimulation(state: GameState): GameState {
   updatePopulation(state, fed);
 
   assignJobs(state);
+
+  collectRevenue(state);
+  payMaintenance(state);
 
   return state;
 }
