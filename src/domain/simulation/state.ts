@@ -29,9 +29,10 @@ export interface GameState {
 
 export function createInitialState(config: WorldConfig): GameState {
   const world = createWorld(config);
+  const canonicalConfig = canonicalWorldConfig(config);
   const state: GameState = {
     world,
-    worldConfig: config,
+    worldConfig: canonicalConfig,
     tick: 0,
     resources: createInitialResourceStock(),
     population: 0,
@@ -48,6 +49,21 @@ export function createInitialState(config: WorldConfig): GameState {
 }
 
 const COLONY_CENTER_ID = "colony-center";
+
+/**
+ * Canonical config shape: every key always present. Keeps persistence
+ * round-trips lossless (serialize/parse build the identical shape).
+ */
+function canonicalWorldConfig(config: WorldConfig): WorldConfig {
+  return {
+    seed: config.seed,
+    width: config.width,
+    height: config.height,
+    blockedCells: [...(config.blockedCells ?? [])],
+    woodDeposits: [...(config.woodDeposits ?? [])],
+    stoneDeposits: [...(config.stoneDeposits ?? [])],
+  };
+}
 
 /**
  * Day-0 bootstrap (Step004 mandate): every new colony owns exactly one
