@@ -1,0 +1,27 @@
+{
+  "name": "nova",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "NOVA — deterministic stylized civilization/city-builder",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -p tsconfig.build.json && vite build",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/three": "^0.170.0",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.19.0",
+    "vite": "^6.0.5",
+    "vitest": "^2.1.8"
+  }
+}
