@@ -182,6 +182,70 @@ test.describe("NOVA critical flows", () => {
     expect(loaded.farms).toBe(0);
   });
 
+  test("removal flow: place → inspect → remove → cell and stats restored", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+
+    // place a residence (no refund policy: money stays spent)
+    await page.locator("button[data-build-type='residence']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    const placed = await page.evaluate(() => {
+      const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+      return {
+        residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
+        money: s.resources.money,
+      };
+    });
+    expect(placed.residences).toBe(1);
+    expect(placed.money).toBe(75);
+
+    // mature the residence (2 ticks at 8x) so it actually pays maintenance
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
+        ),
+      )
+      .toBe(1);
+    await page.getByRole("button", { name: "pause", exact: true }).click();
+
+    // deselect the palette (click the active button again), then inspect the cell
+    await page.locator("button[data-build-type='residence']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    const removeButton = page.locator("button[data-action='remove-building']");
+    await expect(removeButton).toBeVisible();
+
+    // removal: no refund, immediate stats relief
+    await removeButton.click();
+    const afterRemove = await page.evaluate(() => {
+      const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+      const stats = (window as unknown as { __nova: NovaHandle }).__nova.stats();
+      return {
+        residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
+        money: s.resources.money,
+        maintenance: stats.maintenancePerTick,
+      };
+    });
+    expect(afterRemove.residences).toBe(0); // removed
+    expect(afterRemove.money).toBe(placed.money); // no refund
+    expect(afterRemove.maintenance).toBe(0); // relief: 1 → 0
+
+    // restored cell: same spot accepts a new building
+    await page.locator("button[data-build-type='residence']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    const replaced = await page.evaluate(() => {
+      const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+      return {
+        residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
+        money: s.resources.money,
+      };
+    });
+    expect(replaced.residences).toBe(1);
+    expect(replaced.money).toBe(afterRemove.money - 25);
+  });
+
   test("UI stat surface reflects the money-era contract", async ({ page }) => {
     await page.goto("/");
     await waitForTick(page, 1);

@@ -2,6 +2,7 @@ import { createInitialState, type GameState } from "../domain/simulation/state.j
 import { stepSimulation } from "../domain/simulation/tick.js";
 import { applyCommand } from "../domain/simulation/commands.js";
 import { validatePlacement } from "../domain/building/placement.js";
+import { allRoadCells } from "../domain/road/road.js";
 import { cellKey } from "../domain/shared/cells.js";
 import { createRenderer, type Renderer } from "../renderer/renderer.js";
 import { getColonyStats } from "../application/queries/stats.js";
@@ -74,6 +75,18 @@ export function boot(root: HTMLElement): { stop(): void } {
     },
     onRoadModeToggled: () => {
       /* same */
+    },
+    onRemoveBuilding: (id) => {
+      const result = applyCommand(state, { kind: "removeBuilding", id });
+      ui.setStatus(result.ok ? "Removed." : `Cannot remove: ${result.reason}`);
+      renderer.update(state);
+      refreshStats();
+    },
+    onRemoveRoadCell: (cell) => {
+      const result = applyCommand(state, { kind: "removeRoads", cells: [cell] });
+      ui.setStatus(result.ok ? "Road cell removed." : `Cannot remove road: ${result.reason}`);
+      renderer.update(state);
+      refreshStats();
     },
   });
 
@@ -159,11 +172,20 @@ export function boot(root: HTMLElement): { stop(): void } {
   function inspectAt(x: number, y: number): void {
     for (const building of Object.values(state.buildings)) {
       if (building.x === x && building.y === y) {
-        const definition = `${building.type} · ${building.status}`;
-        ui.setStatus(`${building.id}: ${definition}`);
-        ui.showInspection(building.id);
+        ui.setStatus(`${building.id}: ${building.type} · ${building.status}`);
+        ui.showInspection({
+          kind: "building",
+          id: building.id,
+          label: `${building.id} — ${building.type} · ${building.status}`,
+        });
         return;
       }
+    }
+    const key = cellKey(x, y);
+    if (allRoadCells(state.roads).has(key)) {
+      ui.setStatus(`Road at ${key}`);
+      ui.showInspection({ kind: "road", cell: key, label: `Road @ ${key}` });
+      return;
     }
     ui.showInspection(null);
   }

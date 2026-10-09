@@ -1,5 +1,5 @@
 import { BUILDING_DEFINITIONS, ROAD_MONEY_COST_PER_CELL, type BuildingType } from "../../content/buildings.js";
-import { validatePlacement, validateRoads, type PlacementValidation, type RoadValidation } from "../building/placement.js";
+import { validatePlacement, validateRoads, validateRemoval, validateRoadRemoval, type PlacementValidation, type RoadValidation, type RemovalValidation, type RoadRemovalValidation } from "../building/placement.js";
 import { createBuilding } from "../building/building.js";
 import { createRoad } from "../road/road.js";
 import { parseCellKey } from "../shared/cells.js";
@@ -15,7 +15,9 @@ import type { GameState } from "./state.js";
 
 export type Command =
   | { kind: "placeBuilding"; type: BuildingType; x: number; y: number }
-  | { kind: "placeRoads"; cells: readonly string[] };
+  | { kind: "placeRoads"; cells: readonly string[] }
+  | { kind: "removeBuilding"; id: string }
+  | { kind: "removeRoads"; cells: readonly string[] };
 
 export type CommandResult =
   | { ok: true }
@@ -27,6 +29,10 @@ export function applyCommand(state: GameState, command: Command): CommandResult 
       return applyPlaceBuilding(state, command.type, command.x, command.y);
     case "placeRoads":
       return applyPlaceRoads(state, command.cells);
+    case "removeBuilding":
+      return applyRemoveBuilding(state, command.id);
+    case "removeRoads":
+      return applyRemoveRoads(state, command.cells);
   }
 }
 
@@ -65,5 +71,28 @@ function applyPlaceRoads(state: GameState, cells: readonly string[]): CommandRes
   const id = `road-${state.roadCounter}`;
   state.roadCounter += 1;
   state.roads[id] = createRoad(id, unique);
+  return { ok: true };
+}
+
+/** Removal is free (no refund policy): relief comes from stopped maintenance. */
+function applyRemoveBuilding(state: GameState, id: string): CommandResult {
+  const validation: RemovalValidation = validateRemoval(state, id);
+  if (!validation.ok) return validation;
+  delete state.buildings[id];
+  return { ok: true };
+}
+
+function applyRemoveRoads(state: GameState, cells: readonly string[]): CommandResult {
+  const validation: RoadRemovalValidation = validateRoadRemoval(state, cells);
+  if (!validation.ok) return validation;
+
+  for (const key of new Set(cells)) {
+    for (const [roadId, road] of Object.entries(state.roads)) {
+      if (!road.cells.includes(key)) continue;
+      road.cells = road.cells.filter((c) => c !== key);
+      if (road.cells.length === 0) delete state.roads[roadId];
+      break;
+    }
+  }
   return { ok: true };
 }

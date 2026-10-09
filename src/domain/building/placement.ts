@@ -110,3 +110,31 @@ function parseKey(key: string): { x: number; y: number } {
   if (i < 0) throw new Error(`invalid cell key: ${key}`);
   return { x: Number(key.slice(0, i)), y: Number(key.slice(i + 1)) };
 }
+
+/** Removal validation (MVP "removal" scope; no refund policy). */
+
+export type RemovalValidation =
+  | { ok: true }
+  | { ok: false; reason: "unknownBuilding" | "anchorProtected" };
+
+export function validateRemoval(state: GameState, id: string): RemovalValidation {
+  const building = state.buildings[id];
+  if (!building) return { ok: false, reason: "unknownBuilding" };
+  // The Colony Center is the day-0 anti-self-lock anchor and must never be
+  // removable (Step004 protection).
+  if (building.type === "colonyCenter") return { ok: false, reason: "anchorProtected" };
+  return { ok: true };
+}
+
+export type RoadRemovalValidation =
+  | { ok: true }
+  | { ok: false; reason: "emptyPath" | "unknownRoadCell" };
+
+export function validateRoadRemoval(state: GameState, cells: readonly string[]): RoadRemovalValidation {
+  if (cells.length === 0) return { ok: false, reason: "emptyPath" };
+  const roadCells = allRoadCells(state.roads);
+  for (const key of new Set(cells)) {
+    if (!roadCells.has(key)) return { ok: false, reason: "unknownRoadCell" };
+  }
+  return { ok: true };
+}

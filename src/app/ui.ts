@@ -33,10 +33,24 @@ export interface Ui {
   root: HTMLDivElement;
   updateStats(stats: ColonyStats): void;
   setStatus(message: string): void;
-  showInspection(buildingId: string | null): void;
+  showInspection(info: InspectionInfo): void;
   activeBuildType(): BuildingType | null;
   roadMode(): boolean;
 }
+
+export interface RemoveBuildingInfo {
+  kind: "building";
+  id: string;
+  label: string;
+}
+
+export interface RemoveRoadInfo {
+  kind: "road";
+  cell: string;
+  label: string;
+}
+
+export type InspectionInfo = RemoveBuildingInfo | RemoveRoadInfo | null;
 
 export interface UiCallbacks {
   onBuildTypeSelected(type: BuildingType | null): void;
@@ -44,6 +58,8 @@ export interface UiCallbacks {
   onSpeedChanged(ticksPerSecond: number): void;
   onSave(): void;
   onLoad(): void;
+  onRemoveBuilding(id: string): void;
+  onRemoveRoadCell(cell: string): void;
 }
 
 export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
@@ -121,10 +137,23 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   controlsRow.append(roadButton, saveButton, loadButton);
   controls.element.append(controlsRow, paletteRow, speedRow);
 
-  // --- inspection ------------------------------------------------------------
+  // --- inspection ----------------------------------------------------------
   const inspection = panel("inspection", { top: "12px", right: "12px", width: "220px" });
   inspection.element.style.display = "none";
   root.appendChild(inspection.element);
+  const inspectionLabel = document.createElement("div");
+  inspectionLabel.style.marginBottom = "6px";
+  const removeBuildingButton = textButton("Remove", "remove-building", () => {
+    const info = currentInspection;
+    if (info && info.kind === "building") callbacks.onRemoveBuilding(info.id);
+    ui.showInspection(null);
+  });
+  const removeRoadButton = textButton("Remove road cell", "remove-road", () => {
+    const info = currentInspection;
+    if (info && info.kind === "road") callbacks.onRemoveRoadCell(info.cell);
+    ui.showInspection(null);
+  });
+  let currentInspection: InspectionInfo = null;
 
   // --- status line -------------------------------------------------------------
   const status = document.createElement("div");
@@ -161,13 +190,25 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     root,
     activeBuildType: () => selectedType,
     roadMode: () => roadsEnabled,
-    showInspection(buildingId) {
-      if (!buildingId) {
+    showInspection(info) {
+      currentInspection = info;
+      inspection.element.innerHTML = "";
+      if (!info) {
         inspection.element.style.display = "none";
         return;
       }
       inspection.element.style.display = "block";
-      inspection.element.dataset.inspection = buildingId;
+      inspectionLabel.textContent = info.label;
+      inspection.element.appendChild(inspectionLabel);
+      if (info.kind === "building") {
+        inspection.element.appendChild(
+          info.id === "colony-center"
+            ? staticNote("The Colony Center anchor cannot be removed.")
+            : removeBuildingButton,
+        );
+      } else {
+        inspection.element.appendChild(removeRoadButton);
+      }
     },
     setStatus(message) {
       status.textContent = message;
@@ -252,4 +293,11 @@ function textButton(
   styleButton(button);
   button.addEventListener("click", onClick);
   return button;
+}
+
+function staticNote(text: string): HTMLDivElement {
+  const note = document.createElement("div");
+  note.textContent = text;
+  note.style.color = "#8a93a3";
+  return note;
 }
