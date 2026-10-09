@@ -11,6 +11,10 @@ import { parseCellKey } from "../domain/shared/cells.js";
 
 export interface Renderer {
   update(state: GameState): void;
+  /** Screen point → terrain cell (or null when off-grid). */
+  pickCell(clientX: number, clientY: number): { x: number; y: number } | null;
+  /** Hover feedback: highlight a cell green/red per placement validity. */
+  setHover(cell: { x: number; y: number } | null, valid: boolean): void;
   dispose(): void;
 }
 
@@ -59,6 +63,45 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
   const depositGroup = new THREE.Group();
   scene.add(buildingGroup, roadGroup, depositGroup);
 
+  // --- hover highlight (single reusable mesh, never rebuilt) --------------
+  const hoverMaterial = new THREE.MeshBasicMaterial({
+    color: 0x44ff88,
+    transparent: true,
+    opacity: 0.35,
+    depthWrite: false,
+  });
+  const hoverMesh = new THREE.Mesh(new THREE.BoxGeometry(TILE * 0.95, 0.08, TILE * 0.95), hoverMaterial);
+  hoverMesh.visible = false;
+  scene.add(hoverMesh);
+
+  const raycaster = new THREE.Raycaster();
+  const groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+  function pickCell(clientX: number, clientY: number): { x: number; y: number } | null {
+    const rect = renderer.domElement.getBoundingClientRect();
+    const ndc = new THREE.Vector2(
+      ((clientX - rect.left) / rect.width) * 2 - 1,
+      -((clientY - rect.top) / rect.height) * 2 + 1,
+    );
+    raycaster.setFromCamera(ndc, camera);
+    const hit = new THREE.Vector3();
+    if (!raycaster.ray.intersectPlane(groundPlane, hit)) return null;
+    const x = Math.floor(hit.x / TILE);
+    const y = Math.floor(hit.z / TILE);
+    if (x < 0 || y < 0 || x >= state.world.width || y >= state.world.height) return null;
+    return { x, y };
+  }
+
+  function setHover(cell: { x: number; y: number } | null, valid: boolean): void {
+    if (!cell) {
+      hoverMesh.visible = false;
+      return;
+    }
+    hoverMaterial.color.setHex(valid ? 0x44ff88 : 0xff4455);
+    hoverMesh.position.set((cell.x + 0.5) * TILE, 0.05, (cell.y + 0.5) * TILE);
+    hoverMesh.visible = true;
+  }
+
   function update(current: GameState): void {
     rebuildGroup(roadGroup, current, (s) => buildRoads(s));
     rebuildGroup(depositGroup, current, (s) => buildDeposits(s));
@@ -85,7 +128,7 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   update(state);
 
-  return { update, dispose };
+  return { update, pickCell, setHover, dispose };
 }
 
 // --- orbit camera (drag rotate, wheel zoom, right-drag pan) ---------------
