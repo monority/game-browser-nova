@@ -13,6 +13,8 @@ export interface GameState {
   /** Fixed simulation tick; monotonic, starts at 0. */
   tick: number;
   resources: ResourceStock;
+  /** Aggregate population (ADR-004): one number, no individual entities. */
+  population: number;
   buildings: Record<string, Building>;
   roads: Record<string, Road>;
   /** Next deterministic entity id counters ("building-N" / "road-N"). */
@@ -27,6 +29,7 @@ export function createInitialState(config: WorldConfig): GameState {
     worldConfig: config,
     tick: 0,
     resources: createInitialResourceStock(),
+    population: 0,
     buildings: {},
     roads: {},
     buildingCounter: 1,

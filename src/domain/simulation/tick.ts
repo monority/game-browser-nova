@@ -1,18 +1,34 @@
 import type { GameState } from "./state.js";
+import { produceFood, produceWater, consumeFood, consumeWater } from "../production/production.js";
+import { updatePopulation } from "../population/population.js";
+import { assignJobs } from "../jobs/jobs.js";
 
 /**
  * Fixed deterministic simulation tick (ADR-002).
  * Phase order is part of the determinism contract; extend the list as
  * systems land. Rendering never calls into this module (ADR-001).
+ *
+ * Current pipeline (mirrors the validated phase order):
+ *   1. advanceConstruction
+ *   3. produceFood / 4. produceWater   (previous tick's staffing)
+ *   5. consumeFood (all-or-nothing) / consumeWater
+ *   6. updatePopulation (starvation + admission)
+ *   7. assignJobs (next tick's staffing)
  */
 export function stepSimulation(state: GameState): GameState {
   state.tick += 1;
 
-  // Phase 1 — construction progress (deterministic id order).
   advanceConstruction(state);
 
-  // Later phases (docs/game/05-SIMULATION.md §3) land with their slices:
-  // production, consumption, needs, population, economy, milestones.
+  produceFood(state);
+  produceWater(state);
+
+  const fed = consumeFood(state);
+  consumeWater(state);
+
+  updatePopulation(state, fed);
+
+  assignJobs(state);
 
   return state;
 }

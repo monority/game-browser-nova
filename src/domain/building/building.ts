@@ -10,6 +10,8 @@ export interface Building {
   status: BuildingStatus;
   /** Ticks remaining until operational (only meaningful while under construction). */
   constructionTicksLeft: number;
+  /** Written by the assignJobs phase; read by production next tick. */
+  staffed: boolean;
 }
 
 export function createBuilding(id: string, type: BuildingType, x: number, y: number): Building {
@@ -21,6 +23,7 @@ export function createBuilding(id: string, type: BuildingType, x: number, y: num
     y,
     status: definition.constructionTicks > 0 ? "underConstruction" : "operational",
     constructionTicksLeft: definition.constructionTicks,
+    staffed: false,
   };
 }
 
