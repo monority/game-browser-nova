@@ -41,12 +41,18 @@ describe("building placement", () => {
     expect(building.constructionTicksLeft).toBe(2);
   });
 
-  it("ids are deterministic and sequential (building-1 first)", () => {
+  it("ids are deterministic and sequential (building-1 first, anchor pre-placed)", () => {
     const state = freshState();
     applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 1 });
     applyCommand(state, { kind: "placeBuilding", type: "well", x: 2, y: 1 });
-    expect(Object.keys(state.buildings).sort()).toEqual(["building-1", "building-2"]);
+    expect(Object.keys(state.buildings).sort()).toEqual([
+      "building-1",
+      "building-2",
+      "colony-center",
+    ]);
     expect(state.buildingCounter).toBe(3);
+    // player buildings never inherit the anchor's id space
+    expect(state.buildings["building-1"]?.id).toBe("building-1");
   });
 
   it("validation rejects occupied, blocked, out-of-bounds and unaffordable placements", () => {

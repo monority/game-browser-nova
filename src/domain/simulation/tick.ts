@@ -3,6 +3,7 @@ import { produceFood, produceWater, consumeFood, consumeWater } from "../product
 import { updatePopulation } from "../population/population.js";
 import { assignJobs } from "../jobs/jobs.js";
 import { collectRevenue, payMaintenance } from "../economy/economy.js";
+import { produceStone, produceWood } from "../production/extraction.js";
 
 /**
  * Fixed deterministic simulation tick (ADR-002).
@@ -12,6 +13,7 @@ import { collectRevenue, payMaintenance } from "../economy/economy.js";
  * Current pipeline (mirrors the validated phase order):
  *   1. advanceConstruction
  *   3. produceFood / 4. produceWater   (previous tick's staffing)
+ *   4c. produceWood / 4d. produceStone (extraction from finite deposits)
  *   5. consumeFood (all-or-nothing) / consumeWater
  *   6. updatePopulation (starvation + admission)
  *   7. assignJobs (next tick's staffing)
@@ -24,6 +26,8 @@ export function stepSimulation(state: GameState): GameState {
 
   produceFood(state);
   produceWater(state);
+  produceWood(state);
+  produceStone(state);
 
   const fed = consumeFood(state);
   consumeWater(state);

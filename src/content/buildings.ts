@@ -5,7 +5,14 @@
  * capacity-1 residences, Workshop placement costs 1 Water.
  */
 
-export type BuildingType = "residence" | "farm" | "well" | "workshop";
+export type BuildingType =
+  | "residence"
+  | "farm"
+  | "well"
+  | "workshop"
+  | "lumberCamp"
+  | "quarry"
+  | "colonyCenter";
 
 export interface BuildingDefinition {
   type: BuildingType;
@@ -55,6 +62,34 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     moneyCost: 25,
     waterCost: 1,
     jobCapacity: 1,
+    housingCapacity: 0,
+  },
+  lumberCamp: {
+    type: "lumberCamp",
+    displayName: "Lumber Camp",
+    constructionTicks: 2,
+    moneyCost: 25,
+    waterCost: 0,
+    jobCapacity: 1,
+    housingCapacity: 0,
+  },
+  quarry: {
+    type: "quarry",
+    displayName: "Quarry",
+    constructionTicks: 2,
+    moneyCost: 25,
+    waterCost: 0,
+    jobCapacity: 1,
+    housingCapacity: 0,
+  },
+  colonyCenter: {
+    type: "colonyCenter",
+    displayName: "Colony Center",
+    constructionTicks: 2,
+    moneyCost: 25,
+    waterCost: 0,
+    // NOT a workplace by contract: primitive collection is unstaffed.
+    jobCapacity: 0,
     housingCapacity: 0,
   },
 };

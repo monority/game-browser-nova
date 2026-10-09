@@ -36,9 +36,18 @@ export function collectRevenue(state: GameState): { taxes: number; commerce: num
 export function operationalBuildingCount(state: GameState): number {
   let count = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.status === "operational") count += 1;
+    if (building.status === "operational" && !isMaintenanceExempt(building)) count += 1;
   }
   return count;
+}
+
+/**
+ * The Colony Center anchor is operational but does NOT pay uniform
+ * maintenance (Step004): billing the recovery capability itself would be
+ * an economy-balancing change.
+ */
+export function isMaintenanceExempt(building: { type: string }): boolean {
+  return building.type === "colonyCenter";
 }
 
 export function payMaintenance(state: GameState): number {

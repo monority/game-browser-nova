@@ -1,6 +1,7 @@
 import { BUILDING_DEFINITIONS, type BuildingType } from "../../content/buildings.js";
 import { cellKey } from "../shared/cells.js";
 import { isBlocked } from "../world/world.js";
+import { hasDepositAt } from "../world/deposits.js";
 import { allRoadCells } from "../road/road.js";
 import type { GameState } from "../simulation/state.js";
 
@@ -15,6 +16,8 @@ export type PlacementValidation =
         | "outOfBounds"
         | "blockedCell"
         | "occupied"
+        | "depositBlocked"
+        | "colonyCenterExists"
         | "insufficientMoney"
         | "insufficientWater";
     };
@@ -28,11 +31,19 @@ export function validatePlacement(
   const definition = BUILDING_DEFINITIONS[type as BuildingType];
   if (!definition) return { ok: false, reason: "unknownBuildingType" };
 
+  // The Colony Center anchor is never player-placed (day-0 bootstrap).
+  if (type === "colonyCenter") return { ok: false, reason: "colonyCenterExists" };
+
   if (x < 0 || y < 0 || x >= state.world.width || y >= state.world.height) {
     return { ok: false, reason: "outOfBounds" };
   }
   if (isBlocked(state.world, x, y)) {
     return { ok: false, reason: "blockedCell" };
+  }
+  // A building must never overwrite a world feature: a camp on its own
+  // deposit could never extract.
+  if (hasDepositAt(state.woodDeposits, x, y) || hasDepositAt(state.stoneDeposits, x, y)) {
+    return { ok: false, reason: "depositBlocked" };
   }
 
   const key = cellKey(x, y);

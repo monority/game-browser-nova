@@ -1,5 +1,6 @@
 import { cellKey } from "../shared/cells.js";
 import { createRng, hashString } from "../shared/rng.js";
+import type { DepositSeed } from "./deposits.js";
 
 /** World generation parameters (ADR-005: deterministic from seed + parameters). */
 export interface WorldConfig {
@@ -8,6 +9,10 @@ export interface WorldConfig {
   height: number;
   /** Explicitly blocked cells from configuration, normalized + deduped. */
   blockedCells?: readonly string[];
+  /** Finite wood deposits, normalized + deduped by cell. */
+  woodDeposits?: readonly DepositSeed[];
+  /** Finite stone deposits, normalized + deduped by cell. */
+  stoneDeposits?: readonly DepositSeed[];
 }
 
 export interface World {

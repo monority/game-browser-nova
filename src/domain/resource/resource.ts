@@ -9,6 +9,8 @@ export interface ResourceStock {
   food: number;
   water: number;
   money: number;
+  wood: number;
+  stone: number;
 }
 
 export const INITIAL_TREASURY = 100;
@@ -20,6 +22,8 @@ export function createInitialResourceStock(): ResourceStock {
     food: INITIAL_FOOD,
     water: INITIAL_WATER,
     money: INITIAL_TREASURY,
+    wood: 0,
+    stone: 0,
   };
 }
 
@@ -45,5 +49,25 @@ export function deductFood(stock: ResourceStock, amount: number): number {
 export function deductWater(stock: ResourceStock, amount: number): number {
   const taken = Math.min(stock.water, amount);
   stock.water -= taken;
+  return taken;
+}
+
+export function addWood(stock: ResourceStock, amount: number): void {
+  stock.wood = Math.max(0, stock.wood + amount);
+}
+
+export function addStone(stock: ResourceStock, amount: number): void {
+  stock.stone = Math.max(0, stock.stone + amount);
+}
+
+export function deductWood(stock: ResourceStock, amount: number): number {
+  const taken = Math.min(stock.wood, amount);
+  stock.wood -= taken;
+  return taken;
+}
+
+export function deductStone(stock: ResourceStock, amount: number): number {
+  const taken = Math.min(stock.stone, amount);
+  stock.stone -= taken;
   return taken;
 }
