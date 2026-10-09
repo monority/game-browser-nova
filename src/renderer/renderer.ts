@@ -314,7 +314,10 @@ function rebuildGroup(
 ): void {
   disposeGroup(group);
   const rebuilt = build(state);
-  group.add(...rebuilt.children);
+  for (const child of rebuilt.children) {
+    if (!child) console.error("NOVA-DEBUG: undefined child in", group.id ?? group.type, "from", build.name);
+    else group.add(child);
+  }
   rebuilt.clear();
 }
 
