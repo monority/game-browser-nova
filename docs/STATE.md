@@ -25,16 +25,22 @@ Never mark a feature complete without implementation and validation evidence.
 
 | Field | Value |
 |---|---|
-| Branch | `master` (tracks `Nova/master`, ahead 1) |
-| HEAD | `5700172` — docs(nova): raise doc grades — links, STATE, Step001, D1/D2/D4 decisions |
-| Working tree | `DIRTY` — Step002 foundation pass: AGENTS.md + docs corpus rewrite, 90 test files migrated to the Step001 money model, `audits.txt` debug log removed; see `docs/roadmap/Step002-money-suite-green.md` |
+| Branch | `master` (local only; no remote configured) |
+| HEAD | `2f56a2f` — test(e2e): Playwright smoke + critical flows (P10) |
+| Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-08) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-08) |
-| Unit tests | PASS — `npx vitest run`: 124 files / 1908 tests, all green (2026-10-08, Step006) |
-| E2E | PASS — full suite: 27/27 scripts, 0 failed (Step003 pass, 2026-10-08); two pre-existing single-read hover races noted (pass in isolation) |
-| Build | PASS — `npm run build` (tsc -p tsconfig.build.json + vite build) (2026-10-08) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-09) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-09) |
+| Unit tests | PASS — `npx vitest run`: 6 files / 91 tests, all green (2026-10-09) |
+| E2E | PASS — Playwright: 5/5 scenarios (2026-10-09, P10) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-09) |
+
+> **Rebuild note (2026-10-09):** this repository was intentionally reset to
+> docs-only and the implementation was rebuilt from the documented contract
+> (docs/game/, docs/adr/, roadmap Steps 001–006). The historical test counts
+> (1908 unit / 336 E2E checks) and SAVE_VERSION 4→12 migration chain of the
+> pre-reset repository do NOT apply here. See `docs/roadmap/Step007-rebuild-from-contract.md`.
 
 Update these values from actual command output.
 
@@ -44,23 +50,26 @@ Update these values from actual command output.
 
 | Area | Status | Evidence / Notes |
 |---|---|---|
-| Foundation | IMPLEMENTED | `src/domain` (pure simulation), `src/application` (queries/scenarios), `src/renderer`, `src/app/main.ts`; strict TS, single runtime dependency `three` |
-| World | IMPLEMENTED | seeded terrain, blocked cells (`src/domain/world`, terrain E2E) |
-| Camera | IMPLEMENTED | Three.js orbit/pan camera (`src/renderer`) |
-| Construction | IMPLEMENTED | placement commands, road drag, 2-tick construction, Construction Crew (09H/10AD) |
-| Population | IMPLEMENTED | aggregate colonists, admission gate (housing + Food + Water), deterministic growth |
-| Housing | IMPLEMENTED | residences, capacity 1 each, service queries |
-| Needs | IMPLEMENTED | Food 1/colonist/tick all-or-nothing; Water 1/served colonist/tick |
-| Production | IMPLEMENTED | Farms 2 Food/tick, Wells 2 Water/tick; Workshops earn commerce (no physical output) |
-| Storage | PARTIAL | Food/Water uncapped colony stocks; treasury uncapped; per-Workshop storage cap removed with the Material resource in Step001 |
-| Logistics | IMPLEMENTED | road networks, road access for staffing + commerce, per-network Water coverage |
-| Analysis | IMPLEMENTED | stats surface (money/taxes/commerce/revenue/maintenance/netMoney), inspection panel, food forecast |
-| Economy | IMPLEMENTED | Step001 money model: treasury 100 start, tax 1/inhabitant/tick, commerce 2/connected Workshop/tick, maintenance 1/operational building/tick, uncapped treasury |
-| Environment | UNKNOWN | not inspected this pass |
-| Technology | PLANNED | no implementation found |
-| Ages | PLANNED | progression stages implemented (wilderness→village→settlement→town); Age system is not |
-| Persistence | IMPLEMENTED | versioned save/load, `SAVE_VERSION = 13` (Step003 wood + Step004 anchor + Step005 stone + Step006 planks: `resources.wood/stone/planks`, `woodDeposits`/`stoneDeposits`), canonical hash, deterministic continuation |
-| Performance | UNKNOWN | no measurements taken this pass |
+| Foundation | IMPLEMENTED | TypeScript strict (`noUncheckedIndexedAccess`), Vite, Vitest, ESLint flat, pnpm; single runtime dependency `three` |
+| World | IMPLEMENTED | seeded terrain (explicit + 6% seeded obstacles), blocked cells, bounds validation (`src/domain/world`) |
+| Camera | IMPLEMENTED | orbit/pan/zoom (`src/renderer`), drag + wheel |
+| Construction | IMPLEMENTED | placement commands with full validation (occupied/blocked/bounds/deposits/affordability), road drag, 2-tick construction, money + plank + water costs |
+| Population | IMPLEMENTED | aggregate population number (ADR-004), food-gated admission with water headroom + bootstrap exemption for the first colonist |
+| Housing | IMPLEMENTED | residences, capacity 1 each, derived housing capacity |
+| Needs | IMPLEMENTED | Food 1/colonist/tick all-or-nothing (starvation removes all); Water 1/served colonist/tick |
+| Production | IMPLEMENTED | Farms/Wells +2/tick staffed; extraction +2/tick from adjacent finite deposits; Workshop transformation 2 Wood → 1 Plank/tick staffed |
+| Deposits | IMPLEMENTED | finite cell-keyed wood/stone deposits; exhaustion keeps entry at 0; placement on deposits refused |
+| Colony Center | IMPLEMENTED | day-0 anchor, operational at tick 0, unstaffed 1 wood/tick, maintenance-exempt, never player-placed, bottom-right-most deterministic placement |
+| Economy | IMPLEMENTED | Step001 money model: treasury 100 start, tax 1/inhabitant/tick, commerce 2/connected Workshop/tick (staffing-independent), maintenance 1/operational building/tick, uncapped treasury clamped ≥ 0 |
+| Storage | PARTIAL | Food/Water uncapped colony stocks; treasury uncapped; no storage capacity mechanics (StorageHub never rebuilt — audit D5 consciously parked) |
+| Logistics | PARTIAL | road networks + road access for staffing and commerce (orthogonal components); no distance/congestion/capacity effects |
+| Analysis | IMPLEMENTED | derived stats query (revenue breakdown, maintenance, net money, housing capacity), stats panel, inspection status line |
+| UI | IMPLEMENTED | build palette (with plank costs), road mode, hover validity highlight, time controls (pause/1×/2×/4×/8×), save/load, status feedback |
+| Environment | PLANNED | no pollution/environment model |
+| Technology | PLANNED | no implementation |
+| Ages | PLANNED | no implementation (no settlement/village/town stages in the rebuild) |
+| Persistence | IMPLEMENTED | `SAVE_VERSION = 13` only — no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests |
+| Performance | UNKNOWN | no measurements taken |
 
 ---
 
@@ -70,7 +79,9 @@ Only confirmed issues belong here.
 
 | Issue | Impact | Status |
 |---|---|---|
-| Step001 baseline is net-negative for typical colonies (e.g. revenue 4 vs maintenance 5 for a 2-colonist village with a Workshop): the `water-reserve-industry` scenario cannot fund its promised second Well | Scenario promises are unfundable; commerce rarely beats maintenance | OPEN — D1 income/expense balance, deliberately deferred (see `docs/roadmap/Step002-money-suite-green.md` §D1); needs a product decision |
+| Step001 baseline is net-negative for typical colonies (e.g. revenue 4 vs maintenance 5 with a Workshop): documented D1 finding | Colony shapes can bleed money by design; scenario premises unfundable | OPEN — D1 income/expense balance deliberately deferred; needs a product decision (unchanged from pre-reset documentation) |
+| Commerce is a subsidy mechanic (2/tick for a connected operational Workshop regardless of inputs) while the Workshop also transforms wood → planks; documented physical/commerce separation | Workshop earns commerce from existence, contradicting the transformation principle (audit D3/D6) | DEFERRED — re-anchoring blocked on the D1 product decision |
+| Water coverage is a global stock gate (no per-network coverage) | Simplification vs. the pre-reset per-network water contract | ACCEPTED for the rebuild (aggregate MVP model per ADR-003); revisit if water logistics design lands |
 
 ---
 
@@ -84,7 +95,10 @@ Examples of explicitly deferred systems:
 - colonies;
 - war;
 - advanced global economy;
-- advanced events.
+- advanced events;
+- demolition/removal commands;
+- storage capacity mechanics;
+- fertility/environment.
 
 Do not implement deferred scope without an explicit product decision.
 
@@ -92,7 +106,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step006 (first physical transformation: Workshop 2 Wood → 1 Plank) — complete; see `docs/roadmap/Step006-first-transformation.md`.
+Step007 (rebuild from documented contract, through the Step006 transformation slice) — complete; see `docs/roadmap/Step007-rebuild-from-contract.md`.
 
 ---
 
