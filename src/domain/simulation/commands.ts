@@ -3,6 +3,7 @@ import { validatePlacement, validateRoads, type PlacementValidation, type RoadVa
 import { createBuilding } from "../building/building.js";
 import { createRoad } from "../road/road.js";
 import { parseCellKey } from "../shared/cells.js";
+import { deductPlanks } from "../resource/resource.js";
 import type { GameState } from "./state.js";
 
 /**
@@ -41,6 +42,7 @@ function applyPlaceBuilding(
   const definition = BUILDING_DEFINITIONS[type];
   state.resources.money -= definition.moneyCost;
   state.resources.water = Math.max(0, state.resources.water - definition.waterCost);
+  deductPlanks(state.resources, definition.plankCost); // atomic, clamped >= 0
 
   const id = `building-${state.buildingCounter}`;
   state.buildingCounter += 1;

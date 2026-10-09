@@ -44,6 +44,7 @@ function placeExtractor(
   const spot = candidates.find((c) => !state.world.blockedCells[cellKey(c.x, c.y)]);
   if (!spot) throw new Error("no buildable cell adjacent to deposit");
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(spot.x + 1, spot.y)] }));
+  if (type === "quarry") state.resources.planks = Math.max(state.resources.planks, 5);
   mustOk(applyCommand(state, { kind: "placeBuilding", type, x: spot.x, y: spot.y }));
   state.population = 1; // staffs the workplace at end of tick 2
   stepTicks(state, 2);

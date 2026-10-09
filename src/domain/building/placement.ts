@@ -19,7 +19,8 @@ export type PlacementValidation =
         | "depositBlocked"
         | "colonyCenterExists"
         | "insufficientMoney"
-        | "insufficientWater";
+        | "insufficientWater"
+        | "insufficientPlanks";
     };
 
 export function validatePlacement(
@@ -61,6 +62,11 @@ export function validatePlacement(
   }
   if (state.resources.water < definition.waterCost) {
     return { ok: false, reason: "insufficientWater" };
+  }
+  // Planks are never masked by same-tick revenue: direct stock check
+  // (mirrors the Water rule, Step006).
+  if (state.resources.planks < definition.plankCost) {
+    return { ok: false, reason: "insufficientPlanks" };
   }
 
   return { ok: true };

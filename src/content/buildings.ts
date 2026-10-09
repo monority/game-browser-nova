@@ -19,6 +19,8 @@ export interface BuildingDefinition {
   displayName: string;
   constructionTicks: number;
   moneyCost: number;
+  /** One-off plank cost (physical materials, Step006). */
+  plankCost: number;
   /** One-off water consumed on placement. */
   waterCost: number;
   /** Workplace job slots (staffing requires a road connection). */
@@ -33,6 +35,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     displayName: "Residence",
     constructionTicks: 2,
     moneyCost: 25,
+    plankCost: 0,
     waterCost: 0,
     jobCapacity: 0,
     housingCapacity: 1,
@@ -42,6 +45,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     displayName: "Farm",
     constructionTicks: 2,
     moneyCost: 25,
+    plankCost: 0,
     waterCost: 0,
     jobCapacity: 1,
     housingCapacity: 0,
@@ -51,6 +55,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     displayName: "Well",
     constructionTicks: 2,
     moneyCost: 25,
+    plankCost: 0,
     waterCost: 0,
     jobCapacity: 1,
     housingCapacity: 0,
@@ -60,6 +65,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     displayName: "Workshop",
     constructionTicks: 2,
     moneyCost: 25,
+    plankCost: 0,
     waterCost: 1,
     jobCapacity: 1,
     housingCapacity: 0,
@@ -69,6 +75,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     displayName: "Lumber Camp",
     constructionTicks: 2,
     moneyCost: 25,
+    plankCost: 0,
     waterCost: 0,
     jobCapacity: 1,
     housingCapacity: 0,
@@ -78,6 +85,8 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     displayName: "Quarry",
     constructionTicks: 2,
     moneyCost: 25,
+    // narrow downstream plank use (Step006): exactly one building
+    plankCost: 5,
     waterCost: 0,
     jobCapacity: 1,
     housingCapacity: 0,
@@ -87,6 +96,7 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     displayName: "Colony Center",
     constructionTicks: 2,
     moneyCost: 25,
+    plankCost: 0,
     waterCost: 0,
     // NOT a workplace by contract: primitive collection is unstaffed.
     jobCapacity: 0,

@@ -4,6 +4,7 @@ import { updatePopulation } from "../population/population.js";
 import { assignJobs } from "../jobs/jobs.js";
 import { collectRevenue, payMaintenance } from "../economy/economy.js";
 import { produceStone, produceWood } from "../production/extraction.js";
+import { producePlanks } from "../production/transformation.js";
 
 /**
  * Fixed deterministic simulation tick (ADR-002).
@@ -14,6 +15,7 @@ import { produceStone, produceWood } from "../production/extraction.js";
  *   1. advanceConstruction
  *   3. produceFood / 4. produceWater   (previous tick's staffing)
  *   4c. produceWood / 4d. produceStone (extraction from finite deposits)
+ *   4e. producePlanks (Workshop transformation, 2 wood → 1 plank)
  *   5. consumeFood (all-or-nothing) / consumeWater
  *   6. updatePopulation (starvation + admission)
  *   7. assignJobs (next tick's staffing)
@@ -28,6 +30,7 @@ export function stepSimulation(state: GameState): GameState {
   produceWater(state);
   produceWood(state);
   produceStone(state);
+  producePlanks(state);
 
   const fed = consumeFood(state);
   consumeWater(state);
