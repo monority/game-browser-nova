@@ -1,12 +1,13 @@
 import type { GameState } from "../simulation/state.js";
 import { isAdjacentToRoad } from "../network/network.js";
+import { isActive } from "../building/building.js";
 import { BUILDING_DEFINITIONS } from "../../content/buildings.js";
 
-/** Housing capacity = operational residences × capacity (1 each, documented). */
+/** Housing capacity = active operational residences × capacity (1 each). */
 export function housingCapacity(state: GameState): number {
   let capacity = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.status !== "operational") continue;
+    if (!isActive(building)) continue;
     capacity += BUILDING_DEFINITIONS[building.type].housingCapacity;
   }
   return capacity;
@@ -16,7 +17,7 @@ export function housingCapacity(state: GameState): number {
 export function availableJobs(state: GameState): number {
   let jobs = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.status !== "operational") continue;
+    if (!isActive(building)) continue;
     if (BUILDING_DEFINITIONS[building.type].jobCapacity === 0) continue;
     if (!isAdjacentToRoad(state.roads, building.x, building.y)) continue;
     jobs += BUILDING_DEFINITIONS[building.type].jobCapacity;

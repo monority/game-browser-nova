@@ -1,5 +1,5 @@
 import { BUILDING_DEFINITIONS, ROAD_MONEY_COST_PER_CELL, type BuildingType } from "../../content/buildings.js";
-import { validatePlacement, validateRoads, validateRemoval, validateRoadRemoval, type PlacementValidation, type RoadValidation, type RemovalValidation, type RoadRemovalValidation } from "../building/placement.js";
+import { validatePlacement, validateRoads, validateRemoval, validateRoadRemoval, validateSetActivation, type PlacementValidation, type RoadValidation, type RemovalValidation, type RoadRemovalValidation, type ActivationValidation } from "../building/placement.js";
 import { createBuilding } from "../building/building.js";
 import { createRoad } from "../road/road.js";
 import { parseCellKey } from "../shared/cells.js";
@@ -17,7 +17,8 @@ export type Command =
   | { kind: "placeBuilding"; type: BuildingType; x: number; y: number }
   | { kind: "placeRoads"; cells: readonly string[] }
   | { kind: "removeBuilding"; id: string }
-  | { kind: "removeRoads"; cells: readonly string[] };
+  | { kind: "removeRoads"; cells: readonly string[] }
+  | { kind: "setBuildingActive"; id: string; active: boolean };
 
 export type CommandResult =
   | { ok: true }
@@ -33,6 +34,8 @@ export function applyCommand(state: GameState, command: Command): CommandResult 
       return applyRemoveBuilding(state, command.id);
     case "removeRoads":
       return applyRemoveRoads(state, command.cells);
+    case "setBuildingActive":
+      return applySetBuildingActive(state, command.id, command.active);
   }
 }
 
@@ -94,5 +97,21 @@ function applyRemoveRoads(state: GameState, cells: readonly string[]): CommandRe
       break;
     }
   }
+  return { ok: true };
+}
+
+/**
+ * Mothball toggle (Step009). The flag flips immediately; all economic
+ * effects (maintenance relief, lost output) land at the next simulation
+ * tick's phases — no same-tick exploit. Reactivation is free; the cost is
+ * the lost output during inactivity.
+ */
+function applySetBuildingActive(state: GameState, id: string, active: boolean): CommandResult {
+  const validation: ActivationValidation = validateSetActivation(state, id);
+  if (!validation.ok) return validation;
+  const building = state.buildings[id];
+  if (!building) return { ok: false, reason: "unknownBuilding" };
+  building.active = active;
+  if (!active) building.staffed = false; // production reads active anyway; keep flags honest
   return { ok: true };
 }

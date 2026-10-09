@@ -1,4 +1,5 @@
 import type { GameState } from "../simulation/state.js";
+import { isActive } from "../building/building.js";
 import { addPlanks, deductWood } from "../resource/resource.js";
 
 /**
@@ -21,7 +22,7 @@ export function staffedWorkshops(state: GameState): number {
   for (const building of Object.values(state.buildings)) {
     if (
       building.type === "workshop" &&
-      building.status === "operational" &&
+      isActive(building) &&
       building.staffed
     ) {
       count += 1;

@@ -1,4 +1,5 @@
 import type { GameState } from "../simulation/state.js";
+import { isActive } from "../building/building.js";
 import { addFood, addWater, deductFood } from "../resource/resource.js";
 
 export const FOOD_PER_FARM_PER_TICK = 2;
@@ -10,7 +11,7 @@ export const WATER_PER_SERVED_COLONIST_PER_TICK = 1;
 export function produceFood(state: GameState): void {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.type === "farm" && building.status === "operational" && building.staffed) {
+    if (building.type === "farm" && isActive(building) && building.staffed) {
       produced += FOOD_PER_FARM_PER_TICK;
     }
   }
@@ -21,7 +22,7 @@ export function produceFood(state: GameState): void {
 export function produceWater(state: GameState): void {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.type === "well" && building.status === "operational" && building.staffed) {
+    if (building.type === "well" && isActive(building) && building.staffed) {
       produced += WATER_PER_WELL_PER_TICK;
     }
   }

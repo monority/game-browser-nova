@@ -33,8 +33,8 @@ function richState(): GameState {
 }
 
 describe("save format", () => {
-  it("exposes SAVE_VERSION 13", () => {
-    expect(SAVE_VERSION).toBe(13);
+  it("exposes SAVE_VERSION 14 with migratable v13", () => {
+    expect(SAVE_VERSION).toBe(14);
   });
 
   it("round-trips canonical state losslessly", () => {

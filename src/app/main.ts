@@ -88,6 +88,18 @@ export function boot(root: HTMLElement): { stop(): void } {
       renderer.update(state);
       refreshStats();
     },
+    onSetBuildingActive: (id, active) => {
+      const result = applyCommand(state, { kind: "setBuildingActive", id, active });
+      ui.setStatus(
+        result.ok ? (active ? "Reactivated — takes effect next tick." : "Mothballed — maintenance relief next tick.") : `Cannot change state: ${result.reason}`,
+      );
+      renderer.update(state);
+      refreshStats();
+      // re-render the inspection panel so the Mothball/Reactivate button flips
+      const building = state.buildings[id];
+      if (building) inspectAt(building.x, building.y);
+      else ui.showInspection(null);
+    },
   });
 
   function swapState(next: GameState): void {
@@ -176,7 +188,8 @@ export function boot(root: HTMLElement): { stop(): void } {
         ui.showInspection({
           kind: "building",
           id: building.id,
-          label: `${building.id} — ${building.type} · ${building.status}`,
+          label: `${building.id} — ${building.type} · ${building.status}${building.active ? "" : " · mothballed"}`,
+          active: building.active,
         });
         return;
       }
@@ -220,6 +233,8 @@ export function boot(root: HTMLElement): { stop(): void } {
   nova.__nova = {
     getState: () => state,
     stats: () => getColonyStats(state),
+    command: (command: unknown) =>
+      applyCommand(state, command as Parameters<typeof applyCommand>[1]),
   };
 
   return {

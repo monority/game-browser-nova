@@ -126,6 +126,23 @@ export function validateRemoval(state: GameState, id: string): RemovalValidation
   return { ok: true };
 }
 
+/** Mothball activation validation (Step009). The anchor is always active. */
+export type ActivationValidation =
+  | { ok: true }
+  | { ok: false; reason: "unknownBuilding" | "anchorProtected" };
+
+export function validateSetActivation(
+  state: GameState,
+  id: string,
+): ActivationValidation {
+  const building = state.buildings[id];
+  if (!building) return { ok: false, reason: "unknownBuilding" };
+  // Billing/protecting the recovery capability was settled in Step004:
+  // the Colony Center is always active and can never be mothballed.
+  if (building.type === "colonyCenter") return { ok: false, reason: "anchorProtected" };
+  return { ok: true };
+}
+
 export type RoadRemovalValidation =
   | { ok: true }
   | { ok: false; reason: "emptyPath" | "unknownRoadCell" };

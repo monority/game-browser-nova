@@ -1,4 +1,5 @@
 import type { GameState } from "../simulation/state.js";
+import { isActive } from "../building/building.js";
 import { extractAdjacent } from "../world/deposits.js";
 import { addStone, addWood } from "../resource/resource.js";
 
@@ -30,7 +31,7 @@ function extractShares(
 export function produceWood(state: GameState): void {
   const sources: Array<{ x: number; y: number; share: number }> = [];
   for (const building of Object.values(state.buildings)) {
-    if (building.status !== "operational") continue;
+    if (!isActive(building)) continue;
     if (building.type === "lumberCamp" && building.staffed) {
       sources.push({ x: building.x, y: building.y, share: WOOD_PER_LUMBER_CAMP_PER_TICK });
     }
@@ -49,7 +50,7 @@ export function produceStone(state: GameState): void {
   for (const building of Object.values(state.buildings)) {
     if (
       building.type === "quarry" &&
-      building.status === "operational" &&
+      isActive(building) &&
       building.staffed
     ) {
       sources.push({ x: building.x, y: building.y, share: STONE_PER_QUARRY_PER_TICK });

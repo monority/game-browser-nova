@@ -21,7 +21,9 @@ import type { WorldConfig } from "../../domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 13;
+export const SAVE_VERSION = 14;
+/** Oldest save version this build can migrate forward. */
+export const MIGRATABLE_SAVE_VERSION = 13;
 
 export interface SaveDocument {
   formatVersion: number;
@@ -67,15 +69,18 @@ export function serialize(state: GameState): SaveDocument {
   };
 }
 
-export function parseSave(document: unknown): GameState {
-  if (!isRecord(document)) throw new SaveValidationError("save is not an object");
-  if (document.formatVersion !== SAVE_VERSION) {
+export function parseSave(input: unknown): GameState {
+  if (!isRecord(input)) throw new SaveValidationError("save is not an object");
+  const version = input.formatVersion;
+  if (version !== SAVE_VERSION && version !== SAVE_VERSION - 1) {
     throw new SaveValidationError(
-      `unsupported save version: ${String(document.formatVersion)} (expected ${SAVE_VERSION})`,
+      `unsupported save version: ${String(version)} (expected ${SAVE_VERSION}, migratable from ${MIGRATABLE_SAVE_VERSION})`,
     );
   }
+  const doc: Record<string, unknown> =
+    version === SAVE_VERSION - 1 ? migrateV13ToV14(input) : input;
 
-  const world = document.world;
+  const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
   const config: WorldConfig = {
     seed: expectString(world.seed, "world.seed"),
@@ -87,12 +92,12 @@ export function parseSave(document: unknown): GameState {
   };
   const generated = createWorld(config); // deterministic regeneration (ADR-005)
 
-  const deposits = document.deposits;
+  const deposits = doc.deposits;
   if (!isRecord(deposits)) throw new SaveValidationError("save.deposits missing");
   const woodDeposits = expectDeposits(deposits.wood, "deposits.wood");
   const stoneDeposits = expectDeposits(deposits.stone, "deposits.stone");
 
-  const resources = document.resources;
+  const resources = doc.resources;
   if (!isRecord(resources)) throw new SaveValidationError("save.resources missing");
   const stock: ResourceStock = {
     food: expectNonNegativeNumber(resources.food, "resources.food"),
@@ -103,11 +108,11 @@ export function parseSave(document: unknown): GameState {
     planks: expectNonNegativeNumber(resources.planks, "resources.planks"),
   };
 
-  if (!Array.isArray(document.buildings)) {
+  if (!Array.isArray(doc.buildings)) {
     throw new SaveValidationError("save.buildings must be an array");
   }
   const buildings: Record<string, Building> = {};
-  for (const raw of document.buildings) {
+  for (const raw of doc.buildings) {
     if (!isRecord(raw)) throw new SaveValidationError("building must be an object");
     const id = expectString(raw.id, "building.id");
     const type = expectString(raw.type, "building.type") as BuildingType;
@@ -130,25 +135,26 @@ export function parseSave(document: unknown): GameState {
         "building.constructionTicksLeft",
       ),
       staffed: expectBoolean(raw.staffed, "building.staffed"),
+      active: expectBoolean(raw.active, "building.active"),
     };
   }
   if (!buildings["colony-center"]) {
     throw new SaveValidationError("save is missing the Colony Center anchor");
   }
 
-  if (!Array.isArray(document.roads)) throw new SaveValidationError("save.roads must be an array");
+  if (!Array.isArray(doc.roads)) throw new SaveValidationError("save.roads must be an array");
   const roads: Record<string, Road> = {};
-  for (const raw of document.roads) {
+  for (const raw of doc.roads) {
     if (!isRecord(raw)) throw new SaveValidationError("road must be an object");
     const id = expectString(raw.id, "road.id");
     if (roads[id]) throw new SaveValidationError(`duplicate road id: ${id}`);
     roads[id] = { id, cells: expectCellKeyArray(raw.cells, "road.cells") };
   }
 
-  const population = expectNonNegativeInt(document.population, "population");
-  const tick = expectNonNegativeInt(document.tick, "tick");
-  const buildingCounter = expectPositiveInt(document.buildingCounter, "buildingCounter");
-  const roadCounter = expectPositiveInt(document.roadCounter, "roadCounter");
+  const population = expectNonNegativeInt(doc.population, "population");
+  const tick = expectNonNegativeInt(doc.tick, "tick");
+  const buildingCounter = expectPositiveInt(doc.buildingCounter, "buildingCounter");
+  const roadCounter = expectPositiveInt(doc.roadCounter, "roadCounter");
 
   return {
     world: generated,
@@ -167,6 +173,24 @@ export function parseSave(document: unknown): GameState {
 
 export function saveToString(state: GameState): string {
   return JSON.stringify(serialize(state));
+}
+
+/**
+ * v13 → v14 (Step009): add the mothball flag, defaulting every existing
+ * building to active — value-preserving, no existing field renamed.
+ */
+function migrateV13ToV14(document: Record<string, unknown>): Record<string, unknown> {
+  const buildings = document.buildings;
+  if (!Array.isArray(buildings)) {
+    throw new SaveValidationError("save.buildings must be an array");
+  }
+  return {
+    ...document,
+    formatVersion: SAVE_VERSION,
+    buildings: buildings.map((raw) =>
+      isRecord(raw) ? { active: true, ...raw } : raw,
+    ),
+  };
 }
 
 export function parseSaveString(text: string): GameState {

@@ -42,6 +42,7 @@ export interface RemoveBuildingInfo {
   kind: "building";
   id: string;
   label: string;
+  active: boolean;
 }
 
 export interface RemoveRoadInfo {
@@ -60,6 +61,7 @@ export interface UiCallbacks {
   onLoad(): void;
   onRemoveBuilding(id: string): void;
   onRemoveRoadCell(cell: string): void;
+  onSetBuildingActive(id: string, active: boolean): void;
 }
 
 export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
@@ -143,6 +145,14 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   root.appendChild(inspection.element);
   const inspectionLabel = document.createElement("div");
   inspectionLabel.style.marginBottom = "6px";
+  const deactivateButton = textButton("Mothball", "deactivate-building", () => {
+    const info = currentInspection;
+    if (info && info.kind === "building") callbacks.onSetBuildingActive(info.id, false);
+  });
+  const reactivateButton = textButton("Reactivate", "reactivate-building", () => {
+    const info = currentInspection;
+    if (info && info.kind === "building") callbacks.onSetBuildingActive(info.id, true);
+  });
   const removeBuildingButton = textButton("Remove", "remove-building", () => {
     const info = currentInspection;
     if (info && info.kind === "building") callbacks.onRemoveBuilding(info.id);
@@ -201,11 +211,17 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
       inspectionLabel.textContent = info.label;
       inspection.element.appendChild(inspectionLabel);
       if (info.kind === "building") {
-        inspection.element.appendChild(
-          info.id === "colony-center"
-            ? staticNote("The Colony Center anchor cannot be removed.")
-            : removeBuildingButton,
-        );
+        if (info.id === "colony-center") {
+          inspection.element.appendChild(
+            staticNote("The Colony Center anchor cannot be removed or mothballed."),
+          );
+        } else if (info.active) {
+          inspection.element.appendChild(deactivateButton);
+          inspection.element.appendChild(removeBuildingButton);
+        } else {
+          inspection.element.appendChild(reactivateButton);
+          inspection.element.appendChild(removeBuildingButton);
+        }
       } else {
         inspection.element.appendChild(removeRoadButton);
       }

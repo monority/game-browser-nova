@@ -1,5 +1,6 @@
 import type { GameState } from "../simulation/state.js";
 import { isAdjacentToRoad } from "../network/network.js";
+import { isActive } from "../building/building.js";
 import { addMoney } from "../resource/resource.js";
 
 /**
@@ -19,7 +20,7 @@ export function connectedWorkshops(state: GameState): number {
   let count = 0;
   for (const building of Object.values(state.buildings)) {
     if (building.type !== "workshop") continue;
-    if (building.status !== "operational") continue;
+    if (!isActive(building)) continue;
     if (!isAdjacentToRoad(state.roads, building.x, building.y)) continue;
     count += 1;
   }
@@ -36,7 +37,8 @@ export function collectRevenue(state: GameState): { taxes: number; commerce: num
 export function operationalBuildingCount(state: GameState): number {
   let count = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.status === "operational" && !isMaintenanceExempt(building)) count += 1;
+    // deactivated (mothballed) buildings pay no maintenance (Step009)
+    if (isActive(building) && !isMaintenanceExempt(building)) count += 1;
   }
   return count;
 }

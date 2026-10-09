@@ -246,6 +246,142 @@ test.describe("NOVA critical flows", () => {
     expect(replaced.money).toBe(afterRemove.money - 25);
   });
 
+  test("deactivation flow: inspect → mothball → stats drop → reactivate → restored", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+
+    // place + mature a residence
+    await page.locator("button[data-build-type='residence']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
+        ),
+      )
+      .toBe(1);
+    await page.getByRole("button", { name: "pause", exact: true }).click();
+
+    // inspect → mothball (deselect palette first)
+    await page.locator("button[data-build-type='residence']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    const mothball = page.locator("button[data-action='deactivate-building']");
+    await expect(mothball).toBeVisible();
+    await mothball.click();
+
+    const afterDeactivate = await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      const residence = Object.values(s.buildings).find((b) => b.type === "residence");
+      return {
+        active: residence?.active,
+        maintenance: h.stats().maintenancePerTick,
+        housing: h.stats().housingCapacity,
+      };
+    });
+    expect(afterDeactivate.active).toBe(false);
+    expect(afterDeactivate.maintenance).toBe(0); // relief at next calculation
+    expect(afterDeactivate.housing).toBe(0); // houses no one
+
+    // inspection reflects the mothballed state → reactivate
+    await expect(page.locator("button[data-action='reactivate-building']")).toBeVisible();
+    await page.locator("button[data-action='reactivate-building']").click();
+    const afterReactivate = await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      const residence = Object.values(s.buildings).find((b) => b.type === "residence");
+      return {
+        active: residence?.active,
+        maintenance: h.stats().maintenancePerTick,
+        housing: h.stats().housingCapacity,
+      };
+    });
+    expect(afterReactivate.active).toBe(true);
+    expect(afterReactivate.maintenance).toBe(1); // restored
+    expect(afterReactivate.housing).toBe(1);
+  });
+
+  test("healthy growth: deterministic colony reaches 5 inhabitants", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+
+    // programmatic deterministic build via the diagnostics command surface:
+    // 6-long road strip, workplaces in canonical staffing order (3 wells on
+    // lower rows for early water, 4 farms above), 6 residences elsewhere.
+    const built = await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      s.resources.money = 500;
+      s.resources.water = 10; // admission headroom during the growth race
+      const key = (x: number, y: number) => `${x},${y}`;
+      const free = (x: number, y: number) =>
+        x >= 0 && y >= 0 && x < s.world.width && y < s.world.height &&
+        !s.world.blockedCells[key(x, y)];
+      let strip: { x: number; y: number; side: number } | null = null;
+      for (let y = 0; y < s.world.height - 6 && !strip; y++) {
+        for (let x = 0; x < s.world.width && !strip; x++) {
+          for (const side of [1, -1] as const) {
+            const cells = Array.from({ length: 6 }, (_, i) => [x, y + i, x + side, y + i] as const);
+            if (cells.every(([rx, ry, wx, wy]) => free(rx, ry) && free(wx, wy))) {
+              strip = { x, y, side };
+            }
+          }
+        }
+      }
+      if (!strip) return { ok: false };
+      const st = strip as { x: number; y: number; side: number };
+      h.command({ kind: "placeRoads", cells: Array.from({ length: 6 }, (_, i) => key(st.x, st.y + i)) });
+      const order: Array<["well" | "farm", number]> = [
+        ["well", 0], ["well", 1], ["well", 2], ["farm", 3], ["farm", 4], ["farm", 5],
+      ];
+      for (const [type, i] of order) {
+        const r = h.command({ kind: "placeBuilding", type, x: st.x + st.side, y: st.y + i });
+        if (!r.ok) return { ok: false, reason: r.reason };
+      }
+      const used = new Set<string>([
+        ...Array.from({ length: 6 }, (_, i) => key(st.x, st.y + i)),
+        ...Array.from({ length: 6 }, (_, i) => key(st.x + st.side, st.y + i)),
+      ]);
+      let homes = 0;
+      for (let y = 0; y < s.world.height && homes < 6; y++) {
+        for (let x = 0; x < s.world.width && homes < 6; x++) {
+          if (used.has(key(x, y)) || !free(x, y)) continue;
+          const r = h.command({ kind: "placeBuilding", type: "residence", x, y });
+          if (r.ok) { homes++; used.add(key(x, y)); }
+        }
+      }
+      return { ok: homes === 6, homes };
+    });
+    expect(built.ok).toBe(true);
+
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await page
+      .waitForFunction(
+        () =>
+          (window as unknown as { __nova: NovaHandle }).__nova.getState().population >= 5,
+        undefined,
+        { timeout: 45_000 },
+      )
+      .catch(() => {});
+    await pause(page);
+
+    const final = await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      return {
+        population: s.population,
+        housing: h.stats().housingCapacity,
+        food: s.resources.food,
+        tick: s.tick,
+      };
+    });
+    expect(final.housing).toBeGreaterThanOrEqual(5);
+    expect(final.population).toBe(5); // deterministic growth to the target
+    expect(final.food).toBeGreaterThan(0); // sustained, not starving
+  });
+
   test("UI stat surface reflects the money-era contract", async ({ page }) => {
     await page.goto("/");
     await waitForTick(page, 1);

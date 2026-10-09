@@ -7,7 +7,9 @@ export interface NovaHandle {
     tick: number;
     population: number;
     resources: Record<string, number>;
-    buildings: Record<string, { id: string; type: string; status: string; x: number; y: number; staffed: boolean }>;
+    buildings: Record<string, { id: string; type: string; status: string; x: number; y: number; staffed: boolean; active: boolean }>;
+    world: { width: number; height: number; blockedCells: Record<string, true> };
+    roads: Record<string, { cells: string[] }>;
   };
   stats(): {
     tick: number;
@@ -18,6 +20,7 @@ export interface NovaHandle {
     maintenancePerTick: number;
     netMoneyPerTick: number;
   };
+  command(cmd: unknown): { ok: boolean; reason?: string };
 }
 
 export async function nova(page: Page): Promise<NovaHandle> {

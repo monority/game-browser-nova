@@ -86,6 +86,7 @@ function prePlaceColonyCenter(state: GameState): void {
         status: "operational",
         constructionTicksLeft: 0,
         staffed: false,
+        active: true,
       };
       state.buildings[COLONY_CENTER_ID] = anchor;
       return;
