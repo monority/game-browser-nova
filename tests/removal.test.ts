@@ -4,7 +4,7 @@ import { createInitialState, type GameState } from "../src/domain/simulation/sta
 import { applyCommand } from "../src/domain/simulation/commands.js";
 import { stepTicks } from "../src/domain/simulation/tick.js";
 import { parseSave, serialize } from "../src/application/persistence/save.js";
-import { mustOk } from "./helpers.js";
+import { freeCell, mustOk } from "./helpers.js";
 
 const CONFIG = { seed: "removal-test", width: 16, height: 16 };
 
@@ -134,7 +134,63 @@ describe("road removal", () => {
 });
 
 describe("zero-money colony recovery probe (honest deadlock check)", () => {
-  it("removal stabilizes a frozen colony but cannot restart growth", () => {
+  it("W > F: removal fully recovers a frozen workshop-dense colony (money accumulates)", () => {
+    const state = freshState();
+    state.resources.money = 300;
+    // vertical 3-cell road strip + adjacent workplaces, positions picked
+    // deterministically from the generated terrain
+    let strip: { x: number; y: number } | null = null;
+    for (let y = 0; y < 13 && !strip; y++) {
+      for (let x = 0; x < 15 && !strip; x++) {
+        const cells = [cellKey(x, y), cellKey(x, y + 1), cellKey(x, y + 2)];
+        if (cells.every((k) => !state.world.blockedCells[k])) strip = { x, y };
+      }
+    }
+    if (!strip) throw new Error("no free 3-cell vertical strip");
+    const { x, y } = strip;
+    const side = state.world.blockedCells[cellKey(x + 1, y)] ? -1 : 1;
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(x, y), cellKey(x, y + 1), cellKey(x, y + 2)] }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: x + side, y }));
+    state.resources.water = 4; // headroom for both workshop placements + admission
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: x + side, y: y + 1 }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: x + side, y: y + 2 }));
+    const used = new Set([
+      cellKey(x, y),
+      cellKey(x, y + 1),
+      cellKey(x, y + 2),
+      cellKey(x + side, y),
+      cellKey(x + side, y + 1),
+      cellKey(x + side, y + 2),
+    ]);
+    const home1 = freeCell(state, used);
+    used.add(cellKey(home1.x, home1.y));
+    const home2 = freeCell(state, used);
+    used.add(cellKey(home2.x, home2.y));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: home1.x, y: home1.y }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: home2.x, y: home2.y }));
+    const well1 = freeCell(state, used);
+    used.add(cellKey(well1.x, well1.y));
+    const well2 = freeCell(state, used);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: well1.x, y: well1.y }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: well2.x, y: well2.y }));
+    stepTicks(state, 3); // operational, pop 2 admitted
+    expect(state.population).toBe(2);
+
+    // freeze: B = 7 (2 res + farm + 2 ws + 2 wells), revenue = 2 + 4 = 6,
+    // maintenance = 7 → net −1 → money clamped at 0
+    state.resources.money = 0;
+    stepTicks(state, 1);
+    expect(state.resources.money).toBe(0);
+
+    // removal-driven recovery: shed both wells → net = W − F = 2 − 1 = +1
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-6" }));
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-7" }));
+    stepTicks(state, 5);
+    expect(state.population).toBe(2); // alive throughout
+    expect(state.resources.money).toBe(5); // +1/tick, deterministically
+  });
+
+  it("W = F: removal stabilizes a frozen colony but cannot restart growth", () => {
     const state = freshState();
     state.resources.money = 300;
     mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(0, 1), cellKey(0, 2)] }));

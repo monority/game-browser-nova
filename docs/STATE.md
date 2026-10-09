@@ -32,7 +32,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-09) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-09) |
-| Unit tests | PASS — `npx vitest run`: 9 files / 104 tests, all green (2026-10-09, Step008) |
+| Unit tests | PASS — `npx vitest run`: 9 files / 105 tests, all green (2026-10-09, Step008 + corrective probe) |
 | E2E | PASS — Playwright: 6/6 scenarios (2026-10-09, Step008) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-09) |
 
@@ -81,7 +81,7 @@ Only confirmed issues belong here.
 | Issue | Impact | Status |
 |---|---|---|
 | Step001 baseline is net-negative for typical colonies (e.g. revenue 4 vs maintenance 5 with a Workshop): documented D1 finding | Colony shapes can bleed money by design; scenario premises unfundable | OPEN — D1 income/expense balance deliberately deferred; needs a product decision (unchanged from pre-reset documentation) |
-| Zero-money colony: removal (Step008) makes the construction freeze NON-terminal (shed maintenance, reorganize, colony survives) but a money-0 colony still cannot accumulate (best reachable net is 0 with a fully-staffed connected Workshop) → growth remains deadlocked | Player recovery is stabilization, not full unblock | OPEN — full unblock requires the D1 balance decision (D3/D6 stay blocked) |
+| Zero-money colony: removal (Step008) makes the construction freeze NON-terminal. Recovery is composition-dependent — net = W − F after reorganization (W = connected workshops, F = staffed farms): W > F colonies fully recover (verified: money accumulates, growth restarts); W ≤ F colonies stabilize at net ≤ 0 without accumulating | Workshop-light colonies remain growth-deadlocked | OPEN — full unblock for those shapes requires the D1 balance decision (D3/D6 stay blocked) |
 | Commerce is a subsidy mechanic (2/tick for a connected operational Workshop regardless of inputs) while the Workshop also transforms wood → planks; documented physical/commerce separation | Workshop earns commerce from existence, contradicting the transformation principle (audit D3/D6) | DEFERRED — re-anchoring blocked on the D1 product decision |
 | Water coverage is a global stock gate (no per-network coverage) | Simplification vs. the pre-reset per-network water contract | ACCEPTED for the rebuild (aggregate MVP model per ADR-003); revisit if water logistics design lands |
 
