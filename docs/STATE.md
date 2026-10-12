@@ -32,8 +32,8 @@ Never mark a feature complete without implementation and validation evidence.
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-09, Step009) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-09) |
-| Unit tests | PASS — `npx vitest run`: 11 files / 132 tests, all green (2026-10-12, Step015) |
-| E2E | PASS — Playwright: 10/10 scenarios (2026-10-09, Step010; incl. deterministic growth to 5 inhabitants) |
+| Unit tests | PASS — `npx vitest run`: 13 files / 156 tests, all green (2026-10-12, Step015) |
+| E2E | PASS — Playwright: 12/12 scenarios (2026-10-12, Step015; incl. deterministic growth to 5 inhabitants) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-09) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
@@ -70,7 +70,7 @@ Update these values from actual command output.
 | Environment | PLANNED | no pollution/environment model |
 | Technology | PLANNED | no implementation |
 | Ages | PLANNED | no implementation (no settlement/village/town stages in the rebuild) |
-| Persistence | IMPLEMENTED | `SAVE_VERSION = 14` (v13→v14 migration adds `active: true`) — no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests |
+| Persistence | IMPLEMENTED | `SAVE_VERSION = 15` (sequential chain v13→v14→v15: mothball flag, pollution stock) — no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests |
 | Performance | UNKNOWN | no measurements taken |
 
 ---
