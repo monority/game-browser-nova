@@ -33,4 +33,4 @@ AUDIT
 - Product decisions that change the contract update `../game/` or
   `../adr/` in the same step and say so explicitly.
 - Validation claims must cite commands actually executed.
-- Current step is tracked here: **Step015 (Colony Center food trickle — terminal lock retired, complete — see Step015 file)**. Steps 001–006 describe the pre-reset repository; this repository was rebuilt from their contracts (see Step007).
+- Current step is tracked here: **Step016 (Techs + Age progression — Phase 8 MVP, complete — see Step016 file)**. Steps 001–006 describe the pre-reset repository; this repository was rebuilt from their contracts (see Step007).
