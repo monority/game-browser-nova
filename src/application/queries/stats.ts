@@ -9,6 +9,7 @@ import {
   TAX_PER_INHABITANT_PER_TICK,
 } from "../../domain/economy/economy.js";
 import { housingCapacity } from "../../domain/population/population.js";
+import { environmentalQuality } from "../../domain/environment/environment.js";
 
 /** Derived read-only view for the UI (queries never mutate state). */
 
@@ -17,6 +18,8 @@ export interface ColonyStats {
   population: number;
   housingCapacity: number;
   resources: GameState["resources"];
+  pollution: number;
+  envQuality: number;
   taxesPerTick: number;
   commercePerTick: number;
   revenuePerTick: number;
@@ -35,6 +38,8 @@ export function getColonyStats(state: GameState): ColonyStats {
     population: state.population,
     housingCapacity: housingCapacity(state),
     resources: { ...state.resources },
+    pollution: state.pollution,
+    envQuality: environmentalQuality(state),
     taxesPerTick: taxes,
     commercePerTick: commerce,
     revenuePerTick: taxes + commerce,

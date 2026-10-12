@@ -12,6 +12,7 @@ export type BuildingType =
   | "workshop"
   | "lumberCamp"
   | "quarry"
+  | "park"
   | "colonyCenter";
 
 export interface BuildingDefinition {
@@ -99,6 +100,17 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     plankCost: 0,
     waterCost: 0,
     // NOT a workplace by contract: primitive collection is unstaffed.
+    jobCapacity: 0,
+    housingCapacity: 0,
+  },
+  park: {
+    type: "park",
+    displayName: "Park",
+    constructionTicks: 2,
+    moneyCost: 25,
+    plankCost: 0,
+    waterCost: 0,
+    // absorbs pollution (environment system, Step014)
     jobCapacity: 0,
     housingCapacity: 0,
   },

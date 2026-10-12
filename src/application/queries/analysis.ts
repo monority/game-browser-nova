@@ -13,6 +13,7 @@ import {
   COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK,
   MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
 } from "../../domain/economy/economy.js";
+import { environmentalQuality } from "../../domain/environment/environment.js";
 
 /**
  * Derived analysis views (docs/DATA-CONTRACTS.md §5, docs/game/09-UI-UX.md).
@@ -166,6 +167,14 @@ export function getAlerts(state: GameState): Alert[] {
         message: `Treasury: frozen at 0 · net ${net}/tick`,
       });
     }
+  }
+
+  const quality = environmentalQuality(state);
+  if (quality < 50) {
+    alerts.push({
+      severity: quality < 25 ? "warning" : "info",
+      message: `Environment: quality ${quality} · pollution ${Math.round(state.pollution)}`,
+    });
   }
 
   return alerts;

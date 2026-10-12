@@ -22,6 +22,8 @@ export interface GameState {
   /** Finite cell-keyed deposits; exhausted entries remain at 0. */
   woodDeposits: Deposits;
   stoneDeposits: Deposits;
+  /** Global pollution stock, 0–100 (environment system, Step014). */
+  pollution: number;
   /** Next deterministic entity id counters ("building-N" / "road-N"). */
   buildingCounter: number;
   roadCounter: number;
@@ -40,6 +42,7 @@ export function createInitialState(config: WorldConfig): GameState {
     roads: {},
     woodDeposits: normalizeDeposits(config.woodDeposits ?? []),
     stoneDeposits: normalizeDeposits(config.stoneDeposits ?? []),
+    pollution: 0,
     buildingCounter: 1,
     roadCounter: 1,
   };

@@ -523,6 +523,70 @@ test.describe("NOVA critical flows", () => {
     await expect(page.locator("button[data-action='overlay-staffing']")).toBeVisible();
   });
 
+  test("environment: parks keep air clean; removing them degrades quality", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+
+    await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      s.resources.money = 500;
+      s.resources.water = 20;
+      h.command({ kind: "placeRoads", cells: ["0,0"] });
+      h.command({ kind: "placeBuilding", type: "workshop", x: 1, y: 0 });
+      h.command({ kind: "placeBuilding", type: "residence", x: 1, y: 1 });
+      h.command({ kind: "placeBuilding", type: "residence", x: 2, y: 1 });
+      h.command({ kind: "placeBuilding", type: "park", x: 1, y: 2 });
+      h.command({ kind: "placeBuilding", type: "park", x: 2, y: 2 });
+    });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const h = (window as unknown as { __nova: NovaHandle }).__nova;
+          return h.getState().tick;
+        }),
+      )
+      .toBeGreaterThan(8); // buildings mature, park absorption active
+    await pause(page);
+
+    // 2 parks (−4) dominate 1 workshop (+1): air stays clean at the clamp
+    const clean = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.stats(),
+    );
+    expect(clean.pollution).toBe(0);
+    expect(clean.envQuality).toBe(100);
+
+    // remove both parks → workshop emissions unopposed → degradation
+    await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const parks = Object.values(h.getState().buildings).filter((b) => b.type === "park");
+      for (const p of parks) h.command({ kind: "removeBuilding", id: p.id });
+    });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const h = (window as unknown as { __nova: NovaHandle }).__nova;
+          return h.stats().envQuality;
+        }),
+      )
+      .toBeLessThan(100);
+    await pause(page);
+
+    const degraded = await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      return {
+        pollution: h.stats().pollution,
+        quality: h.stats().envQuality,
+        text: document.querySelector("#stats")?.textContent ?? "",
+      };
+    });
+    expect(degraded.pollution).toBeGreaterThan(0);
+    expect(degraded.text).toContain("Pollution");
+    expect(degraded.text).toContain("Env quality");
+  });
+
   test("UI stat surface reflects the money-era contract", async ({ page }) => {
     await page.goto("/");
     await waitForTick(page, 1);

@@ -21,6 +21,7 @@ export const BUILDING_PALETTE: Record<BuildingType, BuildingPalette> = {
   workshop: { body: 0xa06a38, accent: 0xd98e4a },
   lumberCamp: { body: 0x6e5741, accent: 0x9c7f56 },
   quarry: { body: 0x7c828c, accent: 0xb0b8c4 },
+  park: { body: 0x3f7a44, accent: 0x6dbf6a },
   colonyCenter: { body: 0x8a9455, accent: 0xd6e07a },
 };
 
@@ -84,6 +85,16 @@ export function createBuildingMeshes(
       add(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.22, 8), body), 0, 0.11, 0);
       const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.26), accent);
       add(crystal, 0, 0.52, 0);
+      break;
+    }
+    case "park": {
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.06, 0.8), body), 0, 0.03, 0);
+      const tree1 = new THREE.Mesh(new THREE.ConeGeometry(0.18, 0.42, 7), accent);
+      add(tree1, -0.18, 0.28, -0.14);
+      const tree2 = new THREE.Mesh(new THREE.ConeGeometry(0.14, 0.32, 7), accent);
+      add(tree2, 0.16, 0.22, 0.12);
+      const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 6), body);
+      add(trunk, -0.18, 0.1, -0.14);
       break;
     }
   }

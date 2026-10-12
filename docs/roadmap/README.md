@@ -33,4 +33,4 @@ AUDIT
 - Product decisions that change the contract update `../game/` or
   `../adr/` in the same step and say so explicitly.
 - Validation claims must cite commands actually executed.
-- Current step is tracked here: **Step013 (visual identity + renderer polish, complete — see Step013 file)**. Steps 001–006 describe the pre-reset repository; this repository was rebuilt from their contracts (see Step007).
+- Current step is tracked here: **Step014 (environment system, complete — see Step014 file)**. Steps 001–006 describe the pre-reset repository; this repository was rebuilt from their contracts (see Step007).

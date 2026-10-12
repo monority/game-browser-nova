@@ -29,6 +29,7 @@ const PALETTE_TYPES: BuildingType[] = [
   "workshop",
   "lumberCamp",
   "quarry",
+  "park",
 ];
 
 /** UI color tokens (docs/game/10-VISUAL-DIRECTION.md: dark but colorful). */
@@ -408,6 +409,8 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
         ["Wood", String(Math.floor(stats.resources.wood))],
         ["Stone", String(Math.floor(stats.resources.stone))],
         ["Planks", String(Math.floor(stats.resources.planks))],
+        ["Pollution", String(Math.round(stats.pollution))],
+        ["Env quality", String(Math.round(stats.envQuality))],
         ["Revenue/tick", String(stats.revenuePerTick)],
         ["  taxes", String(stats.taxesPerTick)],
         ["  commerce", String(stats.commercePerTick)],

@@ -1,6 +1,10 @@
 import type { GameState } from "../simulation/state.js";
 import { isAdjacentToRoad } from "../network/network.js";
 import { isActive } from "../building/building.js";
+import {
+  environmentalQuality,
+  MIN_QUALITY_FOR_ADMISSION,
+} from "../environment/environment.js";
 import { BUILDING_DEFINITIONS } from "../../content/buildings.js";
 
 /** Housing capacity = active operational residences × capacity (1 each). */
@@ -44,7 +48,10 @@ export function updatePopulation(state: GameState, fedThisTick: boolean): void {
   if (
     state.population < housingCapacity(state) &&
     state.resources.food > 0 &&
-    (state.population === 0 || state.resources.water > 0)
+    (state.population === 0 || state.resources.water > 0) &&
+    // environmental gate (Step014): growth stops in degraded air; the
+    // bootstrap exemption mirrors the water rule
+    (state.population === 0 || environmentalQuality(state) >= MIN_QUALITY_FOR_ADMISSION)
   ) {
     state.population += 1;
   }

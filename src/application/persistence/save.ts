@@ -21,7 +21,7 @@ import type { WorldConfig } from "../../domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 14;
+export const SAVE_VERSION = 15;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 
@@ -36,6 +36,7 @@ export interface SaveDocument {
     stoneDeposits: Array<{ x: number; y: number; amount: number }>;
   };
   deposits: { wood: Deposits; stone: Deposits };
+  pollution: number;
   tick: number;
   resources: ResourceStock;
   population: number;
@@ -59,6 +60,7 @@ export function serialize(state: GameState): SaveDocument {
       stoneDeposits: (state.worldConfig.stoneDeposits ?? []).map((d) => ({ ...d })),
     },
     deposits: { wood: state.woodDeposits, stone: state.stoneDeposits },
+    pollution: state.pollution,
     tick: state.tick,
     resources: { ...state.resources },
     population: state.population,
@@ -72,13 +74,15 @@ export function serialize(state: GameState): SaveDocument {
 export function parseSave(input: unknown): GameState {
   if (!isRecord(input)) throw new SaveValidationError("save is not an object");
   const version = input.formatVersion;
-  if (version !== SAVE_VERSION && version !== SAVE_VERSION - 1) {
+  if (version !== SAVE_VERSION && version !== SAVE_VERSION - 1 && version !== SAVE_VERSION - 2) {
     throw new SaveValidationError(
       `unsupported save version: ${String(version)} (expected ${SAVE_VERSION}, migratable from ${MIGRATABLE_SAVE_VERSION})`,
     );
   }
-  const doc: Record<string, unknown> =
-    version === SAVE_VERSION - 1 ? migrateV13ToV14(input) : input;
+  // sequential migration chain: v13 → v14 → v15
+  let doc: Record<string, unknown> = input;
+  if (version === 13) doc = migrateV13ToV14(doc);
+  if (Number(doc.formatVersion) === SAVE_VERSION - 1) doc = migrateV14ToV15(doc);
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
@@ -156,6 +160,8 @@ export function parseSave(input: unknown): GameState {
   const buildingCounter = expectPositiveInt(doc.buildingCounter, "buildingCounter");
   const roadCounter = expectPositiveInt(doc.roadCounter, "roadCounter");
 
+  const pollution = expectNonNegativeNumber(doc.pollution, "pollution");
+
   return {
     world: generated,
     worldConfig: config,
@@ -166,6 +172,7 @@ export function parseSave(input: unknown): GameState {
     roads,
     woodDeposits,
     stoneDeposits,
+    pollution,
     buildingCounter,
     roadCounter,
   };
@@ -190,6 +197,15 @@ function migrateV13ToV14(document: Record<string, unknown>): Record<string, unkn
     buildings: buildings.map((raw) =>
       isRecord(raw) ? { active: true, ...raw } : raw,
     ),
+  };
+}
+
+/** v14 → v15 (Step014): add the pollution stock, defaulting to 0. */
+function migrateV14ToV15(document: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...document,
+    formatVersion: SAVE_VERSION,
+    pollution: 0,
   };
 }
 

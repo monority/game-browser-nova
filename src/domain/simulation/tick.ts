@@ -3,6 +3,7 @@ import { produceFood, produceWater, consumeFood, consumeWater } from "../product
 import { updatePopulation } from "../population/population.js";
 import { assignJobs } from "../jobs/jobs.js";
 import { collectRevenue, payMaintenance } from "../economy/economy.js";
+import { updateEnvironment } from "../environment/environment.js";
 import { produceStone, produceWood } from "../production/extraction.js";
 import { producePlanks } from "../production/transformation.js";
 
@@ -20,6 +21,7 @@ import { producePlanks } from "../production/transformation.js";
  *   6. updatePopulation (starvation + admission)
  *   7. assignJobs (next tick's staffing)
  *   8. collectRevenue → 9. payMaintenance (money model, same-tick inflow)
+ *   10. updateEnvironment (pollution flows)
  */
 export function stepSimulation(state: GameState): GameState {
   state.tick += 1;
@@ -41,6 +43,7 @@ export function stepSimulation(state: GameState): GameState {
 
   collectRevenue(state, planksProduced);
   payMaintenance(state);
+  updateEnvironment(state);
 
   return state;
 }
