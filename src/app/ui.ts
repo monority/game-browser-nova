@@ -1,6 +1,7 @@
 import type { BuildingType } from "../content/buildings.js";
 import { BUILDING_DEFINITIONS } from "../content/buildings.js";
 import type { ColonyStats } from "../application/queries/stats.js";
+import type { ResourceForecast, Alert } from "../application/queries/analysis.js";
 
 /**
  * DOM UI (presentation only): displays derived state, collects player
@@ -32,7 +33,10 @@ const PALETTE_TYPES: BuildingType[] = [
 export interface Ui {
   root: HTMLDivElement;
   updateStats(stats: ColonyStats): void;
+  updateForecast(forecasts: ResourceForecast[]): void;
+  setAlerts(alerts: Alert[]): void;
   setStatus(message: string): void;
+  showTooltip(text: string | null, clientX?: number, clientY?: number): void;
   showInspection(info: InspectionInfo): void;
   activeBuildType(): BuildingType | null;
   roadMode(): boolean;
@@ -42,6 +46,7 @@ export interface RemoveBuildingInfo {
   kind: "building";
   id: string;
   label: string;
+  detail?: string;
   active: boolean;
 }
 
@@ -56,7 +61,7 @@ export type InspectionInfo = RemoveBuildingInfo | RemoveRoadInfo | null;
 export interface UiCallbacks {
   onBuildTypeSelected(type: BuildingType | null): void;
   onRoadModeToggled(enabled: boolean): void;
-  onSpeedChanged(ticksPerSecond: number): void;
+  onSpeedChanged(ticksPerSecond: number, id: string): void;
   onSave(): void;
   onLoad(): void;
   onRemoveBuilding(id: string): void;
@@ -80,9 +85,20 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   let selectedType: BuildingType | null = null;
   let roadsEnabled = false;
 
-  // --- stats panel ----------------------------------------------------------
-  const statsPanel = panel("stats", { top: "12px", left: "12px", width: "210px" });
+  // --- stats + forecast + alerts panel (single left column) ----------------
+  const statsPanel = panel("stats", {
+    top: "12px",
+    left: "12px",
+    width: "210px",
+    maxHeight: "60vh",
+    overflowY: "auto",
+  });
   root.appendChild(statsPanel.element);
+  const forecastHeader = document.createElement("div");
+  forecastHeader.textContent = "Forecast";
+  forecastHeader.style.cssText = "margin:8px 0 2px;color:#8a93a3;font-size:11px;text-transform:uppercase;letter-spacing:0.08em";
+  const alertsBlock = document.createElement("div");
+  alertsBlock.style.cssText = "margin-top:8px;display:flex;flex-direction:column;gap:2px";
 
   // --- palette + time controls ---------------------------------------------
   const controls = panel("controls", { bottom: "12px", left: "12px", right: "12px" });
@@ -123,7 +139,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   speedRow.style.marginTop = "6px";
   for (const setting of SPEED_SETTINGS) {
     const button = textButton(setting.id, `speed-${setting.id}`, () => {
-      callbacks.onSpeedChanged(setting.ticksPerSecond);
+      callbacks.onSpeedChanged(setting.ticksPerSecond, setting.id);
       for (const child of speedRow.children) {
         (child as HTMLElement).style.borderColor = "#333";
       }
@@ -179,6 +195,22 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   } satisfies Partial<CSSStyleDeclaration>);
   root.appendChild(status);
 
+  // --- hover tooltip -----------------------------------------------------------
+  const tooltip = document.createElement("div");
+  Object.assign(tooltip.style, {
+    position: "absolute",
+    display: "none",
+    pointerEvents: "none",
+    padding: "3px 7px",
+    background: "rgba(11,14,20,0.92)",
+    border: "1px solid #333",
+    borderRadius: "4px",
+    fontSize: "12px",
+    whiteSpace: "nowrap",
+    zIndex: "5",
+  } satisfies Partial<CSSStyleDeclaration>);
+  root.appendChild(tooltip);
+
   function setRoads(enabled: boolean): void {
     roadsEnabled = enabled;
     if (enabled) selectedType = null;
@@ -200,6 +232,57 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     root,
     activeBuildType: () => selectedType,
     roadMode: () => roadsEnabled,
+    updateForecast(forecasts: ResourceForecast[]) {
+      // remove previous forecast + alert sections, re-append fresh
+      statsPanel.element
+        .querySelectorAll("[data-section='forecast'], [data-section='alerts']")
+        .forEach((n) => n.remove());
+      const section = document.createElement("div");
+      section.dataset.section = "forecast";
+      section.appendChild(forecastHeader);
+      for (const f of forecasts) {
+        const name = f.resource.charAt(0).toUpperCase() + f.resource.slice(1);
+        const remaining = f.ticksRemaining !== null ? ` → ${f.ticksRemaining} ticks` : "";
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;justify-content:space-between";
+        const label = document.createElement("span");
+        label.textContent = `${name} ${f.productionPerTick}/${f.consumptionPerTick}`;
+        const value = document.createElement("span");
+        value.textContent = `${Math.floor(f.stock)}${remaining}`;
+        value.style.color = f.balancePerTick < 0 ? "#d96a4a" : "#d8dee9";
+        row.append(label, value);
+        section.appendChild(row);
+      }
+      statsPanel.element.appendChild(section);
+    },
+
+    setAlerts(alerts: Alert[]) {
+      statsPanel.element
+        .querySelectorAll("[data-section='alerts']")
+        .forEach((n) => n.remove());
+      if (alerts.length === 0) return;
+      const section = document.createElement("div");
+      section.dataset.section = "alerts";
+      for (const alert of alerts) {
+        const line = document.createElement("div");
+        line.textContent = alert.message;
+        line.style.color = alert.severity === "warning" ? "#d9a44a" : "#8a93a3";
+        section.appendChild(line);
+      }
+      statsPanel.element.appendChild(section);
+    },
+
+    showTooltip(text, clientX, clientY) {
+      if (!text || clientX === undefined || clientY === undefined) {
+        tooltip.style.display = "none";
+        return;
+      }
+      tooltip.textContent = text;
+      tooltip.style.left = `${clientX + 14}px`;
+      tooltip.style.top = `${clientY + 14}px`;
+      tooltip.style.display = "block";
+    },
+
     showInspection(info) {
       currentInspection = info;
       inspection.element.innerHTML = "";
@@ -211,6 +294,11 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
       inspectionLabel.textContent = info.label;
       inspection.element.appendChild(inspectionLabel);
       if (info.kind === "building") {
+        if (info.detail) {
+          const detail = staticNote(info.detail);
+          detail.style.marginBottom = "6px";
+          inspection.element.appendChild(detail);
+        }
         if (info.id === "colony-center") {
           inspection.element.appendChild(
             staticNote("The Colony Center anchor cannot be removed or mothballed."),

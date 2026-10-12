@@ -110,9 +110,10 @@ test.describe("NOVA critical flows", () => {
     expect(quarryPlaced.planks).toBe(0); // atomic plank deduction
     expect(quarryPlaced.money).toBe(75); // 100 − 25
 
-    // road + workshop → commerce revenue appears
+    // road + workshop → commerce revenue appears (click zone clear of the
+    // left stats panel, which grew with the forecast/alert sections)
     await page.locator("button[data-road='true']").click();
-    await page.locator("#app canvas").click({ position: { x: 200, y: 300 } });
+    await page.locator("#app canvas").click({ position: { x: 400, y: 300 } });
     await page.evaluate(() => {
       const state = (window as unknown as { __nova: NovaHandle }).__nova.getState();
       state.resources.water = 1;
@@ -378,8 +379,100 @@ test.describe("NOVA critical flows", () => {
       };
     });
     expect(final.housing).toBeGreaterThanOrEqual(5);
-    expect(final.population).toBe(5); // deterministic growth to the target
+    // growth continues to housing capacity; the scenario proves ≥ 5 (MVP scale)
+    expect(final.population).toBeGreaterThanOrEqual(5);
+    expect(final.population).toBeLessThanOrEqual(final.housing);
     expect(final.food).toBeGreaterThan(0); // sustained, not starving
+  });
+
+  test("analysis surfaces: forecast + alerts reflect the colony state", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+
+    // build farm + residence programmatically, mature them
+    await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      s.resources.money = 300;
+      s.resources.water = 2;
+      h.command({ kind: "placeRoads", cells: ["0,0"] });
+      h.command({ kind: "placeBuilding", type: "farm", x: 1, y: 0 });
+      h.command({ kind: "placeBuilding", type: "residence", x: 2, y: 0 });
+    });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __nova: NovaHandle }).__nova.getState().population,
+        ),
+      )
+      .toBe(1);
+    await pause(page);
+
+    // balanced colony: food +1/tick, no countdown, no food alert
+    const balanced = await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      return { stats: h.stats().resources, text: document.querySelector("#stats")?.textContent ?? "" };
+    });
+    expect(balanced.text).toContain("Forecast");
+    expect(balanced.text).toContain("Food 2/1");
+    expect(balanced.text).not.toContain("ticks"); // no countdown at +1/tick
+
+    // mothball the farm → deficit → countdown alert appears (state, not instruction)
+    await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const farm = Object.values(h.getState().buildings).find((b) => b.type === "farm");
+      if (!farm) throw new Error("farm missing");
+      h.command({ kind: "setBuildingActive", id: farm.id, active: false });
+    });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const text = document.querySelector("#stats")?.textContent ?? "";
+          return text.includes("ticks") && text.includes("Food: -1/tick");
+        }),
+      )
+      .toBe(true);
+    await pause(page);
+    const text = await page.locator("#stats").innerText();
+    expect(text).toContain("Food: -1/tick");
+    expect(text).not.toContain("build a farm"); // never prescribes
+  });
+
+  test("keyboard: Space toggles pause, digits set speed", async ({ page }) => {
+    await page.goto("/");
+    await waitForTick(page, 2); // running at 1x
+
+    // Space → pause: the tick freezes
+    await page.keyboard.press("Space");
+    const pausedTick = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.getState().tick,
+    );
+    await page.waitForTimeout(1200);
+    expect(
+      await page.evaluate(
+        () => (window as unknown as { __nova: NovaHandle }).__nova.getState().tick,
+      ),
+    ).toBe(pausedTick);
+
+    // Space again → resume at last speed; the tick advances again
+    await page.keyboard.press("Space");
+    await waitForTick(page, pausedTick + 2);
+
+    // digit 8 → 8x: many ticks in a short window
+    await page.keyboard.press("8");
+    const before8 = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.getState().tick,
+    );
+    await page.waitForTimeout(1500);
+    await pause(page);
+    const after8 = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.getState().tick,
+    );
+    // 1.5s at 8x (16 tps) ≈ 24 ticks; at broken 1x it would be ~3
+    expect(after8 - before8).toBeGreaterThan(10);
   });
 
   test("UI stat surface reflects the money-era contract", async ({ page }) => {

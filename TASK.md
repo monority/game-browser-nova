@@ -2,31 +2,26 @@
 
 ## Objective
 
-Step009: building deactivation (mothball) — Option B of the D1 analysis.
-Inactive buildings pay no maintenance and produce/house/employ/earn
-nothing; reactivation follows the normal tick. SAVE_VERSION 14.
+Step010: analysis surfaces (resource forecasts + state alerts) and UI
+polish (inspection detail, hover tooltip, keyboard controls, speed-rate
+bug fix). No simulation rule changes.
 
-## Decisions
+## Notes
 
-- No reactivation fee; delay + lost output are the cost.
-- Colony Center never deactivatable; roads unchanged.
-- Economic constants unchanged; D3/D6 stay blocked; starvation terminal
-  state (pop 0 + food 0) documented as a separate future decision.
+- Speed bug fixed: 2×/4×/8× previously never changed the tick rate.
+- Alerts follow the design rule: states and causes, never instructions.
 
 ## Acceptance Criteria
 
 - [x] `npx tsc --noEmit` clean
 - [x] `npx eslint .` clean
-- [x] `npx vitest run` green (122/122; 17 new deactivation tests; the
-      pre-existing 105 unmodified)
+- [x] `npx vitest run` green (132/132; 10 new analysis tests)
 - [x] `pnpm build` succeeds
-- [x] E2E: 8/8 scenarios (deactivation flow + deterministic growth to
-      5 inhabitants)
-- [x] STATE.md / Step009 report / roadmap pointer consistent with evidence
+- [x] E2E: 10/10 scenarios (forecast/alerts + keyboard added)
 
 ## Validation
 
-- [x] Focused deactivation tests → full suite → E2E → typecheck → lint →
+- [x] Focused analysis tests → full suite → E2E → typecheck → lint →
       build, all executed 2026-10-09
 
 ## Status
@@ -35,7 +30,6 @@ nothing; reactivation follows the normal tick. SAVE_VERSION 14.
 
 ## Next decisions (not this step)
 
-- D1 remainder: only measured tuning remains (e.g., commerce re-anchoring
-  D3/D6 — still a design decision, untouched).
-- Starvation terminal state (pop 0 + food 0): separate future decision.
-- Storage caps (D5), environment/fertility, tech/ages.
+- Colored grid overlays + analysis center drill-down (next analysis layer).
+- D3/D6 commerce re-anchoring (design decision).
+- Starvation terminal state; storage caps (D5); environment; tech/ages.

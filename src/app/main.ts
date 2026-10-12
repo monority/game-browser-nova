@@ -6,6 +6,8 @@ import { allRoadCells } from "../domain/road/road.js";
 import { cellKey } from "../domain/shared/cells.js";
 import { createRenderer, type Renderer } from "../renderer/renderer.js";
 import { getColonyStats } from "../application/queries/stats.js";
+import { getResourceSummaries, getAlerts } from "../application/queries/analysis.js";
+import { BUILDING_DETAIL } from "./details.js";
 import { createUi } from "./ui.js";
 import {
   parseSaveString,
@@ -36,13 +38,18 @@ const DEFAULT_CONFIG = {
 export function boot(root: HTMLElement): { stop(): void } {
   let state: GameState = createInitialState(DEFAULT_CONFIG);
   let renderer: Renderer = createRenderer(root, state);
-  const ticksPerSecond = 2; // 1x
+  let ticksPerSecond = 2; // 1x
   let paused = false;
+  let lastSpeedId = "1x";
 
   // --- UI ------------------------------------------------------------------
   const ui = createUi(root, {
-    onSpeedChanged: (tps) => {
+    onSpeedChanged: (tps, id) => {
       paused = tps === 0;
+      if (!paused) {
+        ticksPerSecond = tps;
+        lastSpeedId = id;
+      }
     },
     onSave: () => {
       try {
@@ -112,6 +119,26 @@ export function boot(root: HTMLElement): { stop(): void } {
   let roadPath: string[] = [];
   let roadDragging = false;
 
+  // keyboard: Space = pause/play toggle, 1/2/4/8 = speeds (drives the same
+  // buttons as the UI so the highlight stays in sync)
+  function clickSpeed(id: string): void {
+    root
+      .querySelector<HTMLButtonElement>(`button[data-action='speed-${id}']`)
+      ?.click();
+  }
+  window.addEventListener("keydown", (event) => {
+    if (event.repeat) return;
+    const target = event.target as HTMLElement | null;
+    if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
+    if (event.code === "Space") {
+      event.preventDefault();
+      if (paused) clickSpeed(lastSpeedId);
+      else clickSpeed("pause");
+      return;
+    }
+    if (["1", "2", "4", "8"].includes(event.key)) clickSpeed(`${event.key}x`);
+  });
+
   root.addEventListener("pointermove", (event) => {
     if (event.target !== rendererCanvas()) return;
     const cell = renderer.pickCell(event.clientX, event.clientY);
@@ -123,17 +150,41 @@ export function boot(root: HTMLElement): { stop(): void } {
       const key = cellKey(cell.x, cell.y);
       if (!roadPath.includes(key)) roadPath.push(key);
       renderer.setHover(cell, true);
+      ui.showTooltip(null);
       return;
     }
     const buildType = ui.activeBuildType();
     if (!buildType && !ui.roadMode()) {
       renderer.setHover(null, false);
+      ui.showTooltip(describeCell(cell.x, cell.y), event.clientX, event.clientY);
       return;
     }
+    ui.showTooltip(null);
     const validation = validatePlacement(state, buildType ?? "residence", cell.x, cell.y);
     renderer.setHover(cell, validation.ok);
     ui.setStatus(validation.ok ? "" : `Cannot place here: ${validation.reason}`);
   });
+
+  /** Hover tooltip text for a cell in inspect mode (states, not instructions). */
+  function describeCell(x: number, y: number): string | null {
+    for (const building of Object.values(state.buildings)) {
+      if (building.x === x && building.y === y) {
+        const flags = [
+          building.status,
+          building.staffed ? "staffed" : null,
+          building.active ? null : "mothballed",
+        ].filter(Boolean);
+        return `${building.type} · ${flags.join(" · ")}`;
+      }
+    }
+    const key = cellKey(x, y);
+    const wood = state.woodDeposits[key];
+    if (wood && wood.remaining > 0) return `Wood deposit · ${wood.remaining}`;
+    const stone = state.stoneDeposits[key];
+    if (stone && stone.remaining > 0) return `Stone deposit · ${stone.remaining}`;
+    if (allRoadCells(state.roads).has(key)) return "Road";
+    return null;
+  }
 
   root.addEventListener("pointerdown", (event) => {
     if (event.target !== rendererCanvas()) return;
@@ -189,6 +240,7 @@ export function boot(root: HTMLElement): { stop(): void } {
           kind: "building",
           id: building.id,
           label: `${building.id} — ${building.type} · ${building.status}${building.active ? "" : " · mothballed"}`,
+          detail: BUILDING_DETAIL[building.type],
           active: building.active,
         });
         return;
@@ -205,6 +257,8 @@ export function boot(root: HTMLElement): { stop(): void } {
 
   function refreshStats(): void {
     ui.updateStats(getColonyStats(state));
+    ui.updateForecast(Object.values(getResourceSummaries(state)));
+    ui.setAlerts(getAlerts(state));
   }
 
   // --- fixed-timestep loop (ADR-002) -----------------------------------------
