@@ -6,13 +6,28 @@ export const FOOD_PER_FARM_PER_TICK = 2;
 export const WATER_PER_WELL_PER_TICK = 2;
 export const FOOD_PER_COLONIST_PER_TICK = 1;
 export const WATER_PER_SERVED_COLONIST_PER_TICK = 1;
+/**
+ * Primitive food trickle of the always-active Colony Center (Step015,
+ * audit D4 completion): re-seeds admission after total starvation so the
+ * documented terminal state (pop 0 + food 0) becomes recoverable.
+ * Deliberately low-rate: a staffed farm (2/tick) always out-produces it,
+ * and the trickle alone can never sustain growth (housing + farms are
+ * still required).
+ */
+export const FOOD_PER_COLONY_CENTER_PER_TICK = 1;
 
-/** Staffed operational farms produce +2 food/tick each (next-tick staffing). */
+/** Staffed active farms + the Colony Center trickle. */
 export function produceFood(state: GameState): void {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {
     if (building.type === "farm" && isActive(building) && building.staffed) {
       produced += FOOD_PER_FARM_PER_TICK;
+    }
+  }
+  // the anchor is always active by contract — no mothball escape hatch
+  for (const building of Object.values(state.buildings)) {
+    if (building.type === "colonyCenter" && building.status === "operational") {
+      produced += FOOD_PER_COLONY_CENTER_PER_TICK;
     }
   }
   addFood(state.resources, produced);

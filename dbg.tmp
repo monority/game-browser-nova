@@ -1,0 +1,23 @@
+npm notice run nova@0.1.0 npx
+npm notice run vitest run tests/zz-debug.test.ts
+
+[1m[7m[36m RUN [39m[27m[22m [36mv2.1.9 [39m[90mC:/Dev/Projects/Nova-updated[39m
+
+[90mstdout[2m | tests/zz-debug.test.ts[2m > [22m[2mdebug[2m > [22m[2mterminal trace
+[22m[39mHOMES: 0,0 and 1,0
+SETTLED: pop=2 res=2
+TRACE t=5 pop=0 food=0.0 water=5
+TRACE t=6 pop=1 food=1.0 water=5
+TRACE t=7 pop=2 food=1.0 water=4
+TRACE t=8 pop=2 food=0.0 water=2
+TRACE t=9 pop=0 food=0.0 water=0
+TRACE t=10 pop=1 food=1.0 water=0
+
+ [32m✓[39m tests/zz-debug.test.ts [2m([22m[2m1 test[22m[2m)[22m[90m 3[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m   Start at [22m 17:11:52
+[2m   Duration [22m 628ms[2m (transform 107ms, setup 0ms, collect 160ms, tests 3ms, environment 0ms, prepare 148ms)[22m
+
+exit=0

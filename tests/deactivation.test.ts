@@ -84,13 +84,22 @@ describe("deactivation effects", () => {
     expect(state.resources.money).toBe(m1 - 2);
   });
 
-  it("deactivated farm produces nothing and feeds no one (staffing isolation)", () => {
+  it("deactivated farm: pop 1 survives on the Center trickle, pop 2 starves", () => {
     const { state, ids } = settledState();
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.farm, active: false }));
     expect(state.buildings[ids.farm]?.staffed).toBe(false);
-    state.resources.food = 1; // one tick of food left
-    stepTicks(state, 3); // stock exhausts → all-or-nothing starvation
-    expect(state.population).toBe(0); // unchanged contract
+    // pop 1: Center trickle 1 = consumption 1 → sustained (anti-lock)
+    const foodAtPop1 = state.resources.food;
+    stepTicks(state, 2);
+    expect(state.population).toBe(1);
+    expect(state.resources.food).toBe(foodAtPop1); // trickle covers exactly
+    // pop 2: consumption 2 > trickle 1 → all-or-nothing starvation
+    state.population = 2;
+    state.resources.food = 3;
+    stepTicks(state, 4); // 3→2→1→0 then an unfed tick → starved
+    expect(state.population).toBe(0);
+    stepTicks(state, 1); // the trickle re-seeds admission (anti-lock, Step015)
+    expect(state.population).toBe(1);
   });
 
   it("deactivated workshop earns no commerce even when road-connected", () => {

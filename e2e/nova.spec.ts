@@ -28,7 +28,7 @@ test.describe("NOVA smoke", () => {
     // day-0 invariants: anchor present, documented stock, maintenance-free
     expect(state.buildings["colony-center"]).toBeDefined();
     expect(state.resources.money).toBe(100);
-    expect(state.resources.food).toBe(100);
+    expect(state.resources.food).toBeGreaterThanOrEqual(100); // Center trickle may have added
     expect(state.resources.water).toBe(0);
     expect(errors).toEqual([]);
   });
@@ -410,21 +410,24 @@ test.describe("NOVA critical flows", () => {
       .toBe(1);
     await pause(page);
 
-    // balanced colony: food +1/tick, no countdown, no food alert
+    // balanced colony: food +2/tick (farm 2 + Center trickle 1 − pop 1), no countdown
     const balanced = await page.evaluate(() => {
       const h = (window as unknown as { __nova: NovaHandle }).__nova;
       return { stats: h.stats().resources, text: document.querySelector("#stats")?.textContent ?? "" };
     });
     expect(balanced.text).toContain("Forecast");
-    expect(balanced.text).toContain("Food 2/1");
-    expect(balanced.text).not.toContain("ticks"); // no countdown at +1/tick
+    expect(balanced.text).toContain("Food 3/1");
+    expect(balanced.text).not.toContain("ticks"); // no countdown at +2/tick
 
-    // mothball the farm → deficit → countdown alert appears (state, not instruction)
+    // mothball the farm → only the trickle (1) vs pop 1: balance 0, still no deficit.
+    // Add a second colonist: consumption 2 vs trickle 1 → deficit −1 → countdown
     await page.evaluate(() => {
       const h = (window as unknown as { __nova: NovaHandle }).__nova;
       const farm = Object.values(h.getState().buildings).find((b) => b.type === "farm");
       if (!farm) throw new Error("farm missing");
       h.command({ kind: "setBuildingActive", id: farm.id, active: false });
+      h.command({ kind: "placeBuilding", type: "residence", x: 3, y: 0 });
+      h.getState().resources.water = 20;
     });
     await page.getByRole("button", { name: "8x", exact: true }).click();
     await expect

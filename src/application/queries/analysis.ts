@@ -4,6 +4,7 @@ import {
   WATER_PER_WELL_PER_TICK,
   FOOD_PER_COLONIST_PER_TICK,
   WATER_PER_SERVED_COLONIST_PER_TICK,
+  FOOD_PER_COLONY_CENTER_PER_TICK,
 } from "../../domain/production/production.js";
 import { isActive } from "../../domain/building/building.js";
 import {
@@ -46,9 +47,17 @@ function staffedProducers(state: GameState, type: "farm" | "well"): number {
   return count;
 }
 
+function colonyCenterPresent(state: GameState): boolean {
+  return Object.values(state.buildings).some(
+    (b) => b.type === "colonyCenter" && b.status === "operational",
+  );
+}
+
 export function getResourceSummaries(state: GameState): Record<SurvivalResource, ResourceForecast> {
   const pop = state.population;
-  const foodProduction = staffedProducers(state, "farm") * FOOD_PER_FARM_PER_TICK;
+  const foodProduction =
+    staffedProducers(state, "farm") * FOOD_PER_FARM_PER_TICK +
+    (colonyCenterPresent(state) ? FOOD_PER_COLONY_CENTER_PER_TICK : 0);
   const waterProduction = staffedProducers(state, "well") * WATER_PER_WELL_PER_TICK;
   const foodConsumption = pop * FOOD_PER_COLONIST_PER_TICK;
   // served colonists: consumption is capped by availability, but the *rate*

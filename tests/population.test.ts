@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { cellKey } from "../src/domain/shared/cells.js";
 import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
 import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
+import { stepSimulation, stepTicks } from "../src/domain/simulation/tick.js";
 import { housingCapacity, availableJobs } from "../src/domain/population/population.js";
 import { freeCell, mustOk } from "./helpers.js";
 import {
@@ -83,23 +83,24 @@ describe("staffing", () => {
     expect(availableJobs(state)).toBe(2);
   });
 
-  it("unstaffed farms produce nothing", () => {
+  it("unstaffed farms contribute nothing (only the Center trickle feeds)", () => {
     const state = freshState();
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 5, y: 5 })); // no road
     stepTicks(state, 5);
-    expect(state.resources.food).toBe(100); // untouched
+    // 100 initial + 5 Center trickle ticks; the farm contributed nothing
+    expect(state.resources.food).toBe(105);
   });
 });
 
 describe("production", () => {
-  it("staffed farm produces +2 food/tick (net +1 with 1 colonist eating)", () => {
+  it("staffed farm produces +2 food/tick (net +2 with trickle, net −1 without)", () => {
     const state = freshState();
     placeStaffed(state, "farm");
     expect(state.population).toBe(1);
     const before = state.resources.food;
     stepTicks(state, 1);
-    // +2 production − 1 colonist consumption
-    expect(state.resources.food).toBe(before + FOOD_PER_FARM_PER_TICK - 1);
+    // +2 farm +1 Center trickle − 1 colonist consumption
+    expect(state.resources.food).toBe(before + FOOD_PER_FARM_PER_TICK);
     expect(FOOD_PER_FARM_PER_TICK).toBe(2);
   });
 
@@ -122,7 +123,8 @@ describe("production", () => {
     stepTicks(state, 2); // operational now; staffed only at end of this tick
     const before = state.resources.food;
     stepTicks(state, 1); // first producing tick
-    expect(state.resources.food).toBe(before + FOOD_PER_FARM_PER_TICK - 1);
+    // +2 farm +1 Center trickle − 1 colonist consumption
+    expect(state.resources.food).toBe(before + FOOD_PER_FARM_PER_TICK);
   });
 });
 
@@ -143,12 +145,50 @@ describe("population", () => {
     expect(state.population).toBe(1); // admitted despite 0 water (population was 0)
   });
 
-  it("admission requires food; without food nobody is admitted", () => {
+  it("food shortage delays admission; the Center trickle re-seeds it (Step015)", () => {
     const state = freshState();
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     state.resources.food = 0;
-    stepTicks(state, 5);
+    stepTicks(state, 2);
+    // admission needs food > 0: the first trickle tick provides it
+    expect(state.population).toBe(1);
+  });
+
+  it("terminal lock retired: pop 0 + food 0 + standing residences recovers (Step015)", () => {
+    const state = freshState();
+    const home1 = freeCell(state);
+    const home2 = freeCell(state, new Set([cellKey(home1.x, home1.y)]));
+    applyCommand(state, { kind: "placeBuilding", type: "residence", x: home1.x, y: home1.y });
+    applyCommand(state, { kind: "placeBuilding", type: "residence", x: home2.x, y: home2.y });
+    state.resources.water = 10;
+    stepTicks(state, 4); // pop 2
+    state.resources.food = 0; // total starvation
+    stepTicks(state, 1); // unfed tick → pop 0 (the old terminal moment)
     expect(state.population).toBe(0);
+    // the Center trickle re-seeds food → the colony oscillates through
+    // subsistence (0↔1↔2) but is NEVER permanently dead — the retired lock
+    const pops: number[] = [];
+    for (let i = 0; i < 12; i++) {
+      stepSimulation(state);
+      pops.push(state.population);
+    }
+    expect(Math.max(...pops)).toBeGreaterThanOrEqual(1);
+  });
+
+  it("Center trickle never sustains growth alone (balance guard)", () => {
+    const state = freshState();
+    applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
+    applyCommand(state, { kind: "placeBuilding", type: "residence", x: 2, y: 1 });
+    state.resources.water = 10;
+    // no farms: trickle 1 vs consumption up to 2 → the colony oscillates in
+    // subsistence: never growth beyond the standing housing, never dead
+    const pops: number[] = [];
+    for (let i = 0; i < 30; i++) {
+      stepSimulation(state);
+      pops.push(state.population);
+    }
+    expect(Math.max(...pops)).toBeLessThanOrEqual(2);
+    expect(Math.max(...pops)).toBeGreaterThanOrEqual(1);
   });
 
   it("admission beyond housing capacity is impossible", () => {
@@ -166,13 +206,15 @@ describe("population", () => {
     expect(state.population).toBe(1);
   });
 
-  it("starvation is all-or-nothing: unfed tick removes the entire population", () => {
+  it("starvation is all-or-nothing: unfed tick removes the entire population (pop 2 beats the trickle)", () => {
     const state = freshState();
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
-    stepTicks(state, 3);
-    expect(state.population).toBe(1);
-    state.resources.food = 0;
-    stepTicks(state, 1);
+    applyCommand(state, { kind: "placeBuilding", type: "residence", x: 2, y: 1 });
+    state.resources.water = 10; // admission headroom
+    stepTicks(state, 4); // pop 2
+    expect(state.population).toBe(2);
+    state.resources.food = 1; // trickle +1 → 2, but 2 colonists eat 2 → stock 0
+    stepTicks(state, 2); // an unfed tick arrives → all removed
     expect(state.population).toBe(0);
   });
 
