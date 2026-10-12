@@ -91,14 +91,37 @@ describe("transformation invariants (Step006)", () => {
     expect(state.resources.planks).toBe(2);
   });
 
-  it("commerce is unchanged and separate from transformation", () => {
+  it("commerce is throughput-anchored: staffed workshop with wood earns 3 (Step012)", () => {
     const state = freshState();
     placeStaffedWorkshop(state);
     state.resources.wood = 10;
     const beforeMoney = state.resources.money;
     stepTicks(state, 1);
-    // +1 tax (pop 1) +2 commerce −1 maintenance; transformation does not touch money
-    expect(state.resources.money).toBe(beforeMoney + 2);
+    // +1 tax +3 commerce (2 base + 1 plank bonus) −1 maintenance
+    expect(state.resources.money).toBe(beforeMoney + 3);
+  });
+
+  it("staffed workshop without wood earns the 2/tick base only", () => {
+    const state = freshState();
+    placeStaffedWorkshop(state);
+    // wood stays 0 → no transformation → no bonus
+    const beforeMoney = state.resources.money;
+    stepTicks(state, 1);
+    expect(state.resources.planks).toBe(0);
+    expect(state.resources.money).toBe(beforeMoney + 2); // +1 tax +2 commerce −1 maint
+  });
+
+  it("vacant connected workshop with wood in stock earns no bonus", () => {
+    const state = freshState();
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(4, 2)] }));
+    state.resources.water = 1;
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: 4, y: 3 }));
+    stepTicks(state, 2); // operational, unstaffed (no colonists)
+    state.resources.wood = 10; // wood alone is not enough
+    const beforeMoney = state.resources.money;
+    stepTicks(state, 1);
+    expect(state.resources.planks).toBe(0);
+    expect(state.resources.money).toBe(beforeMoney + 1); // +2 commerce −1 maint
   });
 });
 

@@ -31,14 +31,23 @@ export function staffedWorkshops(state: GameState): number {
   return count;
 }
 
-/** Tick phase 4e: plank transformation. */
-export function producePlanks(state: GameState): void {
+/**
+ * Workshops that will actually transform this tick (staffed AND the full
+ * wood batch is available). Pure — no mutation. Used by the economy phase
+ * for the throughput-anchored commerce bonus (D3/D6, Step012).
+ */
+export function plankThroughput(state: GameState): number {
   const workshops = staffedWorkshops(state);
-  if (workshops === 0) return;
+  if (workshops === 0) return 0;
+  return state.resources.wood >= workshops * WOOD_PER_PLANK_BATCH ? workshops : 0;
+}
 
-  const batch = workshops * WOOD_PER_PLANK_BATCH;
-  if (state.resources.wood < batch) return; // all-or-nothing
+/** Tick phase 4e: plank transformation. Returns the planks produced. */
+export function producePlanks(state: GameState): number {
+  const workshops = plankThroughput(state);
+  if (workshops === 0) return 0;
 
-  deductWood(state.resources, batch);
+  deductWood(state.resources, workshops * WOOD_PER_PLANK_BATCH);
   addPlanks(state.resources, workshops * PLANKS_PER_WORKSHOP_PER_TICK);
+  return workshops * PLANKS_PER_WORKSHOP_PER_TICK;
 }

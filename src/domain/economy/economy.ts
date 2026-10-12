@@ -14,6 +14,13 @@ import { addMoney } from "../resource/resource.js";
 
 export const TAX_PER_INHABITANT_PER_TICK = 1;
 export const COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK = 2;
+/**
+ * Throughput bonus (D3/D6 re-anchoring, Step012): +1 per plank actually
+ * produced this tick — commerce now grows with real transformation work.
+ * The 2/tick connection base is unchanged (vacant workshops still earn
+ * their calibrated floor).
+ */
+export const COMMERCE_PER_PLANK_PRODUCED_PER_TICK = 1;
 export const MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK = 1;
 
 export function connectedWorkshops(state: GameState): number {
@@ -27,9 +34,14 @@ export function connectedWorkshops(state: GameState): number {
   return count;
 }
 
-export function collectRevenue(state: GameState): { taxes: number; commerce: number } {
+export function collectRevenue(
+  state: GameState,
+  planksProducedThisTick = 0,
+): { taxes: number; commerce: number } {
   const taxes = state.population * TAX_PER_INHABITANT_PER_TICK;
-  const commerce = connectedWorkshops(state) * COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK;
+  const commerce =
+    connectedWorkshops(state) * COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK +
+    planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
   addMoney(state.resources, taxes + commerce);
   return { taxes, commerce };
 }

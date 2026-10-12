@@ -30,7 +30,7 @@ export function stepSimulation(state: GameState): GameState {
   produceWater(state);
   produceWood(state);
   produceStone(state);
-  producePlanks(state);
+  const planksProduced = producePlanks(state);
 
   const fed = consumeFood(state);
   consumeWater(state);
@@ -39,7 +39,7 @@ export function stepSimulation(state: GameState): GameState {
 
   assignJobs(state);
 
-  collectRevenue(state);
+  collectRevenue(state, planksProduced);
   payMaintenance(state);
 
   return state;

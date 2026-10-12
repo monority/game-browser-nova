@@ -2,29 +2,35 @@
 
 ## Objective
 
-Step011: analysis overlays (staffing tint on the grid; deposits mode) and
-forecast drill-down (click a Food/Water row → contributing producers with
-their state). No simulation rule changes.
+Step012: commerce re-anchoring (D3/D6) — commerce = 2/connected workshop
+(base, unchanged) + 1 per plank actually produced (throughput bonus).
+The subsidy is now a floor, not the engine.
+
+## Notes
+
+- Design derived then verified: pure staffed-anchoring would be
+  structurally net ≤ 0 (breaks the D6 equilibrium invariant); the hybrid
+  preserves every verified recovery path.
+- Long-run: wood is finite; depletion falls back to the connection base
+  (renewable wood = future decision).
 
 ## Acceptance Criteria
 
 - [x] `npx tsc --noEmit` clean
 - [x] `npx eslint .` clean
-- [x] `npx vitest run` green (140/140; 8 new overlay/contributor tests)
+- [x] `npx vitest run` green (142/142; 3 new bonus tests, 1 retargeted)
 - [x] `pnpm build` succeeds
-- [x] E2E: 11/11 scenarios (overlays + drill-down added)
+- [x] E2E: 11/11 scenarios
 
 ## Validation
 
-- [x] Focused overlay tests → full suite → E2E → typecheck → lint → build,
-      all executed 2026-10-09
+- [x] Full battery executed 2026-10-09
 
 ## Status
 
-- [x] Inspect / Implement / Test / Validate / Report
+- [x] Inspect / Design / Implement / Test / Validate / Report
 
 ## Next decisions (not this step)
 
-- Water-coverage per-network overlay (needs per-network water semantics).
-- D3/D6 commerce re-anchoring (design decision).
+- Renewable wood / tree regrowth (long-run economy boundary).
 - Starvation terminal state; storage caps (D5); environment; tech/ages.
