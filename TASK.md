@@ -2,25 +2,18 @@
 
 ## Objective
 
-Step012: commerce re-anchoring (D3/D6) — commerce = 2/connected workshop
-(base, unchanged) + 1 per plank actually produced (throughput bonus).
-The subsidy is now a floor, not the engine.
-
-## Notes
-
-- Design derived then verified: pure staffed-anchoring would be
-  structurally net ≤ 0 (breaks the D6 equilibrium invariant); the hybrid
-  preserves every verified recovery path.
-- Long-run: wood is finite; depletion falls back to the connection base
-  (renewable wood = future decision).
+Step013: visual identity & renderer polish — distinct building silhouettes,
+atmospheric lighting/fog, terrain variation, UI color tokens + hover.
+No simulation changes.
 
 ## Acceptance Criteria
 
 - [x] `npx tsc --noEmit` clean
 - [x] `npx eslint .` clean
-- [x] `npx vitest run` green (142/142; 3 new bonus tests, 1 retargeted)
+- [x] `npx vitest run` green (142/142, suite unchanged)
 - [x] `pnpm build` succeeds
-- [x] E2E: 11/11 scenarios
+- [x] E2E: 11/11 scenarios (smoke asserts zero console errors)
+- [x] Visual browser inspection (panels + geometry, no errors)
 
 ## Validation
 
@@ -28,9 +21,9 @@ The subsidy is now a floor, not the engine.
 
 ## Status
 
-- [x] Inspect / Design / Implement / Test / Validate / Report
+- [x] Inspect / Implement / Test / Validate / Report
 
 ## Next decisions (not this step)
 
-- Renewable wood / tree regrowth (long-run economy boundary).
-- Starvation terminal state; storage caps (D5); environment; tech/ages.
+- Shadows/LOD (profiling-gated), age visuals, per-resource coverage
+  overlays, environment, tech/ages, starvation terminal state.

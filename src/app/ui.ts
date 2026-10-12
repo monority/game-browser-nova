@@ -31,6 +31,20 @@ const PALETTE_TYPES: BuildingType[] = [
   "quarry",
 ];
 
+/** UI color tokens (docs/game/10-VISUAL-DIRECTION.md: dark but colorful). */
+const TOKENS = {
+  bg: "rgba(11,14,20,0.88)",
+  border: "#2c3442",
+  borderActive: "#7fb069",
+  borderInfo: "#5bc0eb",
+  text: "#d8dee9",
+  muted: "#8a93a3",
+  ok: "#7fb069",
+  warn: "#d9a44a",
+  danger: "#d96a4a",
+  buttonBg: "#161b26",
+} as const;
+
 export interface Ui {
   root: HTMLDivElement;
   updateStats(stats: ColonyStats): void;
@@ -100,7 +114,8 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   root.appendChild(statsPanel.element);
   const forecastHeader = document.createElement("div");
   forecastHeader.textContent = "Forecast";
-  forecastHeader.style.cssText = "margin:8px 0 2px;color:#8a93a3;font-size:11px;text-transform:uppercase;letter-spacing:0.08em";
+  forecastHeader.style.cssText =
+    "margin:8px 0 2px;color:" + TOKENS.muted + ";font-size:11px;text-transform:uppercase;letter-spacing:0.08em";
   const alertsBlock = document.createElement("div");
   alertsBlock.style.cssText = "margin-top:8px;display:flex;flex-direction:column;gap:2px";
 
@@ -145,9 +160,9 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     const button = textButton(setting.id, `speed-${setting.id}`, () => {
       callbacks.onSpeedChanged(setting.ticksPerSecond, setting.id);
       for (const child of speedRow.children) {
-        (child as HTMLElement).style.borderColor = "#333";
+        (child as HTMLElement).style.borderColor = TOKENS.border;
       }
-      button.style.borderColor = "#7fb069";
+      button.style.borderColor = TOKENS.borderActive;
     });
     speedRow.appendChild(button);
   }
@@ -170,9 +185,9 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     const button = textButton(label, `overlay-${mode}`, () => {
       callbacks.onOverlayChanged(mode);
       for (const child of overlayRow.children) {
-        (child as HTMLElement).style.borderColor = "#333";
+        (child as HTMLElement).style.borderColor = TOKENS.border;
       }
-      button.style.borderColor = "#5bc0eb";
+      button.style.borderColor = TOKENS.borderInfo;
     });
     overlayRow.appendChild(button);
   }
@@ -213,7 +228,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     left: "12px",
     pointerEvents: "none",
     padding: "4px 8px",
-    background: "rgba(11,14,20,0.85)",
+    background: TOKENS.bg,
     borderRadius: "4px",
     minHeight: "18px",
   } satisfies Partial<CSSStyleDeclaration>);
@@ -227,7 +242,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     pointerEvents: "none",
     padding: "3px 7px",
     background: "rgba(11,14,20,0.92)",
-    border: "1px solid #333",
+    border: "1px solid " + TOKENS.border,
     borderRadius: "4px",
     fontSize: "12px",
     whiteSpace: "nowrap",
@@ -245,9 +260,9 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     for (const child of paletteRow.children) {
       const button = child as HTMLElement;
       button.style.borderColor =
-        button.dataset.buildType === selectedType ? "#7fb069" : "#333";
+        button.dataset.buildType === selectedType ? TOKENS.borderActive : TOKENS.border;
     }
-    roadButton.style.borderColor = roadsEnabled ? "#7fb069" : "#333";
+    roadButton.style.borderColor = roadsEnabled ? TOKENS.borderActive : TOKENS.border;
     if (!selectedType && !roadsEnabled) callbacks.onBuildTypeSelected(null);
     else if (selectedType) callbacks.onBuildTypeSelected(selectedType);
   }
@@ -275,7 +290,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
         label.textContent = `${name} ${f.productionPerTick}/${f.consumptionPerTick}`;
         const value = document.createElement("span");
         value.textContent = `${Math.floor(f.stock)}${remaining}`;
-        value.style.color = f.balancePerTick < 0 ? "#d96a4a" : "#d8dee9";
+        value.style.color = f.balancePerTick < 0 ? TOKENS.danger : TOKENS.text;
         row.append(label, value);
         row.addEventListener("click", () => callbacks.onForecastRowClick(f.resource));
         section.appendChild(row);
@@ -293,7 +308,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
       for (const alert of alerts) {
         const line = document.createElement("div");
         line.textContent = alert.message;
-        line.style.color = alert.severity === "warning" ? "#d9a44a" : "#8a93a3";
+        line.style.color = alert.severity === "warning" ? TOKENS.warn : TOKENS.muted;
         section.appendChild(line);
       }
       statsPanel.element.appendChild(section);
@@ -340,7 +355,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
         const stateSpan = document.createElement("span");
         const stateText = !p.active ? "mothballed" : p.staffed ? "staffed" : "idle";
         stateSpan.textContent = stateText;
-        stateSpan.style.color = !p.active ? "#555b66" : p.staffed ? "#7fb069" : "#d9a44a";
+        stateSpan.style.color = !p.active ? TOKENS.muted : p.staffed ? TOKENS.ok : TOKENS.warn;
         row.append(name, stateSpan);
         inspection.element.appendChild(row);
       }
@@ -408,7 +423,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
         const valueSpan = document.createElement("span");
         valueSpan.textContent = value;
         if (label === "Net money/tick") {
-          valueSpan.style.color = stats.netMoneyPerTick >= 0 ? "#7fb069" : "#d96a4a";
+          valueSpan.style.color = stats.netMoneyPerTick >= 0 ? TOKENS.ok : TOKENS.danger;
         }
         row.append(labelSpan, valueSpan);
         statsPanel.element.appendChild(row);
@@ -431,10 +446,12 @@ function panel(
   Object.assign(element.style, {
     position: "absolute",
     pointerEvents: "auto",
-    background: "rgba(11,14,20,0.85)",
-    border: "1px solid #333",
-    borderRadius: "6px",
-    padding: "8px",
+    background: TOKENS.bg,
+    border: "1px solid " + TOKENS.border,
+    borderRadius: "8px",
+    padding: "10px",
+    backdropFilter: "blur(6px)",
+    boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
     ...position,
   } satisfies Partial<CSSStyleDeclaration>);
   return { element };
@@ -442,13 +459,20 @@ function panel(
 
 function styleButton(button: HTMLButtonElement): void {
   Object.assign(button.style, {
-    background: "#161b26",
-    color: "#d8dee9",
-    border: "1px solid #333",
-    borderRadius: "4px",
-    padding: "4px 8px",
+    background: TOKENS.buttonBg,
+    color: TOKENS.text,
+    border: "1px solid " + TOKENS.border,
+    borderRadius: "5px",
+    padding: "4px 9px",
     cursor: "pointer",
+    transition: "border-color 0.15s, background 0.15s",
   } satisfies Partial<CSSStyleDeclaration>);
+  button.addEventListener("mouseenter", () => {
+    button.style.background = "#1e2534";
+  });
+  button.addEventListener("mouseleave", () => {
+    button.style.background = TOKENS.buttonBg;
+  });
 }
 
 function textButton(

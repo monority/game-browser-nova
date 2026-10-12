@@ -1,8 +1,8 @@
 import * as THREE from "three";
 import type { GameState } from "../domain/simulation/state.js";
-import type { BuildingType } from "../content/buildings.js";
 import { parseCellKey } from "../domain/shared/cells.js";
 import { computeOverlay, type OverlayMode, type OverlayTint } from "./overlay.js";
+import { createBuildingMeshes, BUILDING_PALETTE } from "./shapes.js";
 
 /**
  * Presentation layer (ADR-001): the renderer consumes simulation state
@@ -23,19 +23,10 @@ export interface Renderer {
 
 const TILE = 1;
 
-const BUILDING_COLORS: Record<BuildingType, number> = {
-  residence: 0x4a90d9,
-  farm: 0x7fb069,
-  well: 0x5bc0eb,
-  workshop: 0xd98e4a,
-  lumberCamp: 0x8a6f4d,
-  quarry: 0x9b9b9b,
-  colonyCenter: 0xc0c781,
-};
-
 export function createRenderer(container: HTMLElement, state: GameState): Renderer {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x0b0e14);
+  scene.fog = new THREE.Fog(0x0b0e14, 34, 95);
 
   const camera = new THREE.PerspectiveCamera(
     50,
@@ -51,8 +42,9 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
 
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-  const directional = new THREE.DirectionalLight(0xffffff, 1.1);
+  scene.add(new THREE.HemisphereLight(0x9db4d6, 0x1d2b24, 0.75));
+  scene.add(new THREE.AmbientLight(0xffffff, 0.25));
+  const directional = new THREE.DirectionalLight(0xfff2df, 1.15);
   directional.position.set(10, 18, 8);
   scene.add(directional);
 
@@ -240,10 +232,24 @@ function buildTerrain(state: GameState): THREE.Group {
   const group = new THREE.Group();
   const ground = new THREE.Mesh(
     new THREE.BoxGeometry(state.world.width * TILE, 0.1, state.world.height * TILE),
-    new THREE.MeshLambertMaterial({ color: 0x1d2b24 }),
+    new THREE.MeshLambertMaterial({ color: 0x22352c }),
   );
   ground.position.set((state.world.width * TILE) / 2, -0.05, (state.world.height * TILE) / 2);
   group.add(ground);
+
+  // subtle checker variation for tile readability (deterministic)
+  const lightTile = new THREE.MeshLambertMaterial({ color: 0x273b30 });
+  const darkTile = new THREE.MeshLambertMaterial({ color: 0x1f2f27 });
+  for (let y = 0; y < state.world.height; y++) {
+    for (let x = 0; x < state.world.width; x++) {
+      const plate = new THREE.Mesh(
+        new THREE.BoxGeometry(TILE * 0.98, 0.02, TILE * 0.98),
+        (x + y) % 2 === 0 ? lightTile : darkTile,
+      );
+      plate.position.set((x + 0.5) * TILE, 0.015, (y + 0.5) * TILE);
+      group.add(plate);
+    }
+  }
 
   const blockedMaterial = new THREE.MeshLambertMaterial({ color: 0x39424d });
   for (const key of Object.keys(state.world.blockedCells)) {
@@ -314,16 +320,29 @@ function buildBuildings(state: GameState, overlayMode: OverlayMode): THREE.Group
   for (const building of Object.values(state.buildings)) {
     const key = `${building.x},${building.y}`;
     const tint = tints.get(key);
-    // overlay tint replaces the type color; base colors otherwise
-    const color = tint !== undefined ? OVERLAY_TINTS[tint] : BUILDING_COLORS[building.type] ?? 0xffffff;
-    const material = new THREE.MeshLambertMaterial({
-      color,
-      transparent: building.status === "underConstruction",
-      opacity: building.status === "underConstruction" ? 0.4 : 1,
-    });
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(0.8, 0.7, 0.8), material);
-    mesh.position.set((building.x + 0.5) * TILE, 0.35, (building.y + 0.5) * TILE);
-    group.add(mesh);
+    const palette = BUILDING_PALETTE[building.type];
+    const meshes = createBuildingMeshes(building.type, palette);
+    meshes.position.set((building.x + 0.5) * TILE, 0, (building.y + 0.5) * TILE);
+
+    if (tint !== undefined) {
+      // overlay tint replaces the palette on every material of the building
+      const tinted = OVERLAY_TINTS[tint];
+      meshes.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          (object.material as THREE.MeshLambertMaterial).color.setHex(tinted);
+        }
+      });
+    }
+    if (building.status === "underConstruction") {
+      meshes.traverse((object) => {
+        if (object instanceof THREE.Mesh) {
+          const material = object.material as THREE.MeshLambertMaterial;
+          material.transparent = true;
+          material.opacity = 0.4;
+        }
+      });
+    }
+    group.add(meshes);
   }
   return group;
 }
