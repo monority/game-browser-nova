@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step016 techs + age progression (d3c0b27) |
+| HEAD | Step017 Age 2 market (Phase 9 first slice) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-12, Step016) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-12, Step016) |
-| Unit tests | PASS — `npx vitest run`: 14 files / 169 tests, all green (2026-10-12, Step016) |
-| E2E | PASS — Playwright: 12/12 scenarios (2026-10-12, Step016; incl. deterministic growth to 5 inhabitants) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-12, Step016) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-12, Step017) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-12, Step017) |
+| Unit tests | PASS — `npx vitest run`: 15 files / 179 tests, all green (2026-10-12, Step017) |
+| E2E | PASS — Playwright: 12/12 scenarios (2026-10-12, Step017; incl. deterministic growth to 5 inhabitants) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-12, Step017) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -60,11 +60,11 @@ Update these values from actual command output.
 | Production | IMPLEMENTED | Farms/Wells +2/tick staffed; extraction +2/tick from adjacent finite deposits; Workshop transformation 2 Wood → 1 Plank/tick staffed; farm/quarry yields include tech levels (Step016) |
 | Deposits | IMPLEMENTED | finite cell-keyed wood/stone deposits; exhaustion keeps entry at 0; placement on deposits refused |
 | Colony Center | IMPLEMENTED | day-0 anchor, operational at tick 0, unstaffed 1 wood/tick, maintenance-exempt, never player-placed, bottom-right-most deterministic placement |
-| Economy | IMPLEMENTED | Step001 money model: treasury 100 start, tax 1/inhabitant/tick, commerce 2/connected Workshop/tick (staffing-independent; tradeRoutes tech adds +1/workshop, Step016), maintenance 1/operational building/tick, uncapped treasury clamped ≥ 0 |
+| Economy | IMPLEMENTED | Step001 money model: treasury 100 start, tax 1/inhabitant/tick, commerce 2/connected Workshop/tick (staffing-independent; tradeRoutes tech adds +1/workshop, Step016), maintenance 1/operational building/tick, uncapped treasury clamped ≥ 0; Age 2 Markets sell up to 2 surplus food/tick at 1 money each (Step017) |
 | Storage | PARTIAL | Food/Water uncapped colony stocks; treasury uncapped; no storage capacity mechanics (StorageHub never rebuilt — audit D5 consciously parked) |
 | Logistics | PARTIAL | road networks + road access for staffing and commerce (orthogonal components); no distance/congestion/capacity effects |
-| Analysis | IMPLEMENTED | derived stats + resource forecasts (production/consumption/balance/ticks-remaining) + state alerts (never prescriptive) + staffing overlay + forecast drill-down (Step010–011); commerce throughput-anchored (Step012: 2/connected + 1/plank produced); food forecast includes farm tech (Step016) |
-| UI | IMPLEMENTED | palette, road mode, hover validity + info tooltip, inspection (detail/mothball/remove), time controls pause/1×–8× with keyboard (Space/1/2/4/8; rate bug fixed Step010), save/load, forecast + alerts; progression panel, research, age advance (Step016) |
+| Analysis | IMPLEMENTED | derived stats + resource forecasts (production/consumption/balance/ticks-remaining) + state alerts (never prescriptive) + staffing overlay + forecast drill-down (Step010–011); commerce throughput-anchored (Step012: 2/connected + 1/plank produced); food forecast includes farm tech (Step016) and nets the market drain (Step017) |
+| UI | IMPLEMENTED | palette, road mode, hover validity + info tooltip, inspection (detail/mothball/remove), time controls pause/1×–8× with keyboard (Space/1/2/4/8; rate bug fixed Step010), save/load, forecast + alerts; progression panel, research, age advance (Step016); age-gated palette plus market row (Step017) |
 | Deactivation (mothball) | IMPLEMENTED | `setBuildingActive` (Step009): inactive = no maintenance/output/housing/staffing/commerce; anchor protected; next-tick reactivation; SAVE_VERSION 14 + v13→v14 migration |
 | Demolition | IMPLEMENTED | `removeBuilding` / `removeRoads` commands (Step008): anchor-protected, no refund, cell reuse, deterministic staffing recalculation, immediate maintenance relief; save v13 round-trips removals | 
 | Environment | IMPLEMENTED | global pollution stock, park absorption, admission quality gate (Step014) |
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step016 (techs + age progression, complete) — see `docs/roadmap/Step016-tech-age-progression.md`.
+Step017 (Age 2 market, complete) — see `docs/roadmap/Step017-age2-market.md`.
 
 ---
 

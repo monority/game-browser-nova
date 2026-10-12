@@ -52,7 +52,7 @@ describe("revenue", () => {
     const state = freshState();
     state.population = 5;
     const before = state.resources.money;
-    expect(collectRevenue(state)).toEqual({ taxes: 5, commerce: 0 });
+    expect(collectRevenue(state)).toEqual({ taxes: 5, commerce: 0, market: 0 });
     expect(state.resources.money).toBe(before + 5);
   });
 
@@ -62,7 +62,7 @@ describe("revenue", () => {
     expect(connectedWorkshops(state)).toBe(1);
     expect(state.buildings["building-1"]?.staffed).toBe(false); // no colonists
     const before = state.resources.money;
-    expect(collectRevenue(state)).toEqual({ taxes: 0, commerce: 2 });
+    expect(collectRevenue(state)).toEqual({ taxes: 0, commerce: 2, market: 0 });
     expect(state.resources.money).toBe(before + 2);
   });
 

@@ -23,7 +23,8 @@ export function foodPerFarm(state: GameState): number {
   return FOOD_PER_FARM_PER_TICK + techLevel(state, "farmFood");
 }
 
-export function produceFood(state: GameState): void {
+/** Expected food production for the coming tick (pure): staffed farms plus Center trickle. */
+export function foodProductionPerTick(state: GameState): number {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {
     if (building.type === "farm" && isActive(building) && building.staffed) {
@@ -36,7 +37,11 @@ export function produceFood(state: GameState): void {
       produced += FOOD_PER_COLONY_CENTER_PER_TICK;
     }
   }
-  addFood(state.resources, produced);
+  return produced;
+}
+
+export function produceFood(state: GameState): void {
+  addFood(state.resources, foodProductionPerTick(state));
 }
 
 /** Staffed operational wells produce +2 water/tick each. */

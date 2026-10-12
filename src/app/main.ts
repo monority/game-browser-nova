@@ -9,6 +9,7 @@ import { getColonyStats } from "../application/queries/stats.js";
 import { getResourceSummaries, getAlerts, getResourceContributors } from "../application/queries/analysis.js";
 import { evaluateMilestones, canAdvanceAge, hasTech } from "../domain/progression/progression.js";
 import { TECH_DEFINITIONS } from "../content/techs.js";
+import { BUILDING_DEFINITIONS, type BuildingType } from "../content/buildings.js";
 import { AGE_NAMES } from "../content/progression.js";
 import { BUILDING_DETAIL } from "./details.js";
 import { createUi } from "./ui.js";
@@ -277,8 +278,23 @@ export function boot(root: HTMLElement): { stop(): void } {
     ui.showInspection(null);
   }
 
+  // Palette unlocks follow building ages (Phase 9: Market appears in Age 2).
+  const BUILD_ORDER: BuildingType[] = [
+    "residence",
+    "farm",
+    "well",
+    "workshop",
+    "lumberCamp",
+    "quarry",
+    "park",
+    "market",
+  ];
+
   function refreshStats(): void {
     ui.updateStats(getColonyStats(state));
+    ui.setAvailableBuildings(
+      BUILD_ORDER.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) <= state.age),
+    );
     ui.updateForecast(Object.values(getResourceSummaries(state)));
     ui.setAlerts(getAlerts(state));
     const milestones = evaluateMilestones(state, state.age);

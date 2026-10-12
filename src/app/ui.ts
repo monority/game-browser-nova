@@ -31,6 +31,7 @@ const PALETTE_TYPES: BuildingType[] = [
   "lumberCamp",
   "quarry",
   "park",
+  "market",
 ];
 
 /** UI color tokens (docs/game/10-VISUAL-DIRECTION.md: dark but colorful). */
@@ -66,6 +67,7 @@ export interface Ui {
   showInspection(info: InspectionInfo): void;
   activeBuildType(): BuildingType | null;
   roadMode(): boolean;
+  setAvailableBuildings(types: BuildingType[]): void;
 }
 
 export interface RemoveBuildingInfo {
@@ -266,6 +268,18 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   } satisfies Partial<CSSStyleDeclaration>);
   root.appendChild(tooltip);
 
+  let availableTypes: BuildingType[] = [...PALETTE_TYPES];
+
+  function setAvailableBuildings(types: BuildingType[]): void {
+    availableTypes = [...types];
+    if (selectedType && !availableTypes.includes(selectedType)) selectedType = null;
+    for (const child of paletteRow.children) {
+      const button = child as HTMLElement;
+      button.style.display = availableTypes.includes(button.dataset.buildType as BuildingType) ? "" : "none";
+    }
+    refreshPalette();
+  }
+
   function setRoads(enabled: boolean): void {
     roadsEnabled = enabled;
     if (enabled) selectedType = null;
@@ -287,6 +301,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     root,
     activeBuildType: () => selectedType,
     roadMode: () => roadsEnabled,
+    setAvailableBuildings,
     updateProgression(info) {
       progressionPanel.element.innerHTML = "";
       const header = document.createElement("div");
@@ -481,6 +496,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
         ["Revenue/tick", String(stats.revenuePerTick)],
         ["  taxes", String(stats.taxesPerTick)],
         ["  commerce", String(stats.commercePerTick)],
+        ["  market", String(stats.marketPerTick)],
         ["Maintenance/tick", String(stats.maintenancePerTick)],
         ["Net money/tick", String(stats.netMoneyPerTick)],
       ];

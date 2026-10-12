@@ -18,6 +18,7 @@ export type PlacementValidation =
         | "occupied"
         | "depositBlocked"
         | "colonyCenterExists"
+        | "ageLocked"
         | "insufficientMoney"
         | "insufficientWater"
         | "insufficientPlanks";
@@ -34,6 +35,11 @@ export function validatePlacement(
 
   // The Colony Center anchor is never player-placed (day-0 bootstrap).
   if (type === "colonyCenter") return { ok: false, reason: "colonyCenterExists" };
+
+  // Age-gated buildings (Phase 9: Market unlocks in Age 2).
+  if ((definition.requiredAge ?? 1) > state.age) {
+    return { ok: false, reason: "ageLocked" };
+  }
 
   if (x < 0 || y < 0 || x >= state.world.width || y >= state.world.height) {
     return { ok: false, reason: "outOfBounds" };

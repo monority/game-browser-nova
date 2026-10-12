@@ -13,6 +13,7 @@ export type BuildingType =
   | "lumberCamp"
   | "quarry"
   | "park"
+  | "market"
   | "colonyCenter";
 
 export interface BuildingDefinition {
@@ -28,6 +29,8 @@ export interface BuildingDefinition {
   jobCapacity: number;
   /** Housing slots (admission gating lives in the population slice). */
   housingCapacity: number;
+  /** Minimum age required to place this building (default 1). */
+  requiredAge?: number;
 }
 
 export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
@@ -113,6 +116,18 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     // absorbs pollution (environment system, Step014)
     jobCapacity: 0,
     housingCapacity: 0,
+  },
+  market: {
+    type: "market",
+    displayName: "Market",
+    constructionTicks: 2,
+    moneyCost: 50,
+    plankCost: 2,
+    waterCost: 0,
+    // Age 2 commerce building (Phase 9): sells surplus food, no jobs.
+    jobCapacity: 0,
+    housingCapacity: 0,
+    requiredAge: 2,
   },
 };
 

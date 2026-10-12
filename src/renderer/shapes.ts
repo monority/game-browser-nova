@@ -22,6 +22,7 @@ export const BUILDING_PALETTE: Record<BuildingType, BuildingPalette> = {
   lumberCamp: { body: 0x6e5741, accent: 0x9c7f56 },
   quarry: { body: 0x7c828c, accent: 0xb0b8c4 },
   park: { body: 0x3f7a44, accent: 0x6dbf6a },
+  market: { body: 0x8a5a3b, accent: 0xe0c060 },
   colonyCenter: { body: 0x8a9455, accent: 0xd6e07a },
 };
 
@@ -85,6 +86,22 @@ export function createBuildingMeshes(
       add(new THREE.Mesh(new THREE.CylinderGeometry(0.32, 0.38, 0.22, 8), body), 0, 0.11, 0);
       const crystal = new THREE.Mesh(new THREE.OctahedronGeometry(0.26), accent);
       add(crystal, 0, 0.52, 0);
+      break;
+    }
+    case "market": {
+      // Age 2 market stall: counter plus a striped awning (Phase 9 identity).
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.3, 0.45), body), 0, 0.15, 0.08);
+      for (let i = -2; i <= 2; i++) {
+        const stripe = new THREE.Mesh(
+          new THREE.BoxGeometry(0.13, 0.04, 0.6),
+          i % 2 === 0 ? accent : body,
+        );
+        add(stripe, i * 0.14, 0.52, -0.02);
+      }
+      const poleLeft = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6), body);
+      add(poleLeft, -0.3, 0.27, -0.28);
+      const poleRight = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.5, 6), body);
+      add(poleRight, 0.3, 0.27, -0.28);
       break;
     }
     case "park": {

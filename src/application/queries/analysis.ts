@@ -1,11 +1,11 @@
 import type { GameState } from "../../domain/simulation/state.js";
 import {
-  FOOD_PER_FARM_PER_TICK,
   WATER_PER_WELL_PER_TICK,
   FOOD_PER_COLONIST_PER_TICK,
   WATER_PER_SERVED_COLONIST_PER_TICK,
-  FOOD_PER_COLONY_CENTER_PER_TICK,
+  foodProductionPerTick,
 } from "../../domain/production/production.js";
+import { expectedMarketSales } from "../../domain/economy/economy.js";
 import { isActive } from "../../domain/building/building.js";
 import {
   connectedWorkshops,
@@ -15,7 +15,6 @@ import {
   MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
 } from "../../domain/economy/economy.js";
 import { environmentalQuality } from "../../domain/environment/environment.js";
-import { techLevel } from "../../domain/progression/progression.js";
 
 /**
  * Derived analysis views (docs/DATA-CONTRACTS.md §5, docs/game/09-UI-UX.md).
@@ -48,18 +47,12 @@ function staffedProducers(state: GameState, type: "farm" | "well"): number {
   return count;
 }
 
-function colonyCenterPresent(state: GameState): boolean {
-  return Object.values(state.buildings).some(
-    (b) => b.type === "colonyCenter" && b.status === "operational",
-  );
-}
-
 export function getResourceSummaries(state: GameState): Record<SurvivalResource, ResourceForecast> {
   const pop = state.population;
-  const foodProduction =
-    staffedProducers(state, "farm") * FOOD_PER_FARM_PER_TICK +
-    techLevel(state, "farmFood") * staffedProducers(state, "farm") +
-    (colonyCenterPresent(state) ? FOOD_PER_COLONY_CENTER_PER_TICK : 0);
+  const foodProduction = foodProductionPerTick(state);
+  // Markets liquidate post-consumption surplus (Phase 9): the forecast balance
+  // must show the drain, or ticks-remaining would lie while markets sell.
+  const marketDrain = expectedMarketSales(state);
   const waterProduction = staffedProducers(state, "well") * WATER_PER_WELL_PER_TICK;
   const foodConsumption = pop * FOOD_PER_COLONIST_PER_TICK;
   // served colonists: consumption is capped by availability, but the *rate*
@@ -68,6 +61,17 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
     state.resources.water,
     pop * WATER_PER_SERVED_COLONIST_PER_TICK,
   );
+
+  // Market sales are neither production nor consumption: apply the drain to the
+  // food balance so ticks-remaining stays honest while markets sell (Step017).
+  const withMarketDrain = (forecast: ResourceForecast, drain: number): ResourceForecast => {
+    const balance = forecast.balancePerTick - drain;
+    return {
+      ...forecast,
+      balancePerTick: balance,
+      ticksRemaining: balance < 0 ? Math.floor(forecast.stock / -balance) : null,
+    };
+  };
 
   const summarize = (
     resource: SurvivalResource,
@@ -87,7 +91,7 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
   };
 
   return {
-    food: summarize("food", foodProduction, foodConsumption, state.resources.food),
+    food: withMarketDrain(summarize("food", foodProduction, foodConsumption, state.resources.food), marketDrain),
     water: summarize("water", waterProduction, waterConsumption, state.resources.water),
   };
 }
