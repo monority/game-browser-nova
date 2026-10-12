@@ -7,6 +7,9 @@ import { cellKey } from "../domain/shared/cells.js";
 import { createRenderer, type Renderer } from "../renderer/renderer.js";
 import { getColonyStats } from "../application/queries/stats.js";
 import { getResourceSummaries, getAlerts, getResourceContributors } from "../application/queries/analysis.js";
+import { evaluateMilestones, canAdvanceAge, hasTech } from "../domain/progression/progression.js";
+import { TECH_DEFINITIONS } from "../content/techs.js";
+import { AGE_NAMES } from "../content/progression.js";
 import { BUILDING_DETAIL } from "./details.js";
 import { createUi } from "./ui.js";
 import {
@@ -113,6 +116,18 @@ export function boot(root: HTMLElement): { stop(): void } {
     },
     onForecastRowClick: (resource) => {
       ui.showDrillDown(getResourceContributors(state, resource));
+    },
+    onResearchTech: (techId) => {
+      const result = applyCommand(state, { kind: "researchTech", techId });
+      ui.setStatus(result.ok ? `Researched ${techId}.` : `Cannot research: ${result.reason}`);
+      refreshStats();
+      renderer.update(state);
+    },
+    onAdvanceAge: () => {
+      const result = applyCommand(state, { kind: "advanceAge" });
+      ui.setStatus(result.ok ? `Welcome to ${AGE_NAMES[state.age] ?? "Age " + state.age}.` : `Cannot advance: ${result.reason}`);
+      renderer.update(state);
+      refreshStats();
     },
   });
 
@@ -266,6 +281,17 @@ export function boot(root: HTMLElement): { stop(): void } {
     ui.updateStats(getColonyStats(state));
     ui.updateForecast(Object.values(getResourceSummaries(state)));
     ui.setAlerts(getAlerts(state));
+    const milestones = evaluateMilestones(state, state.age);
+    ui.updateProgression({
+      age: state.age,
+      ageName: AGE_NAMES[state.age] ?? `Age ${state.age}`,
+      milestones,
+      canAdvance: canAdvanceAge(state),
+      availableTechs: Object.values(TECH_DEFINITIONS)
+        .filter((t) => t.age <= state.age && !hasTech(state, t.id))
+        .map((t) => ({ id: t.id, displayName: t.displayName, cost: t.cost })),
+      researchedTechs: [...state.researchedTechs],
+    });
   }
 
   // --- fixed-timestep loop (ADR-002) -----------------------------------------
@@ -296,6 +322,8 @@ export function boot(root: HTMLElement): { stop(): void } {
     stats: () => getColonyStats(state),
     command: (command: unknown) =>
       applyCommand(state, command as Parameters<typeof applyCommand>[1]),
+    milestones: () => evaluateMilestones(state, state.age),
+    canAdvanceAge: () => canAdvanceAge(state),
   };
 
   return {

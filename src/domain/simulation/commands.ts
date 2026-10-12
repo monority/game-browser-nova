@@ -4,6 +4,8 @@ import { createBuilding } from "../building/building.js";
 import { createRoad } from "../road/road.js";
 import { parseCellKey } from "../shared/cells.js";
 import { deductPlanks } from "../resource/resource.js";
+import { canAdvanceAge, hasTech } from "../progression/progression.js";
+import { TECH_DEFINITIONS } from "../../content/techs.js";
 import type { GameState } from "./state.js";
 
 /**
@@ -18,7 +20,9 @@ export type Command =
   | { kind: "placeRoads"; cells: readonly string[] }
   | { kind: "removeBuilding"; id: string }
   | { kind: "removeRoads"; cells: readonly string[] }
-  | { kind: "setBuildingActive"; id: string; active: boolean };
+  | { kind: "setBuildingActive"; id: string; active: boolean }
+  | { kind: "researchTech"; techId: string }
+  | { kind: "advanceAge" };
 
 export type CommandResult =
   | { ok: true }
@@ -36,6 +40,10 @@ export function applyCommand(state: GameState, command: Command): CommandResult 
       return applyRemoveRoads(state, command.cells);
     case "setBuildingActive":
       return applySetBuildingActive(state, command.id, command.active);
+    case "researchTech":
+      return applyResearchTech(state, command.techId);
+    case "advanceAge":
+      return applyAdvanceAge(state);
   }
 }
 
@@ -113,5 +121,26 @@ function applySetBuildingActive(state: GameState, id: string, active: boolean): 
   if (!building) return { ok: false, reason: "unknownBuilding" };
   building.active = active;
   if (!active) building.staffed = false; // production reads active anyway; keep flags honest
+  return { ok: true };
+}
+
+/** Research a technology: age-gated, one-shot, paid from the treasury. */
+function applyResearchTech(state: GameState, techId: string): CommandResult {
+  const definition = TECH_DEFINITIONS[techId];
+  if (!definition) return { ok: false, reason: "unknownTech" };
+  if (definition.age > state.age) return { ok: false, reason: "techRequiresLaterAge" };
+  if (hasTech(state, techId)) return { ok: false, reason: "alreadyResearched" };
+  if (state.resources.money < definition.cost) {
+    return { ok: false, reason: "insufficientMoney" };
+  }
+  state.resources.money -= definition.cost;
+  state.researchedTechs.push(techId);
+  return { ok: true };
+}
+
+/** Advance to the next age: requires the full milestone set of the current age. */
+function applyAdvanceAge(state: GameState): CommandResult {
+  if (!canAdvanceAge(state)) return { ok: false, reason: "milestonesIncomplete" };
+  state.age += 1;
   return { ok: true };
 }

@@ -1,4 +1,5 @@
 import { BUILDING_DEFINITIONS, type BuildingType } from "../../content/buildings.js";
+import { TECH_DEFINITIONS } from "../../content/techs.js";
 import { parseCellKey } from "../../domain/shared/cells.js";
 import type { Building, BuildingStatus } from "../../domain/building/building.js";
 import type { Road } from "../../domain/road/road.js";
@@ -21,7 +22,7 @@ import type { WorldConfig } from "../../domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 15;
+export const SAVE_VERSION = 16;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 
@@ -37,6 +38,8 @@ export interface SaveDocument {
   };
   deposits: { wood: Deposits; stone: Deposits };
   pollution: number;
+  age: number;
+  researchedTechs: string[];
   tick: number;
   resources: ResourceStock;
   population: number;
@@ -61,6 +64,8 @@ export function serialize(state: GameState): SaveDocument {
     },
     deposits: { wood: state.woodDeposits, stone: state.stoneDeposits },
     pollution: state.pollution,
+    age: state.age,
+    researchedTechs: [...state.researchedTechs],
     tick: state.tick,
     resources: { ...state.resources },
     population: state.population,
@@ -74,15 +79,19 @@ export function serialize(state: GameState): SaveDocument {
 export function parseSave(input: unknown): GameState {
   if (!isRecord(input)) throw new SaveValidationError("save is not an object");
   const version = input.formatVersion;
-  if (version !== SAVE_VERSION && version !== SAVE_VERSION - 1 && version !== SAVE_VERSION - 2) {
+  if (typeof version !== "number" || !Number.isFinite(version)) {
+    throw new SaveValidationError(`unsupported save version: ${String(version)}`);
+  }
+  if (version < MIGRATABLE_SAVE_VERSION || version > SAVE_VERSION) {
     throw new SaveValidationError(
       `unsupported save version: ${String(version)} (expected ${SAVE_VERSION}, migratable from ${MIGRATABLE_SAVE_VERSION})`,
     );
   }
-  // sequential migration chain: v13 → v14 → v15
+  // sequential migration chain: v13 → v14 → v15 → v16
   let doc: Record<string, unknown> = input;
-  if (version === 13) doc = migrateV13ToV14(doc);
-  if (Number(doc.formatVersion) === SAVE_VERSION - 1) doc = migrateV14ToV15(doc);
+  if (Number(doc.formatVersion) === 13) doc = migrateV13ToV14(doc);
+  if (Number(doc.formatVersion) === 14) doc = migrateV14ToV15(doc);
+  if (Number(doc.formatVersion) === 15) doc = migrateV15ToV16(doc);
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
@@ -161,6 +170,23 @@ export function parseSave(input: unknown): GameState {
   const roadCounter = expectPositiveInt(doc.roadCounter, "roadCounter");
 
   const pollution = expectNonNegativeNumber(doc.pollution, "pollution");
+  const age = expectPositiveInt(doc.age, "age");
+  if (!Array.isArray(doc.researchedTechs)) {
+    throw new SaveValidationError("save.researchedTechs must be an array");
+  }
+  const researchedTechs: string[] = [];
+  for (const techId of doc.researchedTechs) {
+    if (typeof techId !== "string") {
+      throw new SaveValidationError("researchedTechs entries must be strings");
+    }
+    if (!TECH_DEFINITIONS[techId]) {
+      throw new SaveValidationError(`unknown tech: ${techId}`);
+    }
+    if (researchedTechs.includes(techId)) {
+      throw new SaveValidationError(`duplicate tech: ${techId}`);
+    }
+    researchedTechs.push(techId);
+  }
 
   return {
     world: generated,
@@ -173,6 +199,8 @@ export function parseSave(input: unknown): GameState {
     woodDeposits,
     stoneDeposits,
     pollution,
+    age,
+    researchedTechs,
     buildingCounter,
     roadCounter,
   };
@@ -193,7 +221,7 @@ function migrateV13ToV14(document: Record<string, unknown>): Record<string, unkn
   }
   return {
     ...document,
-    formatVersion: SAVE_VERSION,
+    formatVersion: 14,
     buildings: buildings.map((raw) =>
       isRecord(raw) ? { active: true, ...raw } : raw,
     ),
@@ -204,8 +232,18 @@ function migrateV13ToV14(document: Record<string, unknown>): Record<string, unkn
 function migrateV14ToV15(document: Record<string, unknown>): Record<string, unknown> {
   return {
     ...document,
-    formatVersion: SAVE_VERSION,
+    formatVersion: 15,
     pollution: 0,
+  };
+}
+
+/** v15 → v16 (Step016): add age + researched techs, defaulting to Age 1 / none. */
+function migrateV15ToV16(document: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...document,
+    formatVersion: SAVE_VERSION,
+    age: 1,
+    researchedTechs: [],
   };
 }
 

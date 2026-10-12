@@ -1,5 +1,6 @@
 import type { GameState } from "../simulation/state.js";
 import { isActive } from "../building/building.js";
+import { techLevel } from "../progression/progression.js";
 import { extractAdjacent } from "../world/deposits.js";
 import { addStone, addWood } from "../resource/resource.js";
 
@@ -15,6 +16,11 @@ export const WOOD_PER_LUMBER_CAMP_PER_TICK = 2;
 export const STONE_PER_QUARRY_PER_TICK = 2;
 /** Primitive unstaffed collection of the Colony Center anchor. */
 export const WOOD_PER_COLONY_CENTER_PER_TICK = 1;
+
+/** Quarry yield includes technology (masonry/deepMining: +1 each, Step016). */
+export function stonePerQuarry(state: GameState): number {
+  return STONE_PER_QUARRY_PER_TICK + techLevel(state, "quarryStone");
+}
 
 function extractShares(
   deposits: GameState["woodDeposits"],
@@ -53,7 +59,7 @@ export function produceStone(state: GameState): void {
       isActive(building) &&
       building.staffed
     ) {
-      sources.push({ x: building.x, y: building.y, share: STONE_PER_QUARRY_PER_TICK });
+      sources.push({ x: building.x, y: building.y, share: stonePerQuarry(state) });
     }
   }
   if (sources.length === 0) return;

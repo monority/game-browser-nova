@@ -272,8 +272,8 @@ describe("zero-treasury recovery via mothballing (any composition)", () => {
 });
 
 describe("persistence", () => {
-  it("exposes SAVE_VERSION 15 with migratable chain", () => {
-    expect(SAVE_VERSION).toBe(15);
+  it("exposes SAVE_VERSION 16 with the v13 migratable chain", () => {
+    expect(SAVE_VERSION).toBe(16);
     expect(MIGRATABLE_SAVE_VERSION).toBe(13);
   });
 
@@ -288,7 +288,7 @@ describe("persistence", () => {
   it("migrates v13 saves: every building defaults to active", () => {
     const state = freshState();
     const doc = serialize(state) as unknown as Record<string, unknown>;
-    const v13: Record<string, unknown> = { ...doc, formatVersion: SAVE_VERSION - 2 };
+    const v13: Record<string, unknown> = { ...doc, formatVersion: MIGRATABLE_SAVE_VERSION };
     const buildings = (v13.buildings as Array<Record<string, unknown>>).map(
       ({ active: _active, ...rest }) => rest,
     );

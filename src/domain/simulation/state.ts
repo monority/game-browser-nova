@@ -2,6 +2,7 @@ import { createInitialResourceStock, type ResourceStock } from "../resource/reso
 import { createWorld, type World, type WorldConfig } from "../world/world.js";
 import { normalizeDeposits, type Deposits } from "../world/deposits.js";
 import { cellKey } from "../shared/cells.js";
+import { STARTING_AGE } from "../../content/progression.js";
 import type { Building } from "../building/building.js";
 import type { Road } from "../road/road.js";
 
@@ -24,6 +25,10 @@ export interface GameState {
   stoneDeposits: Deposits;
   /** Global pollution stock, 0–100 (environment system, Step014). */
   pollution: number;
+  /** Current civilization age (progression, Step016). */
+  age: number;
+  /** Researched technology ids (progression, Step016). */
+  researchedTechs: string[];
   /** Next deterministic entity id counters ("building-N" / "road-N"). */
   buildingCounter: number;
   roadCounter: number;
@@ -43,6 +48,8 @@ export function createInitialState(config: WorldConfig): GameState {
     woodDeposits: normalizeDeposits(config.woodDeposits ?? []),
     stoneDeposits: normalizeDeposits(config.stoneDeposits ?? []),
     pollution: 0,
+    age: STARTING_AGE,
+    researchedTechs: [],
     buildingCounter: 1,
     roadCounter: 1,
   };

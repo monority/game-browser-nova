@@ -2,6 +2,7 @@ import type { GameState } from "../simulation/state.js";
 import { isAdjacentToRoad } from "../network/network.js";
 import { isActive } from "../building/building.js";
 import { addMoney } from "../resource/resource.js";
+import { techLevel } from "../progression/progression.js";
 
 /**
  * Step001 money model (validated baseline):
@@ -39,8 +40,11 @@ export function collectRevenue(
   planksProducedThisTick = 0,
 ): { taxes: number; commerce: number } {
   const taxes = state.population * TAX_PER_INHABITANT_PER_TICK;
+  // trade routes tech: +1 commerce per connected workshop per level (Step016)
+  const commercePerWorkshop =
+    COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce");
   const commerce =
-    connectedWorkshops(state) * COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK +
+    connectedWorkshops(state) * commercePerWorkshop +
     planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
   addMoney(state.resources, taxes + commerce);
   return { taxes, commerce };

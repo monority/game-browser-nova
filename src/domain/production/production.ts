@@ -1,5 +1,6 @@
 import type { GameState } from "../simulation/state.js";
 import { isActive } from "../building/building.js";
+import { techLevel } from "../progression/progression.js";
 import { addFood, addWater, deductFood } from "../resource/resource.js";
 
 export const FOOD_PER_FARM_PER_TICK = 2;
@@ -16,12 +17,17 @@ export const WATER_PER_SERVED_COLONIST_PER_TICK = 1;
  */
 export const FOOD_PER_COLONY_CENTER_PER_TICK = 1;
 
-/** Staffed active farms + the Colony Center trickle. */
+/** Staffed active farms + the Colony Center trickle. Farm yield includes
+ * technology (cropRotation/irrigation: +1 each, Step016). */
+export function foodPerFarm(state: GameState): number {
+  return FOOD_PER_FARM_PER_TICK + techLevel(state, "farmFood");
+}
+
 export function produceFood(state: GameState): void {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {
     if (building.type === "farm" && isActive(building) && building.staffed) {
-      produced += FOOD_PER_FARM_PER_TICK;
+      produced += foodPerFarm(state);
     }
   }
   // the anchor is always active by contract — no mothball escape hatch

@@ -100,6 +100,12 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
   let overlayMode: OverlayMode = "none";
 
   function update(current: GameState): void {
+    // age atmosphere (docs/game/07-PROGRESSION.md: an age is visibly a chapter)
+    const ageTwoPlus = current.age >= 2;
+    (scene.fog as THREE.Fog).color.setHex(ageTwoPlus ? 0x181109 : 0x0b0e14);
+    (scene.background as THREE.Color).setHex(ageTwoPlus ? 0x151009 : 0x0b0e14);
+    directional.color.setHex(ageTwoPlus ? 0xffdfb0 : 0xfff2df);
+
     rebuildGroup(roadGroup, current, (s) => buildRoads(s));
     rebuildGroup(depositGroup, current, (s) => buildDeposits(s));
     rebuildGroup(buildingGroup, current, (s) => buildBuildings(s, overlayMode));

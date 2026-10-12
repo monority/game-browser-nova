@@ -15,6 +15,7 @@ import {
   MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
 } from "../../domain/economy/economy.js";
 import { environmentalQuality } from "../../domain/environment/environment.js";
+import { techLevel } from "../../domain/progression/progression.js";
 
 /**
  * Derived analysis views (docs/DATA-CONTRACTS.md §5, docs/game/09-UI-UX.md).
@@ -57,6 +58,7 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
   const pop = state.population;
   const foodProduction =
     staffedProducers(state, "farm") * FOOD_PER_FARM_PER_TICK +
+    techLevel(state, "farmFood") * staffedProducers(state, "farm") +
     (colonyCenterPresent(state) ? FOOD_PER_COLONY_CENTER_PER_TICK : 0);
   const waterProduction = staffedProducers(state, "well") * WATER_PER_WELL_PER_TICK;
   const foodConsumption = pop * FOOD_PER_COLONIST_PER_TICK;

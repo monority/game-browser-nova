@@ -2,6 +2,7 @@ import type { BuildingType } from "../content/buildings.js";
 import { BUILDING_DEFINITIONS } from "../content/buildings.js";
 import type { ColonyStats } from "../application/queries/stats.js";
 import type { ResourceContributors, ResourceForecast, Alert, SurvivalResource } from "../application/queries/analysis.js";
+import type { MilestoneStatus } from "../domain/progression/progression.js";
 import type { OverlayMode } from "../renderer/overlay.js";
 
 /**
@@ -49,6 +50,14 @@ const TOKENS = {
 export interface Ui {
   root: HTMLDivElement;
   updateStats(stats: ColonyStats): void;
+  updateProgression(info: {
+    age: number;
+    ageName: string;
+    milestones: MilestoneStatus[];
+    canAdvance: boolean;
+    availableTechs: Array<{ id: string; displayName: string; cost: number }>;
+    researchedTechs: string[];
+  }): void;
   updateForecast(forecasts: ResourceForecast[]): void;
   setAlerts(alerts: Alert[]): void;
   setStatus(message: string): void;
@@ -86,6 +95,8 @@ export interface UiCallbacks {
   onSetBuildingActive(id: string, active: boolean): void;
   onOverlayChanged(mode: OverlayMode): void;
   onForecastRowClick(resource: SurvivalResource): void;
+  onResearchTech(techId: string): void;
+  onAdvanceAge(): void;
 }
 
 export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
@@ -221,6 +232,10 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   });
   let currentInspection: InspectionInfo = null;
 
+  // --- progression panel (age, milestones, research) ------------------------
+  const progressionPanel = panel("progression", { bottom: "110px", right: "12px", width: "240px" });
+  root.appendChild(progressionPanel.element);
+
   // --- status line -------------------------------------------------------------
   const status = document.createElement("div");
   Object.assign(status.style, {
@@ -272,6 +287,58 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     root,
     activeBuildType: () => selectedType,
     roadMode: () => roadsEnabled,
+    updateProgression(info) {
+      progressionPanel.element.innerHTML = "";
+      const header = document.createElement("div");
+      header.textContent = `${info.ageName} (Age ${info.age})`;
+      header.style.cssText = "font-weight:600;margin-bottom:6px";
+      progressionPanel.element.appendChild(header);
+
+      const msHeader = document.createElement("div");
+      msHeader.textContent = "Milestones";
+      msHeader.style.cssText = "color:" + TOKENS.muted + ";font-size:11px;text-transform:uppercase;letter-spacing:0.08em;margin:6px 0 2px";
+      progressionPanel.element.appendChild(msHeader);
+      for (const milestone of info.milestones) {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;justify-content:space-between";
+        const label = document.createElement("span");
+        label.textContent = milestone.label;
+        const value = document.createElement("span");
+        value.textContent = milestone.done ? "✓" : `${Math.min(milestone.value, milestone.threshold)}/${milestone.threshold}`;
+        value.style.color = milestone.done ? TOKENS.ok : TOKENS.text;
+        row.append(label, value);
+        progressionPanel.element.appendChild(row);
+      }
+
+      const researchHeader = document.createElement("div");
+      researchHeader.textContent = "Research";
+      researchHeader.style.cssText = "color:" + TOKENS.muted + ";font-size:11px;text-transform:uppercase;letter-spacing:0.08em;margin:8px 0 2px";
+      progressionPanel.element.appendChild(researchHeader);
+      const researched = document.createElement("div");
+      researched.textContent = info.researchedTechs.length > 0
+        ? "Researched: " + info.researchedTechs.map((id) => {
+            const names: Record<string, string> = { cropRotation: "Crop Rotation", masonry: "Masonry", tradeRoutes: "Trade Routes", irrigation: "Irrigation", deepMining: "Deep Mining" };
+            return names[id] ?? id;
+          }).join(", ")
+        : "Researched: none";
+      researched.style.cssText = "color:" + TOKENS.muted + ";margin-bottom:4px";
+      progressionPanel.element.appendChild(researched);
+      for (const tech of info.availableTechs) {
+        const button = textButton(`${tech.displayName} (${tech.cost}$)`, `research-${tech.id}`, () => {
+          callbacks.onResearchTech(tech.id);
+        });
+        progressionPanel.element.appendChild(button);
+      }
+
+      if (info.canAdvance) {
+        const advance = textButton(`Advance to Age ${info.age + 1}`, "advance-age", () => {
+          callbacks.onAdvanceAge();
+        });
+        advance.style.borderColor = TOKENS.borderActive;
+        progressionPanel.element.appendChild(advance);
+      }
+    },
+
     updateForecast(forecasts: ResourceForecast[]) {
       // remove previous forecast + alert sections, re-append fresh
       statsPanel.element
