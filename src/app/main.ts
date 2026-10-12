@@ -6,7 +6,7 @@ import { allRoadCells } from "../domain/road/road.js";
 import { cellKey } from "../domain/shared/cells.js";
 import { createRenderer, type Renderer } from "../renderer/renderer.js";
 import { getColonyStats } from "../application/queries/stats.js";
-import { getResourceSummaries, getAlerts } from "../application/queries/analysis.js";
+import { getResourceSummaries, getAlerts, getResourceContributors } from "../application/queries/analysis.js";
 import { BUILDING_DETAIL } from "./details.js";
 import { createUi } from "./ui.js";
 import {
@@ -106,6 +106,13 @@ export function boot(root: HTMLElement): { stop(): void } {
       const building = state.buildings[id];
       if (building) inspectAt(building.x, building.y);
       else ui.showInspection(null);
+    },
+    onOverlayChanged: (mode) => {
+      renderer.setOverlay(mode);
+      ui.setStatus(mode === "none" ? "" : `Overlay: ${mode}`);
+    },
+    onForecastRowClick: (resource) => {
+      ui.showDrillDown(getResourceContributors(state, resource));
     },
   });
 

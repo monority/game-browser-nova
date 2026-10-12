@@ -32,7 +32,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-09, Step009) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-09) |
-| Unit tests | PASS — `npx vitest run`: 11 files / 132 tests, all green (2026-10-09, Step010) |
+| Unit tests | PASS — `npx vitest run`: 11 files / 132 tests, all green (2026-10-09, Step011) |
 | E2E | PASS — Playwright: 10/10 scenarios (2026-10-09, Step010; incl. deterministic growth to 5 inhabitants) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-09) |
 
@@ -63,7 +63,7 @@ Update these values from actual command output.
 | Economy | IMPLEMENTED | Step001 money model: treasury 100 start, tax 1/inhabitant/tick, commerce 2/connected Workshop/tick (staffing-independent), maintenance 1/operational building/tick, uncapped treasury clamped ≥ 0 |
 | Storage | PARTIAL | Food/Water uncapped colony stocks; treasury uncapped; no storage capacity mechanics (StorageHub never rebuilt — audit D5 consciously parked) |
 | Logistics | PARTIAL | road networks + road access for staffing and commerce (orthogonal components); no distance/congestion/capacity effects |
-| Analysis | IMPLEMENTED | derived stats + resource forecasts (production/consumption/balance/ticks-remaining) + state alerts (never prescriptive); inspection with per-type detail (Step010) |
+| Analysis | IMPLEMENTED | derived stats + resource forecasts (production/consumption/balance/ticks-remaining) + state alerts (never prescriptive) + staffing overlay + forecast drill-down (Step010–011) |
 | UI | IMPLEMENTED | palette, road mode, hover validity + info tooltip, inspection (detail/mothball/remove), time controls pause/1×–8× with keyboard (Space/1/2/4/8; rate bug fixed Step010), save/load, forecast + alerts |
 | Deactivation (mothball) | IMPLEMENTED | `setBuildingActive` (Step009): inactive = no maintenance/output/housing/staffing/commerce; anchor protected; next-tick reactivation; SAVE_VERSION 14 + v13→v14 migration |
 | Demolition | IMPLEMENTED | `removeBuilding` / `removeRoads` commands (Step008): anchor-protected, no refund, cell reuse, deterministic staffing recalculation, immediate maintenance relief; save v13 round-trips removals | 

@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { GameState } from "../domain/simulation/state.js";
 import type { BuildingType } from "../content/buildings.js";
 import { parseCellKey } from "../domain/shared/cells.js";
+import { computeOverlay, type OverlayMode, type OverlayTint } from "./overlay.js";
 
 /**
  * Presentation layer (ADR-001): the renderer consumes simulation state
@@ -11,6 +12,8 @@ import { parseCellKey } from "../domain/shared/cells.js";
 
 export interface Renderer {
   update(state: GameState): void;
+  /** Active analysis overlay (recolors buildings on the next update). */
+  setOverlay(mode: OverlayMode): void;
   /** Screen point → terrain cell (or null when off-grid). */
   pickCell(clientX: number, clientY: number): { x: number; y: number } | null;
   /** Hover feedback: highlight a cell green/red per placement validity. */
@@ -102,10 +105,18 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
     hoverMesh.visible = true;
   }
 
+  let overlayMode: OverlayMode = "none";
+
   function update(current: GameState): void {
     rebuildGroup(roadGroup, current, (s) => buildRoads(s));
     rebuildGroup(depositGroup, current, (s) => buildDeposits(s));
-    rebuildGroup(buildingGroup, current, (s) => buildBuildings(s));
+    rebuildGroup(buildingGroup, current, (s) => buildBuildings(s, overlayMode));
+  }
+
+  function setOverlay(mode: OverlayMode): void {
+    if (overlayMode === mode) return;
+    overlayMode = mode;
+    update(state);
   }
 
   function renderLoop(): void {
@@ -128,7 +139,7 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   update(state);
 
-  return { update, pickCell, setHover, dispose };
+  return { update, setOverlay, pickCell, setHover, dispose };
 }
 
 // --- orbit camera (drag rotate, wheel zoom, right-drag pan) ---------------
@@ -291,10 +302,20 @@ function buildRoads(state: GameState): THREE.Group {
   return group;
 }
 
-function buildBuildings(state: GameState): THREE.Group {
+const OVERLAY_TINTS: Record<OverlayTint, number> = {
+  ok: 0x51cf66,
+  warn: 0xd9a44a,
+  off: 0x555b66,
+};
+
+function buildBuildings(state: GameState, overlayMode: OverlayMode): THREE.Group {
   const group = new THREE.Group();
+  const tints = new Map(computeOverlay(state, overlayMode).map((c) => [c.key, c.tint]));
   for (const building of Object.values(state.buildings)) {
-    const color = BUILDING_COLORS[building.type] ?? 0xffffff;
+    const key = `${building.x},${building.y}`;
+    const tint = tints.get(key);
+    // overlay tint replaces the type color; base colors otherwise
+    const color = tint !== undefined ? OVERLAY_TINTS[tint] : BUILDING_COLORS[building.type] ?? 0xffffff;
     const material = new THREE.MeshLambertMaterial({
       color,
       transparent: building.status === "underConstruction",

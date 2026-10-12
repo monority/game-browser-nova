@@ -82,6 +82,48 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
 
 export type AlertSeverity = "info" | "warning";
 
+/** Drill-down: the buildings contributing to a survival resource. */
+export interface ResourceContributor {
+  id: string;
+  type: string;
+  x: number;
+  y: number;
+  staffed: boolean;
+  active: boolean;
+}
+
+export interface ResourceContributors {
+  resource: SurvivalResource;
+  producers: ResourceContributor[];
+  /** Aggregate consumer: the population. */
+  consumptionPerTick: number;
+}
+
+export function getResourceContributors(
+  state: GameState,
+  resource: SurvivalResource,
+): ResourceContributors {
+  const type = resource === "food" ? "farm" : "well";
+  const producers: ResourceContributor[] = Object.values(state.buildings)
+    .filter((b) => b.type === type)
+    .map((b) => ({
+      id: b.id,
+      type: b.type,
+      x: b.x,
+      y: b.y,
+      staffed: b.staffed,
+      active: b.active,
+    }))
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  return {
+    resource,
+    producers,
+    consumptionPerTick:
+      state.population *
+      (resource === "food" ? FOOD_PER_COLONIST_PER_TICK : WATER_PER_SERVED_COLONIST_PER_TICK),
+  };
+}
+
 export interface Alert {
   severity: AlertSeverity;
   message: string;

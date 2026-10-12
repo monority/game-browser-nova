@@ -475,6 +475,54 @@ test.describe("NOVA critical flows", () => {
     expect(after8 - before8).toBeGreaterThan(10);
   });
 
+  test("overlays + drill-down: staffing tint toggle and contributor panel", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+
+    // build farm + well + workshop + residence, mature, pop 2
+    await page.evaluate(() => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      s.resources.money = 400;
+      s.resources.water = 6;
+      h.command({ kind: "placeRoads", cells: ["0,0", "0,1", "0,2"] });
+      h.command({ kind: "placeBuilding", type: "farm", x: 1, y: 0 });
+      h.command({ kind: "placeBuilding", type: "well", x: 1, y: 1 });
+      h.command({ kind: "placeBuilding", type: "workshop", x: 1, y: 2 });
+      h.command({ kind: "placeBuilding", type: "residence", x: 5, y: 5 });
+      h.command({ kind: "placeBuilding", type: "residence", x: 6, y: 5 });
+    });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (window as unknown as { __nova: NovaHandle }).__nova.getState().population,
+        ),
+      )
+      .toBe(2);
+    await pause(page);
+
+    // overlay toggle: staffing
+    await page.locator("button[data-action='overlay-staffing']").click();
+    // drill-down: click the Food forecast row
+    await page.locator("#stats [data-resource='food']").click();
+    const panel = page.locator("#inspection");
+    await expect(panel).toBeVisible();
+    await expect(panel).toContainText("Food — contributors");
+    await expect(panel).toContainText("staffed");
+    await expect(panel).toContainText("Consumption: 2/tick");
+
+    // water drill-down shows the well (mothballed state visible)
+    await page.locator("#stats [data-resource='water']").click();
+    await expect(page.locator("#inspection")).toContainText("Water — contributors");
+    await expect(page.locator("#inspection")).toContainText("well");
+
+    // overlay back to none
+    await page.locator("button[data-action='overlay-none']").click();
+    await expect(page.locator("button[data-action='overlay-staffing']")).toBeVisible();
+  });
+
   test("UI stat surface reflects the money-era contract", async ({ page }) => {
     await page.goto("/");
     await waitForTick(page, 1);

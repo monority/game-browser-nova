@@ -1,7 +1,8 @@
 import type { BuildingType } from "../content/buildings.js";
 import { BUILDING_DEFINITIONS } from "../content/buildings.js";
 import type { ColonyStats } from "../application/queries/stats.js";
-import type { ResourceForecast, Alert } from "../application/queries/analysis.js";
+import type { ResourceContributors, ResourceForecast, Alert, SurvivalResource } from "../application/queries/analysis.js";
+import type { OverlayMode } from "../renderer/overlay.js";
 
 /**
  * DOM UI (presentation only): displays derived state, collects player
@@ -37,6 +38,7 @@ export interface Ui {
   setAlerts(alerts: Alert[]): void;
   setStatus(message: string): void;
   showTooltip(text: string | null, clientX?: number, clientY?: number): void;
+  showDrillDown(info: ResourceContributors | null): void;
   showInspection(info: InspectionInfo): void;
   activeBuildType(): BuildingType | null;
   roadMode(): boolean;
@@ -67,6 +69,8 @@ export interface UiCallbacks {
   onRemoveBuilding(id: string): void;
   onRemoveRoadCell(cell: string): void;
   onSetBuildingActive(id: string, active: boolean): void;
+  onOverlayChanged(mode: OverlayMode): void;
+  onForecastRowClick(resource: SurvivalResource): void;
 }
 
 export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
@@ -153,7 +157,27 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   controlsRow.style.gap = "6px";
   controlsRow.style.flexWrap = "wrap";
   controlsRow.append(roadButton, saveButton, loadButton);
-  controls.element.append(controlsRow, paletteRow, speedRow);
+
+  // --- overlay toggle group --------------------------------------------------
+  const overlayRow = document.createElement("div");
+  overlayRow.style.cssText = "display:flex;gap:6px;margin-top:6px";
+  const overlayModes: Array<[OverlayMode, string]> = [
+    ["none", "No overlay"],
+    ["staffing", "Staffing"],
+    ["deposits", "Deposits"],
+  ];
+  for (const [mode, label] of overlayModes) {
+    const button = textButton(label, `overlay-${mode}`, () => {
+      callbacks.onOverlayChanged(mode);
+      for (const child of overlayRow.children) {
+        (child as HTMLElement).style.borderColor = "#333";
+      }
+      button.style.borderColor = "#5bc0eb";
+    });
+    overlayRow.appendChild(button);
+  }
+
+  controls.element.append(controlsRow, paletteRow, overlayRow, speedRow);
 
   // --- inspection ----------------------------------------------------------
   const inspection = panel("inspection", { top: "12px", right: "12px", width: "220px" });
@@ -244,13 +268,16 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
         const name = f.resource.charAt(0).toUpperCase() + f.resource.slice(1);
         const remaining = f.ticksRemaining !== null ? ` → ${f.ticksRemaining} ticks` : "";
         const row = document.createElement("div");
-        row.style.cssText = "display:flex;justify-content:space-between";
+        row.style.cssText = "display:flex;justify-content:space-between;cursor:pointer";
+        row.title = "Click: show contributing buildings";
+        row.dataset.resource = f.resource;
         const label = document.createElement("span");
         label.textContent = `${name} ${f.productionPerTick}/${f.consumptionPerTick}`;
         const value = document.createElement("span");
         value.textContent = `${Math.floor(f.stock)}${remaining}`;
         value.style.color = f.balancePerTick < 0 ? "#d96a4a" : "#d8dee9";
         row.append(label, value);
+        row.addEventListener("click", () => callbacks.onForecastRowClick(f.resource));
         section.appendChild(row);
       }
       statsPanel.element.appendChild(section);
@@ -283,6 +310,42 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
       tooltip.style.display = "block";
     },
 
+    showDrillDown(info) {
+      // the right panel is shared between building inspection and analysis
+      // drill-down — the latest selection wins
+      inspection.element.innerHTML = "";
+      if (!info) {
+        inspection.element.style.display = "none";
+        return;
+      }
+      inspection.element.style.display = "block";
+      inspection.element.dataset.drilldown = info.resource;
+      const header = document.createElement("div");
+      header.textContent = `${info.resource.charAt(0).toUpperCase() + info.resource.slice(1)} — contributors`;
+      header.style.cssText = "margin-bottom:6px;font-weight:600";
+      inspection.element.appendChild(header);
+      const consumer = document.createElement("div");
+      consumer.textContent = `Consumption: ${info.consumptionPerTick}/tick (population)`;
+      consumer.style.cssText = "margin-bottom:6px;color:#8a93a3";
+      inspection.element.appendChild(consumer);
+      if (info.producers.length === 0) {
+        inspection.element.appendChild(staticNote("No producing buildings."));
+        return;
+      }
+      for (const p of info.producers) {
+        const row = document.createElement("div");
+        row.style.cssText = "display:flex;justify-content:space-between";
+        const name = document.createElement("span");
+        name.textContent = `${p.type} · ${p.id} @ ${p.x},${p.y}`;
+        const stateSpan = document.createElement("span");
+        const stateText = !p.active ? "mothballed" : p.staffed ? "staffed" : "idle";
+        stateSpan.textContent = stateText;
+        stateSpan.style.color = !p.active ? "#555b66" : p.staffed ? "#7fb069" : "#d9a44a";
+        row.append(name, stateSpan);
+        inspection.element.appendChild(row);
+      }
+    },
+
     showInspection(info) {
       currentInspection = info;
       inspection.element.innerHTML = "";
@@ -291,6 +354,8 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
         return;
       }
       inspection.element.style.display = "block";
+      inspection.element.dataset.inspection = info.kind === "building" ? info.id : "road";
+      delete inspection.element.dataset.drilldown;
       inspectionLabel.textContent = info.label;
       inspection.element.appendChild(inspectionLabel);
       if (info.kind === "building") {
