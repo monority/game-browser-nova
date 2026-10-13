@@ -21,7 +21,7 @@ import { producePlanks } from "../production/transformation.js";
  *   6. updatePopulation (starvation + admission)
  *   7. assignJobs (next tick's staffing)
  *   8. collectRevenue → 9. payMaintenance (money model, same-tick inflow)
- *   10. updateEnvironment (pollution flows)
+ *   10. updateEnvironment (pollution flows + park wood regrowth)
  */
 export function stepSimulation(state: GameState): GameState {
   state.tick += 1;

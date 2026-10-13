@@ -9,7 +9,7 @@ export const BUILDING_DETAIL: Record<BuildingType, string> = {
   workshop: "+2 commerce/tick connected · +1/tick when producing planks · 2 Wood → 1 Plank",
   lumberCamp: "+2 Wood/tick from adjacent deposits (staffed)",
   quarry: "+2 Stone/tick from adjacent deposits (staffed; tech adds more) · emits pollution",
-  park: "Absorbs 2 pollution/tick",
+  park: "Absorbs 2 pollution/tick, regrows 1 adjacent wood/tick",
   market: "Sells up to 2 surplus food/tick for 1 money each (Age 2), connected",
   colonyCenter: "+1 Wood/tick · always active · cannot be removed or mothballed",
 };

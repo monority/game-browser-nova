@@ -75,7 +75,7 @@ describe("wood extraction (Step003 contract)", () => {
   it("final extraction is capped by the remaining quantity; entry remains at 0", () => {
     const state = freshState();
     placeExtractor(state, "lumberCamp", 3, 3);
-    state.woodDeposits[cellKey(3, 3)] = { remaining: 3 };
+    state.woodDeposits[cellKey(3, 3)] = { remaining: 3, capacity: 10 };
     stepTicks(state, 2); // demand 4 > remaining 3 (anchor not adjacent)
     expect(state.woodDeposits[cellKey(3, 3)]?.remaining).toBe(0);
     expect(state.woodDeposits[cellKey(3, 3)]).toBeDefined(); // entry persists
@@ -85,7 +85,7 @@ describe("wood extraction (Step003 contract)", () => {
     const state = freshState();
     const id = placeExtractor(state, "lumberCamp", 3, 3); // camp at (4,3)
     // replace deposits with two adjacent to the CAMP: (4,2) and (5,3)
-    state.woodDeposits = { [cellKey(4, 2)]: { remaining: 10 }, [cellKey(5, 3)]: { remaining: 10 } };
+    state.woodDeposits = { [cellKey(4, 2)]: { remaining: 10, capacity: 10 }, [cellKey(5, 3)]: { remaining: 10, capacity: 10 } };
     stepTicks(state, 1);
     expect(state.buildings[id]?.staffed).toBe(true);
     expect(state.woodDeposits[cellKey(4, 2)]?.remaining).toBe(8); // y=2 drains first
@@ -114,7 +114,7 @@ describe("stone extraction (Step005 contract)", () => {
     const state = createInitialState({ seed: "lock-test", width: 12, height: 12 });
     const anchor = state.buildings["colony-center"];
     if (!anchor) throw new Error("anchor missing");
-    state.stoneDeposits[cellKey(anchor.x - 1, anchor.y)] = { remaining: 5 };
+    state.stoneDeposits[cellKey(anchor.x - 1, anchor.y)] = { remaining: 5, capacity: 5 };
     state.population = 0;
     stepTicks(state, 3);
     expect(state.resources.stone).toBe(0);
@@ -178,7 +178,7 @@ describe("Colony Center (Step004 anti-self-lock)", () => {
     const state = createInitialState({ seed: "lock-test", width: 12, height: 12 });
     const anchor = state.buildings["colony-center"];
     if (!anchor) throw new Error("anchor missing");
-    state.woodDeposits[cellKey(anchor.x - 1, anchor.y)] = { remaining: 5 };
+    state.woodDeposits[cellKey(anchor.x - 1, anchor.y)] = { remaining: 5, capacity: 5 };
     state.population = 0;
     stepTicks(state, 2);
     expect(state.resources.wood).toBe(2 * WOOD_PER_COLONY_CENTER_PER_TICK);

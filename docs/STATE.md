@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step017 Age 2 market (Phase 9 first slice) |
+| HEAD | Step018 renewable wood (park forest regrowth) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-12, Step017) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-12, Step017) |
-| Unit tests | PASS — `npx vitest run`: 15 files / 179 tests, all green (2026-10-12, Step017) |
-| E2E | PASS — Playwright: 12/12 scenarios (2026-10-12, Step017; incl. deterministic growth to 5 inhabitants) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-12, Step017) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-12, Step018) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-12, Step018) |
+| Unit tests | PASS — `npx vitest run`: 16 files / 189 tests, all green (2026-10-12, Step018) |
+| E2E | PASS — Playwright: 12/12 scenarios (2026-10-12, Step018; incl. deterministic growth to 5 inhabitants) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-12, Step018) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -67,10 +67,10 @@ Update these values from actual command output.
 | UI | IMPLEMENTED | palette, road mode, hover validity + info tooltip, inspection (detail/mothball/remove), time controls pause/1×–8× with keyboard (Space/1/2/4/8; rate bug fixed Step010), save/load, forecast + alerts; progression panel, research, age advance (Step016); age-gated palette plus market row (Step017) |
 | Deactivation (mothball) | IMPLEMENTED | `setBuildingActive` (Step009): inactive = no maintenance/output/housing/staffing/commerce; anchor protected; next-tick reactivation; SAVE_VERSION 14 + v13→v14 migration |
 | Demolition | IMPLEMENTED | `removeBuilding` / `removeRoads` commands (Step008): anchor-protected, no refund, cell reuse, deterministic staffing recalculation, immediate maintenance relief; save v13 round-trips removals | 
-| Environment | IMPLEMENTED | global pollution stock, park absorption, admission quality gate (Step014) |
+| Environment | IMPLEMENTED | global pollution stock, park absorption, admission quality gate (Step014); parks regrow adjacent wood to capacity (Step018) |
 | Technology | IMPLEMENTED | 5 techs, researchTech command, additive farm/quarry/commerce effects (Step016) |
 | Ages | IMPLEMENTED | Age 1 complete, milestones, advanceAge transition, Age 2 techs plus atmosphere (Step016); Age 2 systems continue Phase 9 |
-| Persistence | IMPLEMENTED | `SAVE_VERSION = 16` (sequential chain v13→v16: mothball flag, pollution stock, age plus techs) — no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests |
+| Persistence | IMPLEMENTED | `SAVE_VERSION = 17` (sequential chain v13-v17: mothball flag, pollution stock, age plus techs, deposit capacity) - no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests |
 | Performance | UNKNOWN | no measurements taken |
 
 ---
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step017 (Age 2 market, complete) — see `docs/roadmap/Step017-age2-market.md`.
+Step018 (renewable wood, complete) — see `docs/roadmap/Step018-renewable-wood.md`.
 
 ---
 

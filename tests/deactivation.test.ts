@@ -272,8 +272,8 @@ describe("zero-treasury recovery via mothballing (any composition)", () => {
 });
 
 describe("persistence", () => {
-  it("exposes SAVE_VERSION 16 with the v13 migratable chain", () => {
-    expect(SAVE_VERSION).toBe(16);
+  it("exposes SAVE_VERSION 17 with the v13 migratable chain", () => {
+    expect(SAVE_VERSION).toBe(17);
     expect(MIGRATABLE_SAVE_VERSION).toBe(13);
   });
 

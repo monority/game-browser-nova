@@ -33,8 +33,8 @@ function richState(): GameState {
 }
 
 describe("save format", () => {
-  it("exposes SAVE_VERSION 15 with migratable chain", () => {
-    expect(SAVE_VERSION).toBe(16);
+  it("exposes SAVE_VERSION 17 with the v13 migratable chain", () => {
+    expect(SAVE_VERSION).toBe(17);
   });
 
   it("round-trips canonical state losslessly", () => {
@@ -51,7 +51,7 @@ describe("save format", () => {
 
   it("persisted mutated deposits, not seeds", () => {
     const state = richState();
-    state.woodDeposits[cellKey(3, 3)] = { remaining: 4 };
+    state.woodDeposits[cellKey(3, 3)] = { remaining: 4, capacity: 10 };
     const restored = parseSave(serialize(state));
     expect(restored.woodDeposits[cellKey(3, 3)]?.remaining).toBe(4);
   });

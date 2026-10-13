@@ -3,7 +3,7 @@ import { TECH_DEFINITIONS } from "../../content/techs.js";
 import { parseCellKey } from "../../domain/shared/cells.js";
 import type { Building, BuildingStatus } from "../../domain/building/building.js";
 import type { Road } from "../../domain/road/road.js";
-import type { Deposits } from "../../domain/world/deposits.js";
+import { depositCapacities, type Deposits } from "../../domain/world/deposits.js";
 import { createWorld } from "../../domain/world/world.js";
 import type { GameState } from "../../domain/simulation/state.js";
 import type { ResourceStock } from "../../domain/resource/resource.js";
@@ -22,7 +22,7 @@ import type { WorldConfig } from "../../domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 16;
+export const SAVE_VERSION = 17;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 
@@ -87,11 +87,12 @@ export function parseSave(input: unknown): GameState {
       `unsupported save version: ${String(version)} (expected ${SAVE_VERSION}, migratable from ${MIGRATABLE_SAVE_VERSION})`,
     );
   }
-  // sequential migration chain: v13 → v14 → v15 → v16
+  // sequential migration chain: v13 -> v14 -> v15 -> v16 -> v17
   let doc: Record<string, unknown> = input;
   if (Number(doc.formatVersion) === 13) doc = migrateV13ToV14(doc);
   if (Number(doc.formatVersion) === 14) doc = migrateV14ToV15(doc);
   if (Number(doc.formatVersion) === 15) doc = migrateV15ToV16(doc);
+  if (Number(doc.formatVersion) === 16) doc = migrateV16ToV17(doc);
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
@@ -237,13 +238,43 @@ function migrateV14ToV15(document: Record<string, unknown>): Record<string, unkn
   };
 }
 
-/** v15 → v16 (Step016): add age + researched techs, defaulting to Age 1 / none. */
+/** v15 -> v16 (Step016): add age + researched techs, defaulting to Age 1 / none. */
 function migrateV15ToV16(document: Record<string, unknown>): Record<string, unknown> {
   return {
     ...document,
-    formatVersion: SAVE_VERSION,
+    formatVersion: 16,
     age: 1,
     researchedTechs: [],
+  };
+}
+
+/** v16 -> v17 (Step018): deposit cells gain a regrowth capacity ceiling. */
+function migrateV16ToV17(document: Record<string, unknown>): Record<string, unknown> {
+  const world = (document.world ?? {}) as {
+    woodDeposits?: Array<{ x: number; y: number; amount: number }>;
+    stoneDeposits?: Array<{ x: number; y: number; amount: number }>;
+  };
+  const withCapacities = (
+    deposits: unknown,
+    seeds: Array<{ x: number; y: number; amount: number }> | undefined,
+  ): Record<string, unknown> => {
+    if (typeof deposits !== "object" || deposits === null) return {};
+    const capacities = depositCapacities(seeds ?? []);
+    const out: Record<string, unknown> = {};
+    for (const [key, raw] of Object.entries(deposits as Record<string, unknown>)) {
+      const entry = (raw ?? {}) as { remaining?: unknown };
+      out[key] = { remaining: entry.remaining, capacity: capacities[key] ?? entry.remaining ?? 0 };
+    }
+    return out;
+  };
+  const deposits = (document.deposits ?? {}) as Record<string, unknown>;
+  return {
+    ...document,
+    formatVersion: SAVE_VERSION,
+    deposits: {
+      wood: withCapacities(deposits.wood, world.woodDeposits),
+      stone: withCapacities(deposits.stone, world.stoneDeposits),
+    },
   };
 }
 
@@ -337,7 +368,10 @@ function expectDeposits(value: unknown, field: string): Deposits {
       throw new SaveValidationError(`${field} has an invalid cell key: ${key}`);
     }
     if (!isRecord(raw)) throw new SaveValidationError(`${field}.${key} must be an object`);
-    deposits[key] = { remaining: expectNonNegativeNumber(raw.remaining, `${field}.${key}.remaining`) };
+    deposits[key] = {
+      remaining: expectNonNegativeNumber(raw.remaining, `${field}.${key}.remaining`),
+      capacity: expectNonNegativeNumber(raw.capacity, `${field}.${key}.capacity`),
+    };
   }
   return deposits;
 }
