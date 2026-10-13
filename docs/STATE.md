@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step018 renewable wood (park forest regrowth) |
+| HEAD | Step019 self-play verifier + D1 verdict (audit, no src changes) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-12, Step018) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-12, Step018) |
-| Unit tests | PASS — `npx vitest run`: 16 files / 189 tests, all green (2026-10-12, Step018) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-12, Step019) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-12, Step019) |
+| Unit tests | PASS — `npx vitest run`: 17 files / 191 tests, all green (2026-10-12, Step019) |
 | E2E | PASS — Playwright: 12/12 scenarios (2026-10-12, Step018; incl. deterministic growth to 5 inhabitants) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-12, Step018) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-12, Step019) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -81,7 +81,7 @@ Only confirmed issues belong here.
 
 | Issue | Impact | Status |
 |---|---|---|
-| Step001 baseline is net-negative for typical colonies (e.g. revenue 4 vs maintenance 5 with a Workshop): documented D1 finding | Colony shapes can bleed money by design; scenario premises unfundable | OPEN — D1 income/expense balance deliberately deferred; needs a product decision (unchanged from pre-reset documentation) |
+| Step001 baseline is net-negative; self-play (Step019) measured the trap as structural: best-known line (residence, well, workshop, park) stalls at pop1/money0 over 3000 ticks - income 3 (1 tax + 2 commerce) cannot cover the 3-4 upkeep minimum, so growth surplus never forms. Funded starts stall at pop4; commerce-first overbuild spirals (19 upkeep vs 11 income) | No line completes the MVP loop as shipped; human players stall where the governor stalls | OPEN - D1 needs a product decision (starting treasury, commerce rate, upkeep model, or accept difficulty) |
 | Zero-money colony: Step008 removal + Step009 mothballing make ANY composition recoverable — deactivate/mothball all but a minimal staffed core → net ≥ 0 → accumulate (verified W>F: net +1; W=F: net 0 boundary) | Crises are prolonged but recoverable; growth pace still set by standing workshop density | RESOLVED in implementation (Step009) — remaining tuning only on measured evidence |
 | Commerce is a subsidy mechanic (2/tick for a connected operational Workshop regardless of inputs) while the Workshop also transforms wood → planks; documented physical/commerce separation | Workshop earns commerce from existence, contradicting the transformation principle (audit D3/D6) | DEFERRED — re-anchoring blocked on the D1 product decision |
 | Water coverage is a global stock gate (no per-network coverage) | Simplification vs. the pre-reset per-network water contract | ACCEPTED for the rebuild (aggregate MVP model per ADR-003); revisit if water logistics design lands |
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step018 (renewable wood, complete) — see `docs/roadmap/Step018-renewable-wood.md`.
+Step019 (self-play verifier + D1 verdict, complete) - see `docs/roadmap/Step019-selfplay-verdict.md`.
 
 ---
 

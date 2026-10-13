@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:selfplay": "vitest run tests/selfplay.test.ts"
   },
   "dependencies": {
     "three": "^0.170.0"
