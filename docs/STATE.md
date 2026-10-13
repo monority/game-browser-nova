@@ -26,7 +26,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step019 self-play verifier + D1 verdict (audit, no src changes) |
+| HEAD | Step020 early-game economy contract (DESIGN, awaiting approval) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
@@ -81,7 +81,7 @@ Only confirmed issues belong here.
 
 | Issue | Impact | Status |
 |---|---|---|
-| Step001 baseline is net-negative; self-play (Step019) measured the trap as structural: best-known line (residence, well, workshop, park) stalls at pop1/money0 over 3000 ticks - income 3 (1 tax + 2 commerce) cannot cover the 3-4 upkeep minimum, so growth surplus never forms. Funded starts stall at pop4; commerce-first overbuild spirals (19 upkeep vs 11 income) | No line completes the MVP loop as shipped; human players stall where the governor stalls | OPEN - D1 needs a product decision (starting treasury, commerce rate, upkeep model, or accept difficulty) |
+| Step001 baseline is net-negative; self-play (Step019) measured the trap as structural: best-known line (residence, well, workshop, park) stalls at pop1/money0 over 3000 ticks - income 3 (1 tax + 2 commerce) cannot cover the 3-4 upkeep minimum, so growth surplus never forms. Funded starts stall at pop4; commerce-first overbuild spirals (19 upkeep vs 11 income) | No line completes the MVP loop as shipped; human players stall where the governor stalls | OPEN - D1 Step020 proposes: D2 day-0 colony (10 pop, 10 res, 5 farm, 5 well, 2 shops, food 60 / water 40 / money 100) + residence upkeep exemption + workshop base floor gated on pop>=8. Measured: B/F2 variants ready@140, age2@140, market@155, zero wipes; A/C/D/F stall. AWAITING APPROVAL before implementation |
 | Zero-money colony: Step008 removal + Step009 mothballing make ANY composition recoverable — deactivate/mothball all but a minimal staffed core → net ≥ 0 → accumulate (verified W>F: net +1; W=F: net 0 boundary) | Crises are prolonged but recoverable; growth pace still set by standing workshop density | RESOLVED in implementation (Step009) — remaining tuning only on measured evidence |
 | Commerce is a subsidy mechanic (2/tick for a connected operational Workshop regardless of inputs) while the Workshop also transforms wood → planks; documented physical/commerce separation | Workshop earns commerce from existence, contradicting the transformation principle (audit D3/D6) | DEFERRED — re-anchoring blocked on the D1 product decision |
 | Water coverage is a global stock gate (no per-network coverage) | Simplification vs. the pre-reset per-network water contract | ACCEPTED for the rebuild (aggregate MVP model per ADR-003); revisit if water logistics design lands |
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step019 (self-play verifier + D1 verdict, complete) - see `docs/roadmap/Step019-selfplay-verdict.md`.
+Step020 (early-game economy contract, design complete, awaiting approval) - see `docs/roadmap/Step020-early-game-economy-contract.md`.
 
 ---
 
