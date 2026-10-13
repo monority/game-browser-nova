@@ -7,9 +7,7 @@ import {
   addMoney,
   deductFood,
   deductWater,
-  INITIAL_FOOD,
   INITIAL_TREASURY,
-  INITIAL_WATER,
 } from "../src/domain/resource/resource.js";
 
 const CONFIG = { seed: "test-seed", width: 24, height: 24 };
@@ -70,10 +68,24 @@ describe("canonical state", () => {
     const state = freshState();
     expect(state.resources.money).toBe(INITIAL_TREASURY);
     expect(state.resources.money).toBe(100);
-    expect(state.resources.food).toBe(INITIAL_FOOD);
-    expect(state.resources.food).toBe(100);
-    expect(state.resources.water).toBe(INITIAL_WATER);
-    expect(state.resources.water).toBe(0);
+    // D2 day-0 colony (Step021): tight but sufficient operating stocks
+    expect(state.resources.food).toBe(60);
+    expect(state.resources.water).toBe(40);
+  });
+
+  it("day-0 ships the D2 colony: 10 pop, housing, producers, workshops", () => {
+    const state = freshState();
+    expect(state.population).toBe(10);
+    const count = (t: string): number =>
+      Object.values(state.buildings).filter((b) => b.type === t).length;
+    expect(count("residence")).toBe(10);
+    expect(count("farm")).toBe(5);
+    expect(count("well")).toBe(5);
+    expect(count("workshop")).toBe(2);
+    // functioning colony: everything operational, workplaces road-adjacent
+    for (const b of Object.values(state.buildings)) {
+      expect(b.status).toBe("operational");
+    }
   });
 
   it("starts at tick 0 with a generated world", () => {

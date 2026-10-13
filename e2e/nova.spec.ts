@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { NovaHandle } from "./helpers.js";
-import { nova, pause, statsText, waitForTick } from "./helpers.js";
+import { nova, pause, statsText, stripToAnchor, waitForTick } from "./helpers.js";
 
 test.describe("NOVA smoke", () => {
   test("boots, renders the 3D scene and advances the simulation", async ({ page }) => {
@@ -25,11 +25,12 @@ test.describe("NOVA smoke", () => {
     void handle;
     expect(state.tick).toBeGreaterThanOrEqual(3);
 
-    // day-0 invariants: anchor present, documented stock, maintenance-free
+    // day-0 invariants: D2 colony present, Foundation surplus flowing, no errors
     expect(state.buildings["colony-center"]).toBeDefined();
-    expect(state.resources.money).toBe(100);
-    expect(state.resources.food).toBeGreaterThanOrEqual(100); // Center trickle may have added
-    expect(state.resources.water).toBe(0);
+    expect(state.population).toBe(10);
+    expect(Object.values(state.buildings).filter((b) => b.type === "residence").length).toBe(10);
+    expect(state.resources.money).toBeGreaterThan(100); // 10 taxes + commerce beat upkeep
+    expect(state.resources.food).toBeGreaterThan(0);
     expect(errors).toEqual([]);
   });
 });
@@ -54,7 +55,7 @@ test.describe("NOVA critical flows", () => {
       };
     });
     expect(afterPlace.money).toBe(moneyBefore - 25);
-    expect(afterPlace.buildings).toBe(1);
+    expect(afterPlace.buildings).toBe(11); // D2 ships 10
 
     // let it construct + admit a colonist (bootstrap exemption)
     await page.getByRole("button", { name: "8x", exact: true }).click();
@@ -96,19 +97,23 @@ test.describe("NOVA critical flows", () => {
     });
 
     // quarry placement attempt WITHOUT planks would fail; with 5 it succeeds
+    const moneyBeforeQuarry = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.getState().resources.money,
+    );
     await page.locator("button[data-build-type='quarry']").click();
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
-    const quarryPlaced = await page.evaluate(() => {
+    const quarryPlaced = await page.evaluate((before: number) => {
       const state = (window as unknown as { __nova: NovaHandle }).__nova.getState();
       return {
         quarries: Object.values(state.buildings).filter((b) => b.type === "quarry").length,
         planks: state.resources.planks,
         money: state.resources.money,
+        before,
       };
-    });
+    }, moneyBeforeQuarry);
     expect(quarryPlaced.quarries).toBe(1);
     expect(quarryPlaced.planks).toBe(0); // atomic plank deduction
-    expect(quarryPlaced.money).toBe(75); // 100 − 25
+    expect(quarryPlaced.money).toBe(quarryPlaced.before - 25);
 
     // road + workshop → commerce revenue appears (click zone clear of the
     // left stats panel, which grew with the forecast/alert sections)
@@ -143,7 +148,7 @@ test.describe("NOVA critical flows", () => {
         () => (window as unknown as { __nova: NovaHandle }).__nova.stats(),
       );
       if (stats.commercePerTick > 0) {
-        expect(stats.commercePerTick).toBe(2);
+        expect(stats.commercePerTick).toBeGreaterThanOrEqual(2);
         expect(stats.netMoneyPerTick).toBe(stats.revenuePerTick - stats.maintenancePerTick);
       }
     }
@@ -161,6 +166,9 @@ test.describe("NOVA critical flows", () => {
       () => (window as unknown as { __nova: NovaHandle }).__nova.getState().resources.money,
     );
 
+    const savedFarms = await page.evaluate(() =>
+      Object.values((window as unknown as { __nova: NovaHandle }).__nova.getState().buildings).filter((b) => b.type === "farm").length,
+    );
     // mutate: place another building to change money
     await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 700, y: 300 } });
@@ -180,128 +188,142 @@ test.describe("NOVA critical flows", () => {
       };
     });
     expect(loaded.money).toBe(savedMoney);
-    expect(loaded.farms).toBe(0);
+    expect(loaded.farms).toBe(savedFarms);
   });
 
-  test("removal flow: place → inspect → remove → cell and stats restored", async ({ page }) => {
+  test("removal flow: place ? inspect ? remove ? cell and stats restored", async ({ page }) => {
     await page.goto("/");
     await pause(page);
 
-    // place a residence (no refund policy: money stays spent)
-    await page.locator("button[data-build-type='residence']").click();
+    // D2 baseline maintenance for the delta assertions below
+    const base = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
+    );
+
+    // place a farm (no refund policy: money stays spent)
+    await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     const placed = await page.evaluate(() => {
       const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
       return {
-        residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
+        farms: Object.values(s.buildings).filter((b) => b.type === "farm").length,
         money: s.resources.money,
       };
     });
-    expect(placed.residences).toBe(1);
-    expect(placed.money).toBe(75);
+    expect(placed.farms).toBeGreaterThan(0);
+    const farmsBefore = placed.farms;
 
-    // mature the residence (2 ticks at 8x) so it actually pays maintenance
+    // mature the farm (2 ticks at 8x) so it actually pays maintenance
     await page.getByRole("button", { name: "8x", exact: true }).click();
     await expect
       .poll(() =>
         page.evaluate(
-          () =>
-            (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
+          () => (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
         ),
       )
-      .toBe(1);
+      .toBe(base + 1);
     await page.getByRole("button", { name: "pause", exact: true }).click();
 
     // deselect the palette (click the active button again), then inspect the cell
-    await page.locator("button[data-build-type='residence']").click();
+    await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     const removeButton = page.locator("button[data-action='remove-building']");
     await expect(removeButton).toBeVisible();
 
     // removal: no refund, immediate stats relief
+    const preRemove = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.getState().resources.money,
+    );
     await removeButton.click();
     const afterRemove = await page.evaluate(() => {
       const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
       const stats = (window as unknown as { __nova: NovaHandle }).__nova.stats();
       return {
-        residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
+        farms: Object.values(s.buildings).filter((b) => b.type === "farm").length,
         money: s.resources.money,
         maintenance: stats.maintenancePerTick,
       };
     });
-    expect(afterRemove.residences).toBe(0); // removed
-    expect(afterRemove.money).toBe(placed.money); // no refund
-    expect(afterRemove.maintenance).toBe(0); // relief: 1 → 0
+    expect(afterRemove.farms).toBe(farmsBefore - 1); // removed
+    expect(afterRemove.money).toBe(preRemove); // no refund (paused: no drift)
+    expect(afterRemove.maintenance).toBe(base); // relief
 
     // restored cell: same spot accepts a new building
-    await page.locator("button[data-build-type='residence']").click();
+    await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     const replaced = await page.evaluate(() => {
       const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
       return {
-        residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
+        farms: Object.values(s.buildings).filter((b) => b.type === "farm").length,
         money: s.resources.money,
       };
     });
-    expect(replaced.residences).toBe(1);
+    expect(replaced.farms).toBe(farmsBefore);
     expect(replaced.money).toBe(afterRemove.money - 25);
   });
 
-  test("deactivation flow: inspect → mothball → stats drop → reactivate → restored", async ({ page }) => {
+  test("deactivation flow: inspect ? mothball ? stats drop ? reactivate ? restored", async ({ page }) => {
     await page.goto("/");
     await pause(page);
 
-    // place + mature a residence
-    await page.locator("button[data-build-type='residence']").click();
+    // D2 baseline maintenance for the delta assertions below
+    const base = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
+    );
+
+    // place + mature a farm (residences are upkeep-exempt; farms show the drop)
+    await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     await page.getByRole("button", { name: "8x", exact: true }).click();
     await expect
       .poll(() =>
         page.evaluate(
-          () =>
-            (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
+          () => (window as unknown as { __nova: NovaHandle }).__nova.stats().maintenancePerTick,
         ),
       )
-      .toBe(1);
+      .toBe(base + 1);
     await page.getByRole("button", { name: "pause", exact: true }).click();
 
-    // inspect → mothball (deselect palette first)
-    await page.locator("button[data-build-type='residence']").click();
+    // inspect ? mothball (deselect palette first)
+    await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     const mothball = page.locator("button[data-action='deactivate-building']");
     await expect(mothball).toBeVisible();
     await mothball.click();
 
-    const afterDeactivate = await page.evaluate(() => {
+    const farmId = await page.evaluate(() => {
+      const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+      const ids = Object.values(s.buildings)
+        .filter((b) => b.type === "farm")
+        .map((b) => Number(b.id.replace("building-", "")));
+      return `building-${Math.max(...ids)}`;
+    });
+    const afterDeactivate = await page.evaluate((farmId: string) => {
       const h = (window as unknown as { __nova: NovaHandle }).__nova;
       const s = h.getState();
-      const residence = Object.values(s.buildings).find((b) => b.type === "residence");
+      const farm = s.buildings[farmId];
       return {
-        active: residence?.active,
+        active: farm?.active,
         maintenance: h.stats().maintenancePerTick,
-        housing: h.stats().housingCapacity,
       };
-    });
+    }, farmId);
     expect(afterDeactivate.active).toBe(false);
-    expect(afterDeactivate.maintenance).toBe(0); // relief at next calculation
-    expect(afterDeactivate.housing).toBe(0); // houses no one
+    expect(afterDeactivate.maintenance).toBe(base); // relief at next calculation
 
-    // inspection reflects the mothballed state → reactivate
+    // inspection reflects the mothballed state ? reactivate
     await expect(page.locator("button[data-action='reactivate-building']")).toBeVisible();
     await page.locator("button[data-action='reactivate-building']").click();
-    const afterReactivate = await page.evaluate(() => {
+    const afterReactivate = await page.evaluate((farmId: string) => {
       const h = (window as unknown as { __nova: NovaHandle }).__nova;
       const s = h.getState();
-      const residence = Object.values(s.buildings).find((b) => b.type === "residence");
+      const farm = s.buildings[farmId];
       return {
-        active: residence?.active,
+        active: farm?.active,
         maintenance: h.stats().maintenancePerTick,
-        housing: h.stats().housingCapacity,
       };
-    });
+    }, farmId);
     expect(afterReactivate.active).toBe(true);
-    expect(afterReactivate.maintenance).toBe(1); // restored
-    expect(afterReactivate.housing).toBe(1);
+    expect(afterReactivate.maintenance).toBe(base + 1); // restored
   });
 
   test("healthy growth: deterministic colony reaches 5 inhabitants", async ({ page }) => {
@@ -317,9 +339,17 @@ test.describe("NOVA critical flows", () => {
       s.resources.money = 500;
       s.resources.water = 10; // admission headroom during the growth race
       const key = (x: number, y: number) => `${x},${y}`;
-      const free = (x: number, y: number) =>
-        x >= 0 && y >= 0 && x < s.world.width && y < s.world.height &&
-        !s.world.blockedCells[key(x, y)];
+      const used = new Set<string>();
+      const free = (x: number, y: number) => {
+        if (x < 0 || y < 0 || x >= s.world.width || y >= s.world.height) return false;
+        const k = key(x, y);
+        if (s.world.blockedCells[k]) return false;
+        if (s.woodDeposits[k] || s.stoneDeposits[k]) return false;
+        if (Object.values(s.buildings).some((b) => b.x === x && b.y === y)) return false;
+        const rc = Object.values(s.roads).flatMap((r) => r.cells);
+        if (rc.includes(k)) return false;
+        return !used.has(k);
+      };
       let strip: { x: number; y: number; side: number } | null = null;
       for (let y = 0; y < s.world.height - 6 && !strip; y++) {
         for (let x = 0; x < s.world.width && !strip; x++) {
@@ -341,10 +371,10 @@ test.describe("NOVA critical flows", () => {
         const r = h.command({ kind: "placeBuilding", type, x: st.x + st.side, y: st.y + i });
         if (!r.ok) return { ok: false, reason: r.reason };
       }
-      const used = new Set<string>([
+      for (const k of [
         ...Array.from({ length: 6 }, (_, i) => key(st.x, st.y + i)),
         ...Array.from({ length: 6 }, (_, i) => key(st.x + st.side, st.y + i)),
-      ]);
+      ]) used.add(k);
       let homes = 0;
       for (let y = 0; y < s.world.height && homes < 6; y++) {
         for (let x = 0; x < s.world.width && homes < 6; x++) {
@@ -389,6 +419,11 @@ test.describe("NOVA critical flows", () => {
     await page.goto("/");
     await pause(page);
 
+    // isolate the forecast math from the D2 colony via real commands
+    await stripToAnchor(page);
+    await page.evaluate(() => {
+      (window as unknown as { __nova: NovaHandle }).__nova.getState().population = 0;
+    });
     // build farm + residence programmatically, mature them
     await page.evaluate(() => {
       const h = (window as unknown as { __nova: NovaHandle }).__nova;
@@ -482,10 +517,12 @@ test.describe("NOVA critical flows", () => {
     await page.goto("/");
     await pause(page);
 
-    // build farm + well + workshop + residence, mature, pop 2
+    // isolate from D2, then build farm + well + workshop + residence, mature, pop 2
+    await stripToAnchor(page);
     await page.evaluate(() => {
       const h = (window as unknown as { __nova: NovaHandle }).__nova;
       const s = h.getState();
+      s.population = 0;
       s.resources.money = 400;
       s.resources.water = 6;
       h.command({ kind: "placeRoads", cells: ["0,0", "0,1", "0,2"] });
@@ -494,6 +531,7 @@ test.describe("NOVA critical flows", () => {
       h.command({ kind: "placeBuilding", type: "workshop", x: 1, y: 2 });
       h.command({ kind: "placeBuilding", type: "residence", x: 5, y: 5 });
       h.command({ kind: "placeBuilding", type: "residence", x: 6, y: 5 });
+      s.population = 2; // set directly: staffing assigns on the next ticks
     });
     await page.getByRole("button", { name: "8x", exact: true }).click();
     await expect

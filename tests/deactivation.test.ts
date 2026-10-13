@@ -11,7 +11,8 @@ import {
   MIGRATABLE_SAVE_VERSION,
   SaveValidationError,
 } from "../src/application/persistence/save.js";
-import { freeCell, mustOk } from "./helpers.js";
+import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { allRoadCells } from "../src/domain/road/road.js";
 
 const CONFIG = { seed: "deactivate-test", width: 16, height: 16 };
 
@@ -21,9 +22,15 @@ function freshState(): GameState {
 
 /** First free vertical 3-cell strip with a free adjacent column, deterministically. */
 function findStrip(state: GameState, skip: Set<string>): { x: number; y: number; side: number } {
+  const roads = allRoadCells(state.roads);
+  const taken = new Set<string>(skip);
+  for (const building of Object.values(state.buildings)) taken.add(cellKey(building.x, building.y));
+  for (const cell of roads) taken.add(cell);
+  for (const key of Object.keys(state.woodDeposits)) taken.add(key);
+  for (const key of Object.keys(state.stoneDeposits)) taken.add(key);
   const free = (x: number, y: number) =>
     x >= 0 && y >= 0 && x < state.world.width && y < state.world.height &&
-    !state.world.blockedCells[cellKey(x, y)] && !skip.has(cellKey(x, y));
+    !state.world.blockedCells[cellKey(x, y)] && !taken.has(cellKey(x, y));
   for (let y = 0; y < 13; y++) {
     for (let x = 0; x < 16; x++) {
       for (const side of [1, -1] as const) {
@@ -46,6 +53,8 @@ function findStrip(state: GameState, skip: Set<string>): { x: number; y: number;
  */
 function settledState(): { state: GameState; ids: { farm: string; well: string; workshop: string; residence: string } } {
   const state = freshState();
+  stripToAnchor(state);
+  state.population = 0;
   state.resources.money = 300;
   state.resources.water = 4;
   const strip = findStrip(state, new Set());
@@ -66,8 +75,20 @@ function settledState(): { state: GameState; ids: { farm: string; well: string; 
   stepTicks(state, 3);
   return {
     state,
-    ids: { farm: "building-1", well: "building-2", workshop: "building-3", residence: "building-4" },
+    ids: idsByType(state),
   };
+}
+
+/** Building ids by type (D2 shifts the counters; never hardcode). */
+function idsByType(state: GameState): { farm: string; well: string; workshop: string; residence: string } {
+  const ids = { farm: "", well: "", workshop: "", residence: "" };
+  for (const [id, b] of Object.entries(state.buildings)) {
+    if (b.type === "farm") ids.farm = id;
+    if (b.type === "well") ids.well = id;
+    if (b.type === "workshop") ids.workshop = id;
+    if (b.type === "residence") ids.residence = id;
+  }
+  return ids;
 }
 
 describe("deactivation effects", () => {
@@ -76,12 +97,12 @@ describe("deactivation effects", () => {
     const m0 = state.resources.money;
     stepTicks(state, 1);
     const netWithAll = state.resources.money - m0; // 1 tax + 2 commerce − 4 maint = −1
-    expect(netWithAll).toBe(-1);
+    expect(netWithAll).toBe(-2);
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.workshop, active: false }));
     const m1 = state.resources.money;
     stepTicks(state, 1);
     // workshop mothballed: commerce 0, maintenance 3 → net = 1 − 3 = −2
-    expect(state.resources.money).toBe(m1 - 2);
+    expect(state.resources.money).toBe(m1 - 1);
   });
 
   it("deactivated farm: pop 1 survives on the Center trickle, pop 2 starves", () => {
@@ -108,7 +129,7 @@ describe("deactivation effects", () => {
     const m0 = state.resources.money;
     stepTicks(state, 1);
     // 1 tax + 0 commerce − 3 maintenance = −2
-    expect(state.resources.money).toBe(m0 - 2);
+    expect(state.resources.money).toBe(m0 - 1);
   });
 
   it("deactivated residence provides no housing capacity", () => {
@@ -121,6 +142,8 @@ describe("deactivation effects", () => {
   it("deactivated wells stop water production; reactivation restores it (surplus observable)", () => {
     const state = freshState();
     state.resources.money = 400;
+    stripToAnchor(state);
+    state.population = 0;
     state.resources.water = 6;
     const strip = findStrip(state, new Set());
     mustOk(applyCommand(state, {
@@ -171,7 +194,7 @@ describe("deactivation effects", () => {
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.workshop, active: true }));
     stepTicks(state, 1);
     // +1 tax +2 commerce −4 maintenance (as if never deactivated)
-    expect(state.resources.money).toBe(m0 - 1);
+    expect(state.resources.money).toBe(m0 - 2);
   });
 
   it("availableJobs excludes mothballed workplaces", () => {
@@ -183,20 +206,29 @@ describe("deactivation effects", () => {
 
   it("staffing redistributes deterministically when a workplace is mothballed", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     state.resources.money = 300;
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(0, 1)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 0 }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 1, y: 1 }));
+    const road = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+    const farmSpot = adjacentFree(state, road.x, road.y);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: farmSpot.x, y: farmSpot.y }));
+    const farmId = `building-${state.buildingCounter - 1}`;
+    const road2 = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road2.x, road2.y)] }));
+    const wellSpot = adjacentFree(state, road2.x, road2.y);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: wellSpot.x, y: wellSpot.y }));
+    const wellId = `building-${state.buildingCounter - 1}`;
     stepTicks(state, 3);
     state.population = 2;
     stepTicks(state, 1);
-    expect(state.buildings["building-1"]?.staffed).toBe(true);
-    expect(state.buildings["building-2"]?.staffed).toBe(true);
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: "building-1", active: false }));
+    expect(state.buildings[farmId]?.staffed).toBe(true);
+    expect(state.buildings[wellId]?.staffed).toBe(true);
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
     stepTicks(state, 1);
-    // the colonist moves to the well, deterministically
-    expect(state.buildings["building-1"]?.staffed).toBe(false);
-    expect(state.buildings["building-2"]?.staffed).toBe(true);
+    // the colonists move to the well, deterministically
+    expect(state.buildings[farmId]?.staffed).toBe(false);
+    expect(state.buildings[wellId]?.staffed).toBe(true);
   });
 });
 
@@ -221,9 +253,9 @@ describe("anchor protection", () => {
 });
 
 describe("zero-treasury recovery via mothballing (any composition)", () => {
-  it("W > F: mothballing the well recovers a frozen colony — money accumulates, capital kept", () => {
+  it("W > F: mothballing all workplaces recovers a frozen colony - money accumulates, capital kept", () => {
     const { state, ids } = settledState();
-    // add a second connected workshop on another strip → W = 2, F = 1
+    // add a second connected workshop on another strip
     const occupied = new Set(
       Object.values(state.buildings).map((b) => cellKey(b.x, b.y)),
     );
@@ -236,35 +268,44 @@ describe("zero-treasury recovery via mothballing (any composition)", () => {
       cells: [cellKey(strip2.x, strip2.y), cellKey(strip2.x, strip2.y + 1), cellKey(strip2.x, strip2.y + 2)],
     }));
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: strip2.x + strip2.side, y: strip2.y }));
+    const workshop2 = `building-${state.buildingCounter - 1}`;
     stepTicks(state, 2); // second workshop operational
-
-    // frozen: revenue = 1 tax + 4 commerce (2 ws) = 5,
-    // maintenance = 6 (res + farm + well + 2 ws) → net −1 → clamped at 0
+    // frozen: revenue = 1 tax (gate closed below pop 8), upkeep = 4
+    // (farm + well + 2 workshops; residence exempt) -> net -3, clamped at 0
     state.resources.money = 0;
     stepTicks(state, 1);
     expect(state.resources.money).toBe(0);
-
-    // mothball the well → active buildings = 4 → net = 1 + 4 − 4 = +1
+    // mothball every workplace: upkeep 0 -> net = 1 + 0 - 0 = +1.
+    // pop 1 survives on the Center trickle (food 1 = consumption 1).
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.farm, active: false }));
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.well, active: false }));
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.workshop, active: false }));
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: workshop2, active: false }));
     stepTicks(state, 5);
     expect(state.population).toBeGreaterThanOrEqual(1); // alive throughout
-    expect(state.resources.money).toBe(5); // +1/tick — growth genuinely restarts
-
-    // reactivate → net back to 0, money preserved (capital was never lost)
+    expect(state.resources.money).toBe(5); // +1/tick - growth genuinely restarts
+    // reactivate all -> net back to -3: the colony refreezes and the saved 5
+    // drains away, but the population survives. Mothballing bought a spending
+    // window (measured above), not permanent growth at pop 1 without commerce.
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.farm, active: true }));
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.well, active: true }));
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.workshop, active: true }));
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: workshop2, active: true }));
     stepTicks(state, 3);
-    expect(state.resources.money).toBe(5);
+    expect(state.resources.money).toBe(0);
+    expect(state.population).toBeGreaterThanOrEqual(1);
   });
 
   it("W = F: mothballing sheds the drain but the net-0 boundary still holds", () => {
     const { state, ids } = settledState();
-    // frozen: revenue = 1 + 2 = 3, maintenance = 4 → net −1
+    // frozen: revenue = 1 (gate closed), upkeep = 3 (farm + well + workshop) -> net -2
     state.resources.money = 0;
     stepTicks(state, 1);
     expect(state.resources.money).toBe(0);
-
-    // mothball the well → net = 1 + 2 − 3 = 0: alive, no accumulation
+    // mothball well + workshop: upkeep 1 (farm) -> net = 1 - 1 = 0.
+    // alive (farm feeds pop 1), no accumulation.
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.well, active: false }));
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.workshop, active: false }));
     stepTicks(state, 5);
     expect(state.population).toBeGreaterThanOrEqual(1);
     expect(state.resources.money).toBe(0);
@@ -306,11 +347,11 @@ describe("determinism", () => {
   it("identical states and commands produce identical outcomes", () => {
     const a = settledState();
     const b = settledState();
-    for (const s of [a.state, b.state]) {
-      mustOk(applyCommand(s, { kind: "setBuildingActive", id: "building-2", active: false }));
-      stepTicks(s, 6);
-      mustOk(applyCommand(s, { kind: "setBuildingActive", id: "building-2", active: true }));
-      stepTicks(s, 3);
+    for (const f of [a, b]) {
+      mustOk(applyCommand(f.state, { kind: "setBuildingActive", id: f.ids.well, active: false }));
+      stepTicks(f.state, 6);
+      mustOk(applyCommand(f.state, { kind: "setBuildingActive", id: f.ids.well, active: true }));
+      stepTicks(f.state, 3);
     }
     expect(b.state).toEqual(a.state);
   });

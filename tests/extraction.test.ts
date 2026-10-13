@@ -8,7 +8,7 @@ import {
   WOOD_PER_LUMBER_CAMP_PER_TICK,
 } from "../src/domain/production/extraction.js";
 import { normalizeDeposits } from "../src/domain/world/deposits.js";
-import { mustOk } from "./helpers.js";
+import { mustOk, stripToAnchor } from "./helpers.js";
 
 /**
  * Tick timeline (verified): a 2-tick building placed before stepTicks(2)
@@ -35,6 +35,8 @@ function placeExtractor(
   depositX: number,
   depositY: number,
 ): string {
+  stripToAnchor(state); // isolate: D2 workplaces would steal staffing
+  state.population = 0;
   const candidates = [
     { x: depositX + 1, y: depositY },
     { x: depositX - 1, y: depositY },
@@ -48,7 +50,9 @@ function placeExtractor(
   mustOk(applyCommand(state, { kind: "placeBuilding", type, x: spot.x, y: spot.y }));
   state.population = 1; // staffs the workplace at end of tick 2
   stepTicks(state, 2);
-  return "building-1";
+  const id = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === type);
+  if (!id) throw new Error("extractor missing");
+  return id;
 }
 
 describe("wood extraction (Step003 contract)", () => {
@@ -194,6 +198,8 @@ describe("Colony Center (Step004 anti-self-lock)", () => {
 
   it("does not pay maintenance (recovery capability is not billed)", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0; // no taxes, no commerce: treasury must not move
     const before = state.resources.money;
     stepTicks(state, 1);
     expect(state.resources.money).toBe(before);

@@ -10,6 +10,8 @@ export interface NovaHandle {
     buildings: Record<string, { id: string; type: string; status: string; x: number; y: number; staffed: boolean; active: boolean }>;
     world: { width: number; height: number; blockedCells: Record<string, true> };
     roads: Record<string, { cells: string[] }>;
+    woodDeposits: Record<string, { remaining: number; capacity: number }>;
+    stoneDeposits: Record<string, { remaining: number; capacity: number }>;
   };
   stats(): {
     tick: number;
@@ -40,6 +42,26 @@ export async function waitForTick(page: Page, tick: number): Promise<void> {
       { timeout: 30_000, intervals: [250] },
     )
     .toBeGreaterThanOrEqual(tick);
+}
+
+/**
+ * Remove every player building and road via real commands, leaving the
+ * Colony Center anchor. Isolates mechanic scenarios from the D2 colony.
+ */
+export async function stripToAnchor(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const h = (window as unknown as { __nova: NovaHandle }).__nova;
+    const s = h.getState();
+    for (const id of Object.keys(s.buildings)) {
+      if (id === "colony-center") continue;
+      const r = h.command({ kind: "removeBuilding", id });
+      if (!r.ok) throw new Error("strip failed: " + r.reason);
+    }
+    for (const road of Object.values(s.roads)) {
+      const r = h.command({ kind: "removeRoads", cells: [...road.cells] });
+      if (!r.ok) throw new Error("strip roads failed: " + r.reason);
+    }
+  });
 }
 
 export async function pause(page: Page): Promise<void> {

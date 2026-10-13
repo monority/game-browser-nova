@@ -23,6 +23,17 @@ export const COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK = 2;
  * their calibrated floor).
  */
 export const COMMERCE_PER_PLANK_PRODUCED_PER_TICK = 1;
+/**
+ * Workshop base commerce unlocks at population 8 (Step021 D2 contract):
+ * a settlement trades. Below the threshold, connected workshops earn no
+ * base floor; the plank throughput bonus stays always-on (production work
+ * pays from the first plank, and the camp chain already gates it).
+ */
+export const MIN_POP_FOR_COMMERCE = 8;
+
+export function commerceUnlocked(state: GameState): boolean {
+  return state.population >= MIN_POP_FOR_COMMERCE;
+}
 export const MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK = 1;
 
 export function connectedWorkshops(state: GameState): number {
@@ -85,7 +96,7 @@ export function collectRevenue(
   const commercePerWorkshop =
     COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce");
   const commerce =
-    connectedWorkshops(state) * commercePerWorkshop +
+    (commerceUnlocked(state) ? connectedWorkshops(state) * commercePerWorkshop : 0) +
     planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
   const marketFood = sellMarketSurplus(state);
   const market = marketFood * MONEY_PER_FOOD_SOLD;
@@ -108,7 +119,10 @@ export function operationalBuildingCount(state: GameState): number {
  * an economy-balancing change.
  */
 export function isMaintenanceExempt(building: { type: string }): boolean {
-  return building.type === "colonyCenter";
+  // Housing is infrastructure, not industry (Step021 D2 contract):
+  // residences never pay upkeep, mirroring the anchor exemption.
+  // Mothballing still removes their housing and jobs as before.
+  return building.type === "colonyCenter" || building.type === "residence";
 }
 
 export function payMaintenance(state: GameState): number {

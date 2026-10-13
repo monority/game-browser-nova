@@ -7,7 +7,7 @@ import {
   getResourceSummaries,
   getAlerts,
 } from "../src/application/queries/analysis.js";
-import { mustOk } from "./helpers.js";
+import { mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "analysis-test", width: 16, height: 16 };
 
@@ -18,6 +18,8 @@ function freshState(): GameState {
 /** Matured farm + residence + road; pop 1 staffs the farm. */
 function fedColony(): GameState {
   const state = freshState();
+  stripToAnchor(state);
+  state.population = 0;
   state.resources.money = 300;
   state.resources.water = 4;
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0)] }));
@@ -38,14 +40,16 @@ describe("resource summaries", () => {
       balancePerTick: 2,
       ticksRemaining: null,
     });
-    expect(s.food.stock).toBeGreaterThan(90);
+    expect(s.food.stock).toBeGreaterThan(60);
   });
 
   it("negative balance: countdown to depletion (deficit beats the trickle)", () => {
     const state = fedColony();
     state.resources.food = 84;
     // mothball the farm: only the Center trickle (1) remains vs pop 1 + ...
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: "building-1", active: false }));
+    const farmId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "farm");
+    if (!farmId) throw new Error("farm missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
     stepTicks(state, 1); // production 1 = consumption 1 → balance 0
     const s = getResourceSummaries(state);
     expect(s.food.productionPerTick).toBe(1);
@@ -56,7 +60,9 @@ describe("resource summaries", () => {
   it("counts the Center trickle even when the farm is mothballed", () => {
     const state = fedColony();
     expect(getResourceSummaries(state).food.productionPerTick).toBe(3);
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: "building-1", active: false }));
+    const farmId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "farm");
+    if (!farmId) throw new Error("farm missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
     expect(getResourceSummaries(state).food.productionPerTick).toBe(1);
   });
 
@@ -71,6 +77,8 @@ describe("resource summaries", () => {
 
   it("empty colony: no consumption, Center trickle only, no alerts", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     const s = getResourceSummaries(state);
     expect(s.food).toMatchObject({ productionPerTick: 1, consumptionPerTick: 0, balancePerTick: 1 });
     expect(getAlerts(state)).toEqual([]);
@@ -86,7 +94,9 @@ describe("alerts (states, not instructions)", () => {
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 3, y: 0 }));
     state.population = 2; // consumption 2; production = farm 2 + trickle 1 = 3?? no deficit
     state.resources.food = 10;
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: "building-1", active: false }));
+    const farmId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "farm");
+    if (!farmId) throw new Error("farm missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
     // production 1 (trickle) vs consumption 2 → deficit −1
     stepTicks(state, 1); // food 10 − (2 − 1) = 9
     const alerts = getAlerts(state);
@@ -108,6 +118,10 @@ describe("alerts (states, not instructions)", () => {
 
   it("warns when the treasury is frozen at 0 with a negative net", () => {
     const state = fedColony();
+    // residences are upkeep-exempt (Step021): a well makes upkeep bite.
+    // pop 1: revenue 1, maintenance 2 (farm + well) for net -1.
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 4, y: 0 }));
+    stepTicks(state, 2); // well operational: upkeep farm + well = 2
     state.resources.money = 0;
     // pop 1: revenue 1, maintenance 2 (farm + residence) → net −1
     const alerts = getAlerts(state);

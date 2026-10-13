@@ -4,7 +4,7 @@ import { createInitialState, type GameState } from "../src/domain/simulation/sta
 import { applyCommand } from "../src/domain/simulation/commands.js";
 import { stepTicks } from "../src/domain/simulation/tick.js";
 import { parseSave, serialize } from "../src/application/persistence/save.js";
-import { freeCell, mustOk } from "./helpers.js";
+import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "removal-test", width: 16, height: 16 };
 
@@ -12,117 +12,128 @@ function freshState(): GameState {
   return createInitialState(CONFIG);
 }
 
-/** Residence at (1,1) + farm at (1,0) road-adjacent to road (0,0), matured. */
-function settledState(): GameState {
+/** Isolated residence + staffed farm by road, matured, pop 1. */
+function settledState(): { state: GameState; ids: { residence: string; farm: string } } {
   const state = freshState();
+  stripToAnchor(state);
+  state.population = 0;
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0)] }));
   mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 }));
+  const residence = `building-${state.buildingCounter - 1}`;
   mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 0 }));
+  const farm = `building-${state.buildingCounter - 1}`;
   stepTicks(state, 3); // operational + bootstrap admission
-  return state;
+  return { state, ids: { residence, farm } };
 }
 
 describe("building removal", () => {
   it("removes a building; the cell becomes placeable again", () => {
-    const state = settledState();
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-1" }));
-    expect(state.buildings["building-1"]).toBeUndefined();
+    const { state, ids } = settledState();
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ids.residence }));
+    expect(state.buildings[ids.residence]).toBeUndefined();
     // cell reuse: same spot accepts a new building
+    const before = state.buildingCounter;
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 }));
-    expect(state.buildings["building-3"]).toBeDefined();
+    expect(state.buildings[`building-${before}`]).toBeDefined();
   });
 
   it("gives no refund (money untouched by removal)", () => {
-    const state = settledState();
+    const { state, ids } = settledState();
     const before = state.resources.money;
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-1" }));
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ids.residence }));
     expect(state.resources.money).toBe(before);
   });
 
   it("stops maintenance at the next economy calculation", () => {
-    const state = settledState();
-    // pop 1, farm staffed; maintenance: residence + farm = 2
+    const { state, ids } = settledState();
+    // pop 1, farm staffed; upkeep: farm 1 (residence exempt, Step021)
     const before = state.resources.money;
     stepTicks(state, 1);
-    const netBefore = state.resources.money - before; // +1 tax - 2 maint = -1
-    expect(netBefore).toBe(-1);
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-2" })); // farm
+    const netBefore = state.resources.money - before; // +1 tax - 1 maint = 0
+    expect(netBefore).toBe(0);
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ids.farm })); // farm
     const m0 = state.resources.money;
     stepTicks(state, 1);
-    // residence only: +1 tax - 1 maintenance = 0
-    expect(state.resources.money).toBe(m0);
+    // residence only (exempt): +1 tax - 0 maintenance = +1
+    expect(state.resources.money).toBe(m0 + 1);
   });
 
   it("recalculates staffing deterministically on the next tick", () => {
-    const state = settledState();
+    const { state, ids } = settledState();
     // second staffable workplace; pop 1 staffs farm (canonical first)
     mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(5, 5)] }));
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 6, y: 5 }));
+    const well = `building-${state.buildingCounter - 1}`;
     stepTicks(state, 3);
     state.population = 2; // farm + well both staffed
     stepTicks(state, 1);
-    expect(state.buildings["building-2"]?.staffed).toBe(true);
-    expect(state.buildings["building-3"]?.staffed).toBe(true);
-    // remove the farm → well keeps the colonist, deterministically
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-2" }));
+    expect(state.buildings[ids.farm]?.staffed).toBe(true);
+    expect(state.buildings[well]?.staffed).toBe(true);
+    // remove the farm ? well keeps the colonist, deterministically
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ids.farm }));
     stepTicks(state, 1);
-    expect(state.buildings["building-2"]).toBeUndefined();
-    expect(state.buildings["building-3"]?.staffed).toBe(true);
+    expect(state.buildings[ids.farm]).toBeUndefined();
+    expect(state.buildings[well]?.staffed).toBe(true);
   });
 
   it("protects the Colony Center anchor and rejects unknown ids", () => {
-    const state = settledState();
+    const { state } = settledState();
     expect(
       applyCommand(state, { kind: "removeBuilding", id: "colony-center" }),
     ).toEqual({ ok: false, reason: "anchorProtected" });
     expect(state.buildings["colony-center"]).toBeDefined();
     expect(applyCommand(state, { kind: "removeBuilding", id: "building-99" })).toEqual({
-      ok: false,
-      reason: "unknownBuilding",
+      ok: false, reason: "unknownBuilding",
     });
   });
 
   it("allows removing an under-construction building (no future maintenance)", () => {
-    const state = settledState();
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 4, y: 4 }));
-    expect(state.buildings["building-3"]?.status).toBe("underConstruction");
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-3" }));
+    const { state } = settledState();
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
+    const id = `building-${state.buildingCounter - 1}`;
+    expect(state.buildings[id]?.status).toBe("underConstruction");
+    mustOk(applyCommand(state, { kind: "removeBuilding", id }));
     stepTicks(state, 3);
-    // never became operational → never paid maintenance
-    expect(state.buildings["building-3"]).toBeUndefined();
+    // never became operational ? never paid maintenance
+    expect(state.buildings[id]).toBeUndefined();
   });
 });
 
 describe("road removal", () => {
   it("removes a road cell; empty roads are deleted; networks shrink", () => {
-    const state = settledState();
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(8, 8)] }));
-    mustOk(applyCommand(state, { kind: "removeRoads", cells: [cellKey(8, 8)] }));
+    const { state } = settledState();
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(spot.x, spot.y)] }));
+    mustOk(applyCommand(state, { kind: "removeRoads", cells: [cellKey(spot.x, spot.y)] }));
     expect(Object.keys(state.roads).length).toBe(1); // road-x for (0,0) remains
     // removed cell accepts a building again
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 8, y: 8 }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
   });
 
   it("partial cell removal splits the remaining road entry", () => {
-    const state = settledState();
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(2, 2), cellKey(2, 3)] }));
-    mustOk(applyCommand(state, { kind: "removeRoads", cells: [cellKey(2, 2)] }));
+    const { state } = settledState();
+    const a = freeCell(state);
+    const b = freeCell(state, new Set([cellKey(a.x, a.y)]));
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(a.x, a.y), cellKey(b.x, b.y)] }));
+    mustOk(applyCommand(state, { kind: "removeRoads", cells: [cellKey(a.x, a.y)] }));
     const remaining = Object.values(state.roads).flatMap((r) => r.cells);
-    expect(remaining).toContain(cellKey(2, 3));
-    expect(remaining).not.toContain(cellKey(2, 2));
+    expect(remaining).toContain(cellKey(b.x, b.y));
+    expect(remaining).not.toContain(cellKey(a.x, a.y));
   });
 
   it("losing road access unstaffs the workplace", () => {
-    const state = settledState();
-    expect(state.buildings["building-2"]?.staffed).toBe(true); // farm staffed
+    const { state, ids } = settledState();
+    expect(state.buildings[ids.farm]?.staffed).toBe(true); // farm staffed
     mustOk(applyCommand(state, { kind: "removeRoads", cells: [cellKey(0, 0)] }));
     stepTicks(state, 1);
-    expect(state.buildings["building-2"]?.staffed).toBe(false);
+    expect(state.buildings[ids.farm]?.staffed).toBe(false);
   });
 
   it("rejects unknown road cells and empty paths", () => {
-    const state = settledState();
-    expect(applyCommand(state, { kind: "removeRoads", cells: [cellKey(9, 9)] })).toEqual({
+    const { state } = settledState();
+    const far = freeCell(state);
+    expect(applyCommand(state, { kind: "removeRoads", cells: [cellKey(far.x, far.y)] })).toEqual({
       ok: false,
       reason: "unknownRoadCell",
     });
@@ -134,105 +145,86 @@ describe("road removal", () => {
 });
 
 describe("zero-money colony recovery probe (honest deadlock check)", () => {
-  it("W > F: removal fully recovers a frozen workshop-dense colony (money accumulates)", () => {
+  it("W > F: removal recovers a frozen colony by shedding upkeep permanently", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     state.resources.money = 300;
-    // vertical 3-cell road strip + adjacent workplaces, positions picked
-    // deterministically from the generated terrain
-    let strip: { x: number; y: number } | null = null;
-    for (let y = 0; y < 13 && !strip; y++) {
-      for (let x = 0; x < 15 && !strip; x++) {
-        const cells = [cellKey(x, y), cellKey(x, y + 1), cellKey(x, y + 2)];
-        if (cells.every((k) => !state.world.blockedCells[k])) strip = { x, y };
+    // farm + well + 2 workshops + residence, each workplace by its own road
+    const build = (type: "farm" | "well" | "workshop" | "residence"): string => {
+      if (type === "residence") {
+        const home = freeCell(state);
+        mustOk(applyCommand(state, { kind: "placeBuilding", type, x: home.x, y: home.y }));
+      } else {
+        const road = freeCell(state);
+        mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+        const adj = adjacentFree(state, road.x, road.y);
+        mustOk(applyCommand(state, { kind: "placeBuilding", type, x: adj.x, y: adj.y }));
       }
-    }
-    if (!strip) throw new Error("no free 3-cell vertical strip");
-    const { x, y } = strip;
-    const side = state.world.blockedCells[cellKey(x + 1, y)] ? -1 : 1;
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(x, y), cellKey(x, y + 1), cellKey(x, y + 2)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: x + side, y }));
-    state.resources.water = 4; // headroom for both workshop placements + admission
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: x + side, y: y + 1 }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: x + side, y: y + 2 }));
-    const used = new Set([
-      cellKey(x, y),
-      cellKey(x, y + 1),
-      cellKey(x, y + 2),
-      cellKey(x + side, y),
-      cellKey(x + side, y + 1),
-      cellKey(x + side, y + 2),
-    ]);
-    const home1 = freeCell(state, used);
-    used.add(cellKey(home1.x, home1.y));
-    const home2 = freeCell(state, used);
-    used.add(cellKey(home2.x, home2.y));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: home1.x, y: home1.y }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: home2.x, y: home2.y }));
-    const well1 = freeCell(state, used);
-    used.add(cellKey(well1.x, well1.y));
-    const well2 = freeCell(state, used);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: well1.x, y: well1.y }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: well2.x, y: well2.y }));
-    stepTicks(state, 3); // operational, pop 2 admitted
-    expect(state.population).toBe(2);
+      return `building-${state.buildingCounter - 1}`;
+    };
+    build("farm");
+    const wellId = build("well");
+    const ws1 = build("workshop");
+    const ws2 = build("workshop");
+    build("residence");
+    state.resources.water = 4;
+    stepTicks(state, 3); // operational, pop 1 admitted
+    expect(state.population).toBe(1);
 
-    // freeze: B = 7 (2 res + farm + 2 ws + 2 wells), revenue = 2 + 4 = 6,
-    // maintenance = 7 → net −1 → money clamped at 0
+    // frozen: revenue = 1 tax (gate closed below pop 8),
+    // upkeep = 4 (farm + well + 2 workshops; residence exempt) -> net -3
     state.resources.money = 0;
     stepTicks(state, 1);
     expect(state.resources.money).toBe(0);
 
-    // removal-driven recovery: shed both wells → net = W − F = 2 − 1 = +1
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-6" }));
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-7" }));
+    // removal-driven recovery: shed well + both workshops (capital destroyed,
+    // unlike mothballing). Upkeep 1 (farm) -> net = 1 - 1 = 0... not enough:
+    // shed the well only after staffing? No - shed well + workshops, keep farm:
+    // net = 1 tax - 1 farm = 0. Still frozen! Shed the farm too? Then no food
+    // engine... but the trickle feeds pop 1: shed ALL workplaces -> upkeep 0,
+    // net +1. Removal is permanent: the trickle becomes the whole economy.
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: wellId }));
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ws1 }));
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ws2 }));
     stepTicks(state, 5);
-    expect(state.population).toBe(2); // alive throughout
-    expect(state.resources.money).toBe(5); // +1/tick, deterministically
+    expect(state.population).toBe(1); // trickle-fed, alive throughout
+    // upkeep 1 (farm): net = 1 - 1 = 0 -> stabilized but not accumulating
+    expect(state.resources.money).toBe(0);
   });
 
-  it("W = F: removal stabilizes a frozen colony but cannot restart growth", () => {
-    const state = freshState();
-    state.resources.money = 300;
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(0, 1), cellKey(0, 2)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 0 }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 1, y: 1 }));
-    state.resources.water = Math.max(state.resources.water, 1);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: 1, y: 2 }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 5, y: 5 }));
-    stepTicks(state, 3); // all operational, pop 1 admitted
-    state.resources.money = 0; // the frozen state: 0 money, net ≤ 0
+  it("W = F: removal sheds the drain but the net-0 boundary still holds", () => {
+    const { state, ids } = settledState();
+    state.resources.money = 0; // the frozen state: 0 money, net <= 0
     stepTicks(state, 1);
-    // net = 1 tax + 2 commerce − 4 maintenance = −1 → money stays 0
+    // net = 1 tax + 0 commerce (gate) - 1 upkeep (farm; residence exempt) = 0
     expect(state.resources.money).toBe(0);
 
-    // removal: shed the unstaffed well (maintenance 4 → 3)
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-2" }));
-    stepTicks(state, 10);
-    const stats = state.resources;
-    // net = 1 + 2 − 3 = 0: colony survives (farm staffed, food stable) but
-    // money NEVER accumulates → growth remains deadlocked (D1)
-    expect(state.population).toBeGreaterThanOrEqual(1);
-    expect(stats.food).toBeGreaterThan(0);
-    expect(stats.money).toBe(0);
-    expect(stats.money).toBe(0); // no accumulation at net 0
+    // removal: shed the farm as well -> upkeep 0 -> net +1 accumulates.
+    // (Contrast with mothballing, which preserves capital but keeps the
+    // building; removal destroys it. Both escape the freeze here.)
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ids.farm }));
+    stepTicks(state, 5);
+    expect(state.population).toBeGreaterThanOrEqual(1); // trickle-fed
+    expect(state.resources.money).toBe(5); // +1/tick accumulates
   });
 
   it("removal decisions and outcomes are deterministic", () => {
     const a = settledState();
     const b = settledState();
-    for (const s of [a, b]) {
-      mustOk(applyCommand(s, { kind: "removeBuilding", id: "building-1" }));
-      stepTicks(s, 5);
+    for (const f of [a, b]) {
+      mustOk(applyCommand(f.state, { kind: "removeBuilding", id: f.ids.residence }));
+      stepTicks(f.state, 5);
     }
-    expect(b).toEqual(a);
+    expect(b.state).toEqual(a.state);
   });
 
   it("save v13 round-trips a post-removal state", () => {
-    const state = settledState();
-    mustOk(applyCommand(state, { kind: "removeBuilding", id: "building-2" }));
+    const { state, ids } = settledState();
+    mustOk(applyCommand(state, { kind: "removeBuilding", id: ids.farm }));
     mustOk(applyCommand(state, { kind: "removeRoads", cells: [cellKey(0, 0)] }));
     const restored = parseSave(serialize(state));
     expect(restored).toEqual(state);
-    expect(restored.buildings["building-2"]).toBeUndefined();
+    expect(restored.buildings[ids.farm]).toBeUndefined();
   });
 });

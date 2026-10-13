@@ -5,7 +5,7 @@ import { applyCommand } from "../src/domain/simulation/commands.js";
 import { stepTicks } from "../src/domain/simulation/tick.js";
 import { computeOverlay, type OverlayCell } from "../src/renderer/overlay.js";
 import { getResourceContributors } from "../src/application/queries/analysis.js";
-import { freeCell, mustOk } from "./helpers.js";
+import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "overlay-test", width: 16, height: 16 };
 
@@ -16,6 +16,8 @@ function freshState(): GameState {
 /** Road (0,0) + farm (1,0) + well (1,1) + workshop (1,2) + 2 residences, matured, pop 2. */
 function staffedColony(): GameState {
   const state = freshState();
+  stripToAnchor(state);
+  state.population = 0;
   state.resources.money = 400;
   state.resources.water = 6;
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(0, 1), cellKey(0, 2)] }));
@@ -56,7 +58,9 @@ describe("staffing overlay mapping", () => {
 
   it("mothballed workplaces are off and never ok/warn", () => {
     const state = staffedColony();
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: "building-1", active: false }));
+    const farmId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "farm");
+    if (!farmId) throw new Error("farm missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
     const t = tints(state, "staffing");
     expect(t.get(cellKey(1, 0))).toBe("off");
   });
@@ -90,7 +94,9 @@ describe("resource contributors (drill-down)", () => {
 
   it("water contributors include mothballed wells (state visible)", () => {
     const state = staffedColony();
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: "building-2", active: false }));
+    const wellId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "well");
+    if (!wellId) throw new Error("well missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: wellId, active: false }));
     const c = getResourceContributors(state, "water");
     expect(c.producers.length).toBe(1);
     expect(c.producers[0]).toMatchObject({ type: "well", active: false, staffed: false });
@@ -98,6 +104,8 @@ describe("resource contributors (drill-down)", () => {
 
   it("empty colony: no producers, zero consumption", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     const c = getResourceContributors(state, "food");
     expect(c.producers).toEqual([]);
     expect(c.consumptionPerTick).toBe(0);

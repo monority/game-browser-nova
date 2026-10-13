@@ -4,7 +4,7 @@ import { createInitialState, type GameState } from "../src/domain/simulation/sta
 import { applyCommand } from "../src/domain/simulation/commands.js";
 import { stepSimulation, stepTicks } from "../src/domain/simulation/tick.js";
 import { housingCapacity, availableJobs } from "../src/domain/population/population.js";
-import { freeCell, mustOk } from "./helpers.js";
+import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 import {
   FOOD_PER_FARM_PER_TICK,
   WATER_PER_WELL_PER_TICK,
@@ -22,37 +22,35 @@ function buildingOf(state: GameState, id: string) {
   return building;
 }
 
+function firstIdOf(state: GameState, type: string): string {
+  const id = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === type);
+  if (!id) throw new Error(`expected ${type}`);
+  return id;
+}
 function mustOkLocal(result: { ok: boolean; reason?: string }): void {
   mustOk(result);
 }
 
 /** Place a workplace next to a road plus one residence; settle 1 colonist. */
+/** Place a workplace next to a road plus one residence; settle 1 colonist. */
 function placeStaffed(state: GameState, type: "farm" | "well" | "workshop") {
+  stripToAnchor(state);
+  state.population = 0;
   const roadSpot = freeCell(state);
   mustOkLocal(applyCommand(state, { kind: "placeRoads", cells: [cellKey(roadSpot.x, roadSpot.y)] }));
-  // ensure the workplace is orthogonally adjacent to the road
-  const candidates = [
-    { x: roadSpot.x + 1, y: roadSpot.y },
-    { x: roadSpot.x - 1, y: roadSpot.y },
-    { x: roadSpot.x, y: roadSpot.y + 1 },
-    { x: roadSpot.x, y: roadSpot.y - 1 },
-  ];
-  const spot = candidates.find(
-    (c) =>
-      c.x >= 0 && c.y >= 0 && c.x < state.world.width && c.y < state.world.height &&
-      !state.world.blockedCells[cellKey(c.x, c.y)],
-  );
-  if (!spot) throw new Error("no adjacent free cell");
+  const spot = adjacentFree(state, roadSpot.x, roadSpot.y);
   mustOkLocal(applyCommand(state, { kind: "placeBuilding", type, x: spot.x, y: spot.y }));
-  const homeSpot = freeCell(state, new Set([cellKey(roadSpot.x, roadSpot.y), cellKey(spot.x, spot.y)]));
+  const homeSpot = freeCell(state);
   mustOkLocal(applyCommand(state, { kind: "placeBuilding", type: "residence", x: homeSpot.x, y: homeSpot.y }));
-  stepTicks(state, 2); // both operational; admission runs (bootstrap → pop 1)
+  stepTicks(state, 2); // both operational; admission runs (bootstrap -> pop 1)
   stepTicks(state, 1); // assignJobs staffs the workplace
 }
 
 describe("staffing", () => {
   it("requires road access and an operational building", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     // farm far from any road (use a cell at least 2 away from the road we add)
     const roadSpot = freeCell(state);
     const farmSpot = freeCell(state, new Set([
@@ -67,24 +65,29 @@ describe("staffing", () => {
     stepTicks(state, 2);
     state.population = 1;
     stepTicks(state, 1);
-    expect(buildingOf(state, "building-1").staffed).toBe(false);
+    expect(buildingOf(state, firstIdOf(state, "farm")).staffed).toBe(false);
   });
 
   it("capacity 1: two workplaces, one colonist → first canonically staffed", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(0, 1)] }));
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 0 }));
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 1, y: 1 }));
     stepTicks(state, 2);
     state.population = 1;
     stepTicks(state, 1);
-    expect(buildingOf(state, "building-1").staffed).toBe(true);
-    expect(buildingOf(state, "building-2").staffed).toBe(false);
+    expect(buildingOf(state, firstIdOf(state, "farm")).staffed).toBe(true);
+    expect(buildingOf(state, firstIdOf(state, "well")).staffed).toBe(false);
     expect(availableJobs(state)).toBe(2);
   });
 
   it("unstaffed farms contribute nothing (only the Center trickle feeds)", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
+    state.resources.food = 100;
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 5, y: 5 })); // no road
     stepTicks(state, 5);
     // 100 initial + 5 Center trickle ticks; the farm contributed nothing
@@ -117,6 +120,8 @@ describe("production", () => {
 
   it("staffing is next-tick: a newly operational farm produces only after assignment", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0)] }));
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 0 }));
     state.population = 1;
@@ -131,6 +136,7 @@ describe("production", () => {
 describe("population", () => {
   it("housing capacity counts operational residences only", () => {
     const state = freshState();
+    stripToAnchor(state);
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     expect(housingCapacity(state)).toBe(0);
     stepTicks(state, 2);
@@ -139,6 +145,8 @@ describe("population", () => {
 
   it("admission: first colonist is bootstrap-exempt from the water gate", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     state.resources.water = 0;
     stepTicks(state, 3);
@@ -147,6 +155,8 @@ describe("population", () => {
 
   it("food shortage delays admission; the Center trickle re-seeds it (Step015)", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     state.resources.food = 0;
     stepTicks(state, 2);
@@ -156,6 +166,8 @@ describe("population", () => {
 
   it("terminal lock retired: pop 0 + food 0 + standing residences recovers (Step015)", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     const home1 = freeCell(state);
     const home2 = freeCell(state, new Set([cellKey(home1.x, home1.y)]));
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: home1.x, y: home1.y });
@@ -177,6 +189,8 @@ describe("population", () => {
 
   it("Center trickle never sustains growth alone (balance guard)", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 2, y: 1 });
     state.resources.water = 10;
@@ -193,6 +207,8 @@ describe("population", () => {
 
   it("admission beyond housing capacity is impossible", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     stepTicks(state, 10);
     expect(state.population).toBe(1);
@@ -200,14 +216,19 @@ describe("population", () => {
 
   it("admission with population > 0 requires water headroom", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 2, y: 1 });
+    state.resources.water = 0; // D2 ships water: drain it for the gate test
     stepTicks(state, 5); // pop 1 (bootstrap), water 0 → no further admission
     expect(state.population).toBe(1);
   });
 
   it("starvation is all-or-nothing: unfed tick removes the entire population (pop 2 beats the trickle)", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 2, y: 1 });
     state.resources.water = 10; // admission headroom
@@ -220,6 +241,8 @@ describe("population", () => {
 
   it("population-0 + food-0 colony re-admits once food returns (recovery)", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
     stepTicks(state, 3);
     state.population = 0;
@@ -234,6 +257,10 @@ describe("determinism", () => {
   it("identical states and commands produce identical outcomes", () => {
     const a = freshState();
     const b = freshState();
+    stripToAnchor(a);
+    stripToAnchor(b);
+    a.population = 0;
+    b.population = 0;
     for (const s of [a, b]) {
       applyCommand(s, { kind: "placeRoads", cells: [cellKey(0, 0)] });
       applyCommand(s, { kind: "placeBuilding", type: "farm", x: 1, y: 0 });

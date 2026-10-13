@@ -31,9 +31,23 @@ The player begins with a small functioning colony, not an empty plot and not a l
 > **Decided (D2, 2026-10-07, Option A):** day-0 = a **10-inhabitant**
 > canonical colony (user decision 2026-10-06, confirmed); ~100 inhabitants
 > in §4 is the **MVP population scale target**, reached through growth —
-> not the starting state. The current code still starts from an empty
-> world with a 1-colonist bootstrap gate; migrating the start to the
-> 10-inhabitant colony is implementation work, not part of this decision.
+> not the starting state.
+>
+> **Implemented (Step021):** the day-0 colony ships granted free as 10
+> population, 10 residences, 5 farms, 5 wells, 2 workshops (every
+> workplace road-adjacent), stocks food 60
+> / water 40 / money 100. Counts follow the rate math (10 mouths need 10
+> food + 10 water per tick; producers yield 2). The solvable problem is
+> food near its limit with housing exactly at capacity.
+>
+> **Decided (Step020/021):** housing is infrastructure, not industry -
+> residences never pay maintenance (same predicate shape as the Colony
+> Center anchor exemption). Foundation balances without commerce.
+>
+> **Decided (Step020/021):** workshop base commerce (2/tick) flows only at
+> population >= 8: a settlement trades. The plank throughput bonus and
+> tradeRoutes boost stay always-on (production-linked). Commerce is the
+> growth engine, never the survival requirement.
 
 The starting situation should contain a solvable problem rather than a crisis. Examples:
 

@@ -16,7 +16,7 @@ import {
   parseSave,
   serialize,
 } from "../src/application/persistence/save.js";
-import { freeCell, mustOk } from "./helpers.js";
+import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "progression-test", width: 16, height: 16 };
 
@@ -63,14 +63,18 @@ describe("technology research", () => {
 
   it("effects: cropRotation +1 food per farm; masonry +1 stone per quarry", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     state.resources.money = 300;
     mustOk(applyCommand(state, { kind: "researchTech", techId: "cropRotation" }));
     mustOk(applyCommand(state, { kind: "researchTech", techId: "masonry" }));
     expect(techLevel(state, "farmFood")).toBe(1);
     expect(techLevel(state, "quarryStone")).toBe(1);
     // full effect verified through a staffed farm: per-farm yield 2 + 1 tech
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 0 }));
+    const road = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+    const adj = adjacentFree(state, road.x, road.y);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: adj.x, y: adj.y }));
     state.population = 1;
     stepTicks(state, 2); // staffed end of tick 2
     const summaries = getResourceSummaries(state);
@@ -83,25 +87,33 @@ describe("technology research", () => {
 
   it("effects: tradeRoutes adds +1 commerce per connected workshop", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     state.resources.money = 300;
     state.resources.water = 2;
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: 1, y: 0 }));
+    const road = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+    const adj = adjacentFree(state, road.x, road.y);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
+    state.population = 8; // unlocks the commerce floor (Step021 gate)
     stepTicks(state, 2); // operational, connected, vacant
     mustOk(applyCommand(state, { kind: "researchTech", techId: "tradeRoutes" }));
     const before = state.resources.money;
     stepTicks(state, 1);
-    // +2 base +1 tech commerce −1 maintenance → net +2
-    expect(state.resources.money).toBe(before + 2);
+    // +8 taxes +3 commerce (2 base + 1 tech) -1 maintenance ? net +10
+    expect(state.resources.money).toBe(before + 10);
   });
 });
 
 describe("milestones + age transition", () => {
-  it("age 1 starts with 4 incomplete milestones", () => {
+  it("D2 day-0 satisfies pop8 and buildings; treasury and techs remain", () => {
     const state = freshState();
     const milestones = evaluateMilestones(state, 1);
     expect(milestones.length).toBe(4);
-    expect(milestones.every((m) => !m.done)).toBe(true);
+    // the D2 colony (10 pop, 22 buildings) completes pop8 + bld8 on day 0;
+    // Specialization (techs) and surplus (treasury) are the player-earned half
+    const done = Object.fromEntries(milestones.map((m) => [m.id, m.done]));
+    expect(done).toEqual({ pop8: true, bld8: true, tre200: false, tech3: false });
     expect(canAdvanceAge(state)).toBe(false);
   });
 

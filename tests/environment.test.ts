@@ -15,7 +15,7 @@ import {
   SAVE_VERSION,
   MIGRATABLE_SAVE_VERSION,
 } from "../src/application/persistence/save.js";
-import { freeCell, mustOk } from "./helpers.js";
+import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "env-test", width: 16, height: 16 };
 
@@ -27,21 +27,12 @@ function freshState(): GameState {
 function pollutingColony(): GameState {
   const state = freshState();
   state.resources.money = 300;
+  stripToAnchor(state);
+  state.population = 0;
   state.resources.water = 2;
   const road = freeCell(state);
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-  const candidates = [
-    { x: road.x + 1, y: road.y },
-    { x: road.x - 1, y: road.y },
-    { x: road.x, y: road.y + 1 },
-    { x: road.x, y: road.y - 1 },
-  ];
-  const spot = candidates.find(
-    (c) =>
-      c.x >= 0 && c.y >= 0 && c.x < state.world.width && c.y < state.world.height &&
-      !state.world.blockedCells[cellKey(c.x, c.y)],
-  );
-  if (!spot) throw new Error("no adjacent free cell");
+  const spot = adjacentFree(state, road.x, road.y);
   mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
   const used = new Set([cellKey(road.x, road.y), cellKey(spot.x, spot.y)]);
   const home = freeCell(state, used);
@@ -53,6 +44,8 @@ function pollutingColony(): GameState {
 describe("pollution flows", () => {
   it("clean colony: no emissions, quality 100", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     stepTicks(state, 5);
     expect(state.pollution).toBe(0);
     expect(environmentalQuality(state)).toBe(100);
@@ -97,6 +90,8 @@ describe("pollution flows", () => {
 describe("environmental admission gate", () => {
   it("growth stops when quality < 25; bootstrap exemption still admits at pop 0", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 }));
     state.pollution = 90; // quality 10 < 25
     stepTicks(state, 5);
@@ -110,6 +105,8 @@ describe("environmental admission gate", () => {
 
   it("quality recovery re-opens growth", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 }));
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 2, y: 1 }));
     state.resources.water = 10; // headroom for admissions
@@ -160,6 +157,8 @@ describe("environment persistence + alerts", () => {
 
   it("no environment alert while the air is clean", () => {
     const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
     expect(getAlerts(state)).toEqual([]);
   });
 

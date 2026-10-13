@@ -5,39 +5,37 @@ import { applyCommand } from "../src/domain/simulation/commands.js";
 import { stepTicks } from "../src/domain/simulation/tick.js";
 import { allRoadCells } from "../src/domain/road/road.js";
 import { BUILDING_DEFINITIONS, type BuildingType } from "../src/content/buildings.js";
+import { foodPerFarm } from "../src/domain/production/production.js";
 import { TECH_DEFINITIONS } from "../src/content/techs.js";
-import { connectedWorkshops } from "../src/domain/economy/economy.js";
+import { canAdvanceAge, evaluateMilestones } from "../src/domain/progression/progression.js";
+import { getColonyStats } from "../src/application/queries/stats.js";
 import { parseSave, serialize } from "../src/application/persistence/save.js";
-import { freeCell } from "./helpers.js";
+import { freeCell, mustOk } from "./helpers.js";
 
 /**
- * Self-play verifier: a scripted governor plays the colony headlessly and
- * asserts every-tick global invariants plus system engagement. It is also
- * the instrument that MEASURED the D1 poverty trap (see Step019): from the
- * canonical start the best-known line stalls at pop1/money0 � income
- * (1 tax + 2 commerce) cannot cover the minimum viable building set, so no
- * surplus for growth ever forms. The full-loop proof stays blocked on the
- * D1 product decision; this suite locks in stability + engagement proof.
+ * Self-play verifier (Step021): a scripted governor plays the D2 day-0
+ * colony headlessly through the full MVP loop - Foundation surplus,
+ * Specialization techs, Age-1 milestones, transition, Age-2 market sales -
+ * asserting phase gates plus global invariants every tick. Proves a clean
+ * session completes the loop with no intervention (Phase 10 gate).
  *
- * Verified best-known line (do not reorder without evidence): residence,
- * well, workshop, park, then growth. Farm-first and park-late lines stall
- * earlier (probes, 2026-10-12).
+ * Verified governor doctrine (do not reorder without evidence, Step020):
+ * bank-to-400 before the tech run; workshops compound while banking;
+ * emergency food builds only on structural (staffed-capacity) deficit;
+ * priority lists must fall through on failure; triage rests water/wood/
+ * stone getters (never commerce) when food runs thin.
  */
 
 const CONFIG = {
   seed: "selfplay",
   width: 16,
   height: 16,
-  woodDeposits: [
-    { x: 5, y: 5, amount: 40 },
-    { x: 6, y: 5, amount: 40 },
-  ],
-  stoneDeposits: [{ x: 10, y: 10, amount: 40 }],
+  woodDeposits: [{ x: 5, y: 5, amount: 60 }],
+  stoneDeposits: [{ x: 10, y: 10, amount: 60 }],
 };
 
-const TICK_BUDGET = 3000;
+const TICK_BUDGET = 1500;
 const TECH_ORDER = ["cropRotation", "masonry", "tradeRoutes"];
-const NB = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
 
 function buildable(state: GameState, x: number, y: number, roads: Set<string>): boolean {
   if (x < 0 || y < 0 || x >= state.world.width || y >= state.world.height) return false;
@@ -48,70 +46,46 @@ function buildable(state: GameState, x: number, y: number, roads: Set<string>): 
   return true;
 }
 
-function canAfford(state: GameState, type: BuildingType, road: boolean, reserve: number): boolean {
-  const def = BUILDING_DEFINITIONS[type];
-  return (
-    state.resources.money >= def.moneyCost + (road ? 5 : 0) + reserve &&
-    state.resources.planks >= def.plankCost &&
-    state.resources.water >= def.waterCost
-  );
-}
-
-function tryBuild(state: GameState, type: BuildingType, road: boolean, reserve: number): boolean {
-  if (!canAfford(state, type, road, reserve)) return false;
-  const roads = allRoadCells(state.roads);
-  let spot: { x: number; y: number };
-  try {
-    spot = freeCell(state);
-  } catch {
-    return false;
-  }
-  if (road) {
-    const cell = NB.map((d) => ({ x: spot.x + d.x, y: spot.y + d.y })).find((c) =>
-      buildable(state, c.x, c.y, roads),
-    );
-    if (!cell) return false;
-    if (!applyCommand(state, { kind: "placeRoads", cells: [cellKey(cell.x, cell.y)] }).ok) return false;
-  }
-  return applyCommand(state, { kind: "placeBuilding", type, x: spot.x, y: spot.y }).ok;
-}
-
-function tryBuildNearDeposit(
-  state: GameState,
-  type: BuildingType,
-  deposits: GameState["woodDeposits"],
-  road: boolean,
-  reserve: number,
-): boolean {
-  if (!canAfford(state, type, road, reserve)) return false;
-  const roads = allRoadCells(state.roads);
-  for (const key of Object.keys(deposits).sort()) {
-    const parts = key.split(",").map(Number);
-    const dx = parts[0] ?? 0;
-    const dy = parts[1] ?? 0;
-    for (const c of NB.map((d) => ({ x: dx + d.x, y: dy + d.y }))) {
-      if (!buildable(state, c.x, c.y, roads)) continue;
-      if (road) {
-        const cell = NB.map((d) => ({ x: c.x + d.x, y: c.y + d.y })).find(
-          (r) => !(r.x === c.x && r.y === c.y) && buildable(state, r.x, r.y, roads),
-        );
-        if (!cell) continue;
-        if (!applyCommand(state, { kind: "placeRoads", cells: [cellKey(cell.x, cell.y)] }).ok) continue;
-      }
-      if (applyCommand(state, { kind: "placeBuilding", type, x: c.x, y: c.y }).ok) return true;
-    }
-  }
-  return false;
-}
-
 function countType(state: GameState, type: BuildingType): number {
   return Object.values(state.buildings).filter((b) => b.type === type).length;
 }
 
 /** Producer/parks rest at high stocks (no maintenance) and wake at low stocks. */
 function manageMothballs(state: GameState): void {
+  if (projectModeActive(state)) {
+    runProjectMode(state);
+    return;
+  }
   const pop = state.population;
   for (const b of Object.values(state.buildings)) {
+    // Food triage first: rest water/wood/stone getters so workers flow
+    // deterministically to farms next tick. Workshops keep earning and
+    // parks keep absorbing; water shortage pauses admission but never kills.
+    if (state.resources.food < pop + 4 && (b.type === "well" || b.type === "lumberCamp" || b.type === "quarry")) {
+      if (b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
+      continue;
+    }
+    // Yield-tech slack (Step021): researched farm yield covers pop with fewer
+    // farms; resting the surplus frees workers for wells (water surplus =
+    // admission resumes) and camps (wood chain). Rest latest-built first:
+    // they sort last and would sit unstaffed anyway.
+    const farmYield = foodPerFarm(state);
+    const farmsNeeded = Math.max(1, Math.ceil(pop / farmYield));
+    const activeFarms = Object.values(state.buildings)
+      .filter((f) => f.type === "farm" && f.active)
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    if (activeFarms.length > farmsNeeded) {
+      for (const f of activeFarms.slice(farmsNeeded)) {
+        applyCommand(state, { kind: "setBuildingActive", id: f.id, active: false });
+      }
+    } else if (activeFarms.length < farmsNeeded) {
+      const resting = Object.values(state.buildings)
+        .filter((f) => f.type === "farm" && !f.active)
+        .sort((a, b) => a.y - b.y || a.x - b.x);
+      for (const f of resting.slice(0, farmsNeeded - activeFarms.length)) {
+        applyCommand(state, { kind: "setBuildingActive", id: f.id, active: true });
+      }
+    }
     if (b.type === "farm") {
       if (b.active && state.resources.food > pop * 4 + 16) {
         applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
@@ -136,60 +110,47 @@ function manageMothballs(state: GameState): void {
   }
 }
 
-/** One governor action per tick, highest priority first. */
-function govern(state: GameState): void {
-  manageMothballs(state);
+/**
+ * Project mode (Step021): to build the Age-2 market the colony needs 2
+ * planks = 1 staffed camp-tick + staffed workshop transform ticks. Staffing
+ * is greedy over sort order, so the governor mothballs down to
+ * eligible <= workers: then EVERYONE staffed, deterministically, whatever
+ * the order. Enters only with food/water buffers for the ~4-tick project;
+ * exits by building the market (caller reactivates shops after).
+ */
+function projectModeActive(state: GameState): boolean {
   const pop = state.population;
-  const money = state.resources.money;
-  const housing = countType(state, "residence");
-  const farms = countType(state, "farm");
-  const wells = countType(state, "well");
-  const shops = countType(state, "workshop");
+  return (
+    state.age >= 2 &&
+    countType(state, "market") < 1 &&
+    state.resources.planks < 2 &&
+    pop >= 10 &&
+    state.resources.food > pop * 5 &&
+    state.resources.water > 20
+  );
+}
 
-  if (housing < 1) {
-    if (tryBuild(state, "residence", false, 0)) return;
-  }
-  if (wells < 1) {
-    if (tryBuild(state, "well", true, 0)) return;
-  }
-  if (shops < 1) {
-    if (tryBuild(state, "workshop", true, 0)) return;
-  }
-  if (state.resources.food < pop + 4) {
-    if (tryBuild(state, "farm", true, 0)) return;
-  }
-  if (countType(state, "park") < 1 && money > 45) {
-    if (tryBuildNearDeposit(state, "park", state.woodDeposits, false, 0)) return;
-  }
-  if (shops < 2 && money > 80) {
-    if (tryBuild(state, "workshop", true, 20)) return;
-  }
-  if (housing < 8 && pop >= housing && money > 60) {
-    if (tryBuild(state, "residence", false, 20)) return;
-  }
-  // capacity branches need pop>=2: at pop1 the trickle covers food and any
-  // extra workplace is pure maintenance drain (verified money pin at 0).
-  if (pop >= 2 && farms < Math.ceil(pop / 2) + 1 && money > 60) {
-    if (tryBuild(state, "farm", true, 20)) return;
-  }
-  if (pop >= 2 && wells < Math.ceil(pop / 4) + 1 && money > 60) {
-    if (tryBuild(state, "well", true, 20)) return;
-  }
-  if (countType(state, "lumberCamp") < 1 && pop >= 1 && money > 60) {
-    if (tryBuildNearDeposit(state, "lumberCamp", state.woodDeposits, true, 20)) return;
-  }
-  if (countType(state, "quarry") < 1 && state.resources.planks >= 5 && money > 60) {
-    if (tryBuildNearDeposit(state, "quarry", state.stoneDeposits, true, 20)) return;
-  }
-  for (const tech of TECH_ORDER) {
-    const def = TECH_DEFINITIONS[tech];
-    if (def && !state.researchedTechs.includes(tech) && money >= def.cost + 100) {
-      if (applyCommand(state, { kind: "researchTech", techId: tech }).ok) return;
+function runProjectMode(state: GameState): void {
+  const byType = (t: BuildingType) =>
+    Object.values(state.buildings)
+      .filter((b) => b.type === t)
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+  const keep = (t: BuildingType, n: number): void => {
+    const list = byType(t);
+    for (const b of list.slice(0, n)) {
+      if (!b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: true });
     }
-  }
-  if (state.age >= 2 && countType(state, "market") < 1 && money > 100) {
-    if (tryBuild(state, "market", true, 20)) return;
-  }
+    for (const b of list.slice(n)) {
+      if (b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
+    }
+  };
+  // 4 farms (12 food w/ tech) + 4 wells (8 water, buffered) + camp + shop:
+  // 10 eligible <= pop 10 charges the whole chain deterministically.
+  keep("farm", 4);
+  keep("well", 4);
+  keep("lumberCamp", 1);
+  keep("workshop", 1);
+  keep("quarry", 0);
 }
 
 function checkInvariants(state: GameState): void {
@@ -212,12 +173,14 @@ function checkInvariants(state: GameState): void {
 interface PlayResult {
   state: GameState;
   phases: string[];
+  traj: string[];
 }
 
-function playGame(): PlayResult {
+function playGame(crisisAt = -1, stopEarly = true): PlayResult {
   const state = createInitialState(CONFIG);
   const phases: string[] = [];
   const seen = new Set<string>();
+  const traj: string[] = [];
   const mark = (name: string): void => {
     if (!seen.has(name)) {
       seen.add(name);
@@ -225,35 +188,160 @@ function playGame(): PlayResult {
     }
   };
 
+  const tryBuild = (type: BuildingType, road: boolean, reserve: number): boolean => {
+    const def = BUILDING_DEFINITIONS[type];
+    if (state.resources.money < def.moneyCost + (road ? 5 : 0) + reserve) return false;
+    if (state.resources.planks < def.plankCost || state.resources.water < def.waterCost) return false;
+    const roads = allRoadCells(state.roads);
+    let spot: { x: number; y: number };
+    try {
+      spot = freeCell(state);
+    } catch {
+      return false;
+    }
+    if (road) {
+      const cell = [
+        { x: spot.x + 1, y: spot.y },
+        { x: spot.x - 1, y: spot.y },
+        { x: spot.x, y: spot.y + 1 },
+        { x: spot.x, y: spot.y - 1 },
+      ].find((c) => buildable(state, c.x, c.y, roads));
+      if (!cell) return false;
+      if (!applyCommand(state, { kind: "placeRoads", cells: [cellKey(cell.x, cell.y)] }).ok) return false;
+    }
+    return applyCommand(state, { kind: "placeBuilding", type, x: spot.x, y: spot.y }).ok;
+  };
+
+  const tryBuildNearDeposit = (
+    type: BuildingType,
+    deposits: GameState["woodDeposits"],
+    road: boolean,
+    reserve: number,
+  ): boolean => {
+    const def = BUILDING_DEFINITIONS[type];
+    if (state.resources.money < def.moneyCost + (road ? 5 : 0) + reserve) return false;
+    if (state.resources.planks < def.plankCost || state.resources.water < def.waterCost) return false;
+    const roads = allRoadCells(state.roads);
+    for (const key of Object.keys(deposits).sort()) {
+      const parts = key.split(",").map(Number);
+      const dx = parts[0] ?? 0;
+      const dy = parts[1] ?? 0;
+      for (const c of [
+        { x: dx + 1, y: dy },
+        { x: dx - 1, y: dy },
+        { x: dx, y: dy + 1 },
+        { x: dx, y: dy - 1 },
+      ]) {
+        if (!buildable(state, c.x, c.y, roads)) continue;
+        if (road) {
+          const cell = [
+            { x: c.x + 1, y: c.y },
+            { x: c.x - 1, y: c.y },
+            { x: c.x, y: c.y + 1 },
+            { x: c.x, y: c.y - 1 },
+          ].find((r) => !(r.x === c.x && r.y === c.y) && buildable(state, r.x, r.y, roads));
+          if (!cell) continue;
+          if (!applyCommand(state, { kind: "placeRoads", cells: [cellKey(cell.x, cell.y)] }).ok) continue;
+        }
+        if (applyCommand(state, { kind: "placeBuilding", type, x: c.x, y: c.y }).ok) return true;
+      }
+    }
+    return false;
+  };
+
   for (let t = 0; t < TICK_BUDGET; t++) {
-    govern(state);
+    if (t === crisisAt) {
+      state.resources.money = 0;
+      state.resources.food = 8;
+    }
+    const pop = state.population;
+    const money = state.resources.money;
+    const housing = countType(state, "residence");
+    manageMothballs(state);
+
+    const staffedFarms = Object.values(state.buildings).filter((b) => b.type === "farm" && b.staffed).length;
+    const structuralFoodGap = state.resources.food < pop + 4 && staffedFarms * 2 < pop;
+    // Bank phase: at pop>=10 with a living colony, stop expanding and bank
+    // 400 for the back-to-back tech run (tre200 must hold at advance).
+    const banking = pop >= 10 && state.researchedTechs.length < 3 && money < 400;
+    // Priority list, first SUCCESSFUL action wins the tick.
+    const options: Array<[boolean, () => boolean]> = [
+      [banking && structuralFoodGap, () => tryBuild("farm", true, 0)],
+      [banking && countType(state, "workshop") < 2 && money > 50, () => tryBuild("workshop", true, 0)],
+      [!banking && structuralFoodGap, () => tryBuild("farm", true, 0)],
+      [!banking && state.researchedTechs.length < 3 && money >= 150, () => {
+        for (const tech of TECH_ORDER) {
+          const def = TECH_DEFINITIONS[tech];
+          if (def && !state.researchedTechs.includes(tech) && applyCommand(state, { kind: "researchTech", techId: tech }).ok) return true;
+        }
+        return false;
+      }],
+      [!banking && countType(state, "workshop") < 4 && money > 50, () => tryBuild("workshop", true, 0)],
+      [!banking && housing < 14 && pop >= housing && money > 60, () => tryBuild("residence", false, 20)],
+      [!banking && countType(state, "farm") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("farm", true, 20)],
+      [!banking && countType(state, "well") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("well", true, 20)],
+      [!banking && countType(state, "lumberCamp") < 1 && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
+      [!banking && countType(state, "quarry") < 1 && state.resources.planks >= 5 && money > 60, () => tryBuildNearDeposit("quarry", state.stoneDeposits, true, 20)],
+      [!banking && countType(state, "park") < 1 && (state.pollution > 25 || money > 200) && money > 60, () => tryBuildNearDeposit("park", state.woodDeposits, false, 20)],
+      [state.age >= 2 && countType(state, "market") < 1 && money > 100, () => tryBuild("market", true, 20)],
+    ];
+    for (const [cond, fn] of options) {
+      if (cond && fn()) break;
+    }
+
     stepTicks(state, 1);
     checkInvariants(state);
+    if (state.tick % 150 === 0 || state.tick <= 6) {
+      traj.push(
+        `t${state.tick} pop${state.population} money${Math.floor(state.resources.money)} ` +
+        `food${Math.floor(state.resources.food)} water${Math.floor(state.resources.water)} ` +
+        `wood${Math.floor(state.resources.wood)} planks${Math.floor(state.resources.planks)} ` +
+        `shops${countType(state, "workshop")} techs${state.researchedTechs.length} age${state.age} bldgs${Object.keys(state.buildings).length}`,
+      );
+    }
 
-    if (state.population >= 1) mark("pop1");
-    if (connectedWorkshops(state) >= 1) mark("commerce");
-    if (countType(state, "park") >= 1) mark("park");
-    if (t === 1500) {
+    if (state.population >= 12) mark("pop12");
+    if (canAdvanceAge(state) && state.age === 1) {
+      mark("ready");
+      mustOk(applyCommand(state, { kind: "advanceAge" }));
+      mark("age2");
+      const restored = parseSave(serialize(state));
+      expect(restored).toEqual(state);
+    }
+    if (state.age >= 2 && countType(state, "market") >= 1) mark("market-built");
+    if (state.age >= 2 && getColonyStats(state).marketPerTick > 0) mark("market-sale");
+    if (stopEarly && seen.has("market-sale")) {
       const restored = parseSave(serialize(state));
       expect(restored).toEqual(state);
       mark("save-mid");
+      break;
     }
   }
-  return { state, phases };
+  return { state, phases, traj };
 }
 
 describe("self-play verifier", () => {
-  it("canonical start runs 3000 ticks with systems engaged and zero violations", () => {
-    const { state, phases } = playGame();
-    for (const p of ["pop1", "commerce", "park", "save-mid"]) {
-      expect(seen_has(phases, p), "phase missing: " + p + " (reached: " + phases.join(", ") + ")").toBe(true);
+  it("plays the full MVP loop to Age 2 with no intervention", () => {
+    const { state, phases, traj } = playGame();
+    for (const p of ["pop12", "ready", "age2", "market-built", "market-sale", "save-mid"]) {
+      expect(phases.some((x) => x.startsWith(p + "@")), "phase missing: " + p + " (reached: " + phases.join(", ") + ")").toBe(true);
     }
-    // mothball cycling engaged (producers rest and wake across the run)
-    expect(Object.keys(state.buildings).length).toBeGreaterThanOrEqual(4);
+    expect(state.age).toBe(2);
+    expect(evaluateMilestones(state, 2).length).toBe(4);
     const restored = parseSave(serialize(state));
     expect(restored).toEqual(state);
-    expect(state.tick).toBe(TICK_BUDGET);
     console.log("selfplay phases: " + phases.join(", "));
+    console.log("selfplay trajectory:\n" + traj.join("\n"));
+  }, 180000);
+
+  it("recovers from a money-zero crisis without injection", () => {
+    // crisis lands mid-game (treasury 0 + food 8: the established Step009
+    // scenario, no injection after setup); the run continues full-budget.
+    const { state, phases } = playGame(300, false);
+    expect(state.population).toBeGreaterThanOrEqual(10);
+    expect(state.resources.money).toBeGreaterThanOrEqual(200);
+    expect(phases.some((x) => x.startsWith("age2@"))).toBe(true);
+    console.log("crisis phases: " + phases.join(", "));
   }, 180000);
 
   it("self-play is deterministic", () => {
@@ -263,7 +351,3 @@ describe("self-play verifier", () => {
     expect(b.phases).toEqual(a.phases);
   }, 240000);
 });
-
-function seen_has(phases: string[], p: string): boolean {
-  return phases.some((x) => x.startsWith(p + "@"));
-}

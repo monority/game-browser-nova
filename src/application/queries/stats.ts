@@ -1,5 +1,6 @@
 import type { GameState } from "../../domain/simulation/state.js";
 import {
+  commerceUnlocked,
   connectedMarkets,
   connectedWorkshops,
   expectedMarketSales,
@@ -39,10 +40,13 @@ export interface ColonyStats {
 
 export function getColonyStats(state: GameState): ColonyStats {
   const taxes = state.population * TAX_PER_INHABITANT_PER_TICK;
-  // Honest commerce: connection base plus tradeRoutes tech plus plank throughput (Step017).
+  // Honest commerce: connection base (pop-gated, Step021) plus tradeRoutes
+  // tech plus plank throughput (Step017, always on). Mirrors collectRevenue.
   const commerce =
-    connectedWorkshops(state) *
-      (COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce")) +
+    (commerceUnlocked(state)
+      ? connectedWorkshops(state) *
+        (COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce"))
+      : 0) +
     plankThroughput(state) * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
   const market = expectedMarketSales(state) * MONEY_PER_FOOD_SOLD;
   const maintenance = operationalBuildingCount(state) * MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK;

@@ -5,6 +5,7 @@ import { applyCommand } from "../src/domain/simulation/commands.js";
 import { stepTicks } from "../src/domain/simulation/tick.js";
 import { computeRoadNetworks, isAdjacentToRoad } from "../src/domain/network/network.js";
 import { BUILDING_DEFINITIONS, type BuildingType } from "../src/content/buildings.js";
+import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "build-test", width: 16, height: 16 };
 
@@ -18,47 +19,37 @@ function buildingOf(state: GameState, id: string) {
   return building;
 }
 
-/** First buildable cell scanning y asc / x asc (seed-independent). */
-function freeCell(state: GameState, skip = new Set<string>()): { x: number; y: number } {
-  for (let y = 0; y < state.world.height; y++) {
-    for (let x = 0; x < state.world.width; x++) {
-      const key = cellKey(x, y);
-      if (state.world.blockedCells[key] || skip.has(key)) continue;
-      return { x, y };
-    }
-  }
-  throw new Error("no free cell");
-}
-
 describe("building placement", () => {
   it("residence placement costs 25 money and starts under construction", () => {
     const state = freshState();
-    const result = applyCommand(state, { kind: "placeBuilding", type: "residence", x: 3, y: 3 });
+    const spot = freeCell(state);
+    const result = applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y });
     expect(result).toEqual({ ok: true });
     expect(state.resources.money).toBe(100 - 25);
-    const building = buildingOf(state, "building-1");
+    const building = buildingOf(state, `building-${state.buildingCounter - 1}`);
     expect(building.status).toBe("underConstruction");
     expect(building.constructionTicksLeft).toBe(2);
   });
 
-  it("ids are deterministic and sequential (building-1 first, anchor pre-placed)", () => {
+  it("ids are deterministic and sequential (D2 colony pre-placed)", () => {
     const state = freshState();
-    applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 1 });
-    applyCommand(state, { kind: "placeBuilding", type: "well", x: 2, y: 1 });
-    expect(Object.keys(state.buildings).sort()).toEqual([
-      "building-1",
-      "building-2",
-      "colony-center",
-    ]);
-    expect(state.buildingCounter).toBe(3);
-    // player buildings never inherit the anchor's id space
-    expect(state.buildings["building-1"]?.id).toBe("building-1");
+    const start = state.buildingCounter;
+    const a = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: a.x, y: a.y }));
+    const b = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: b.x, y: b.y }));
+    expect(Object.keys(state.buildings).sort()).toContain(`building-${start}`);
+    expect(Object.keys(state.buildings).sort()).toContain(`building-${start + 1}`);
+    expect(state.buildingCounter).toBe(start + 2);
+    // player buildings never inherit the anchor id space
+    expect(state.buildings[`building-${start}`]?.id).toBe(`building-${start}`);
   });
 
   it("validation rejects occupied, blocked, out-of-bounds and unaffordable placements", () => {
     const state = freshState();
-    applyCommand(state, { kind: "placeBuilding", type: "farm", x: 5, y: 5 });
-    expect(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 5, y: 5 })).toEqual({
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: spot.x, y: spot.y }));
+    expect(applyCommand(state, { kind: "placeBuilding", type: "farm", x: spot.x, y: spot.y })).toEqual({
       ok: false,
       reason: "occupied",
     });
@@ -75,7 +66,8 @@ describe("building placement", () => {
       reason: "unknownBuildingType",
     });
     state.resources.money = 10;
-    expect(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 6, y: 5 })).toEqual({
+    const poor = freeCell(state);
+    expect(applyCommand(state, { kind: "placeBuilding", type: "farm", x: poor.x, y: poor.y })).toEqual({
       ok: false,
       reason: "insufficientMoney",
     });
@@ -89,7 +81,7 @@ describe("building placement", () => {
       applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }),
     ).toEqual({ ok: false, reason: "insufficientWater" });
     state.resources.water = 2;
-    applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y });
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
     expect(state.resources.water).toBe(1);
     expect(state.resources.money).toBe(100 - 25);
   });
@@ -110,20 +102,25 @@ describe("building placement", () => {
 describe("construction progress", () => {
   it("buildings become operational after exactly 2 ticks", () => {
     const state = freshState();
-    applyCommand(state, { kind: "placeBuilding", type: "farm", x: 2, y: 2 });
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: spot.x, y: spot.y }));
+    const id = `building-${state.buildingCounter - 1}`;
     stepTicks(state, 1);
-    expect(buildingOf(state, "building-1").status).toBe("underConstruction");
+    expect(buildingOf(state, id).status).toBe("underConstruction");
     stepTicks(state, 1);
-    expect(buildingOf(state, "building-1").status).toBe("operational");
+    expect(buildingOf(state, id).status).toBe("operational");
     stepTicks(state, 3);
-    expect(buildingOf(state, "building-1").status).toBe("operational");
+    expect(buildingOf(state, id).status).toBe("operational");
   });
 
   it("construction completion is deterministic", () => {
     const a = freshState();
     const b = freshState();
-    applyCommand(a, { kind: "placeBuilding", type: "residence", x: 1, y: 8 });
-    applyCommand(b, { kind: "placeBuilding", type: "residence", x: 1, y: 8 });
+    const spotA = freeCell(a);
+    const spotB = freeCell(b);
+    expect(spotA).toEqual(spotB); // same seed, same D2 layout
+    mustOk(applyCommand(a, { kind: "placeBuilding", type: "residence", x: spotA.x, y: spotA.y }));
+    mustOk(applyCommand(b, { kind: "placeBuilding", type: "residence", x: spotB.x, y: spotB.y }));
     stepTicks(a, 4);
     stepTicks(b, 4);
     expect(b).toEqual(a);
@@ -133,18 +130,21 @@ describe("construction progress", () => {
 describe("roads", () => {
   it("roads cost 5 per unique cell and dedupe the path", () => {
     const state = freshState();
+    stripToAnchor(state);
+    const before = state.roadCounter;
     const result = applyCommand(state, {
       kind: "placeRoads",
       cells: [cellKey(0, 0), cellKey(1, 0), cellKey(1, 0)],
     });
     expect(result).toEqual({ ok: true });
     expect(state.resources.money).toBe(100 - 10);
-    expect(state.roads["road-1"]?.cells).toEqual([cellKey(0, 0), cellKey(1, 0)]);
+    expect(state.roads[`road-${before}`]?.cells).toEqual([cellKey(0, 0), cellKey(1, 0)]);
   });
 
   it("roads cannot overlap buildings or terrain", () => {
     const state = freshState();
-    applyCommand(state, { kind: "placeBuilding", type: "farm", x: 3, y: 3 });
+    stripToAnchor(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 3, y: 3 }));
     expect(applyCommand(state, { kind: "placeRoads", cells: [cellKey(3, 3)] })).toEqual({
       ok: false,
       reason: "occupied",
@@ -157,6 +157,7 @@ describe("roads", () => {
 
   it("road affordability is checked per unique cell", () => {
     const state = freshState();
+    stripToAnchor(state);
     state.resources.money = 12;
     expect(
       applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 1), cellKey(1, 1), cellKey(2, 1)] }),
@@ -167,8 +168,9 @@ describe("roads", () => {
 describe("road networks", () => {
   it("orthogonally connected roads form one network; disjoint roads form two", () => {
     const state = freshState();
-    applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(1, 0), cellKey(2, 0)] });
-    applyCommand(state, { kind: "placeRoads", cells: [cellKey(8, 8), cellKey(8, 9)] });
+    stripToAnchor(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(1, 0), cellKey(2, 0)] }));
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(8, 8), cellKey(8, 9)] }));
     const networks = computeRoadNetworks(state.roads);
     expect(networks.cells.size).toBe(2);
     expect(networks.membership.get(cellKey(0, 0))).toBe(
@@ -181,8 +183,9 @@ describe("road networks", () => {
 
   it("building road adjacency is orthogonal only", () => {
     const state = freshState();
-    applyCommand(state, { kind: "placeRoads", cells: [cellKey(5, 5)] });
-    applyCommand(state, { kind: "placeBuilding", type: "farm", x: 6, y: 6 });
+    stripToAnchor(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(5, 5)] }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 6, y: 6 }));
     expect(isAdjacentToRoad(state.roads, 6, 6)).toBe(false);
     expect(isAdjacentToRoad(state.roads, 6, 5)).toBe(true);
   });

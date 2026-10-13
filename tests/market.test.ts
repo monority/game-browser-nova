@@ -15,7 +15,7 @@ import { getColonyStats } from "../src/application/queries/stats.js";
 import { getResourceSummaries } from "../src/application/queries/analysis.js";
 import { parseSave, serialize, SAVE_VERSION } from "../src/application/persistence/save.js";
 import { BUILDING_PALETTE, createBuildingMeshes } from "../src/renderer/shapes.js";
-import { freeCell, mustOk } from "./helpers.js";
+import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "market-test", width: 16, height: 16 };
 
@@ -23,23 +23,11 @@ function freshState(): GameState {
   return createInitialState(CONFIG);
 }
 
-function adjacentFree(state: GameState, x: number, y: number): { x: number; y: number } {
-  const adj = [
-    { x: x + 1, y },
-    { x: x - 1, y },
-    { x, y: y + 1 },
-    { x, y: y - 1 },
-  ].find(
-    (c) =>
-      c.x >= 0 && c.y >= 0 && c.x < state.world.width && c.y < state.world.height &&
-      !state.world.blockedCells[cellKey(c.x, c.y)],
-  );
-  if (!adj) throw new Error("no adjacent free cell");
-  return adj;
-}
 
 /** Operational road-connected market on an Age 2 state, matured. */
 function placeConnectedMarket(state: GameState): void {
+  stripToAnchor(state);
+  state.population = 0;
   state.age = 2;
   state.resources.money = Math.max(state.resources.money, 500);
   state.resources.planks = Math.max(state.resources.planks, 10);
@@ -51,6 +39,7 @@ function placeConnectedMarket(state: GameState): void {
 }
 
 function placeConnectedFarm(state: GameState): void {
+  // no strip here: callers that need a market strip once via placeConnectedMarket
   const road = freeCell(state);
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
   const adj = adjacentFree(state, road.x, road.y);

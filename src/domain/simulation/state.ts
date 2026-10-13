@@ -1,10 +1,10 @@
 import { createInitialResourceStock, type ResourceStock } from "../resource/resource.js";
-import { createWorld, type World, type WorldConfig } from "../world/world.js";
+import { createWorld, isBlocked, type World, type WorldConfig } from "../world/world.js";
 import { normalizeDeposits, type Deposits } from "../world/deposits.js";
 import { cellKey } from "../shared/cells.js";
 import { STARTING_AGE } from "../../content/progression.js";
-import type { Building } from "../building/building.js";
-import type { Road } from "../road/road.js";
+import { createBuilding, type Building } from "../building/building.js";
+import { createRoad, type Road } from "../road/road.js";
 
 /**
  * Canonical simulation state: facts only, no derived values, no
@@ -55,6 +55,7 @@ export function createInitialState(config: WorldConfig): GameState {
   };
 
   prePlaceColonyCenter(state);
+  composeD2Colony(state);
   return state;
 }
 
@@ -103,4 +104,80 @@ function prePlaceColonyCenter(state: GameState): void {
     }
   }
   throw new Error("world has no buildable cell for the Colony Center");
+}
+
+/**
+ * D2 day-0 colony (Step021, docs/game/02-MVP.md): a small FUNCTIONING
+ * colony of 10 inhabitants, granted free - placement costs are not
+ * charged. Counts follow the rate math: 10 mouths need 10 food + 10
+ * water per tick, producers yield 2. Residences need no roads; every
+ * workplace gets an adjacent road cell. All buildings start operational;
+ * staffing assigns on the first tick per the normal timing contract.
+ * Treasury stays INITIAL_TREASURY (100): the opening pressure is
+ * preserved, but the colony is viable (Step020 evidence).
+ */
+const D2_POPULATION = 10;
+const D2_RESIDENCES = 10;
+const D2_FARMS = 5;
+const D2_WELLS = 5;
+const D2_WORKSHOPS = 2;
+const D2_FOOD = 60;
+const D2_WATER = 40;
+
+function composeD2Colony(state: GameState): void {
+  const taken = new Set<string>();
+  for (const building of Object.values(state.buildings)) {
+    taken.add(cellKey(building.x, building.y));
+  }
+  const freeSpot = (): { x: number; y: number } => {
+    for (let y = 0; y < state.world.height; y++) {
+      for (let x = 0; x < state.world.width; x++) {
+        const key = cellKey(x, y);
+        if (taken.has(key)) continue;
+        if (isBlocked(state.world, x, y)) continue;
+        if (state.woodDeposits[key] || state.stoneDeposits[key]) continue;
+        taken.add(key);
+        return { x, y };
+      }
+    }
+    throw new Error("world has no room for the D2 colony");
+  };
+  const neighbors = [
+    { x: 1, y: 0 },
+    { x: -1, y: 0 },
+    { x: 0, y: 1 },
+    { x: 0, y: -1 },
+  ];
+  const place = (type: "residence" | "farm" | "well" | "workshop", withRoad: boolean): void => {
+    const spot = freeSpot();
+    if (withRoad) {
+      const road = neighbors
+        .map((d) => ({ x: spot.x + d.x, y: spot.y + d.y }))
+        .find((c) => {
+          if (c.x < 0 || c.y < 0 || c.x >= state.world.width || c.y >= state.world.height) return false;
+          const key = cellKey(c.x, c.y);
+          if (taken.has(key) || isBlocked(state.world, c.x, c.y)) return false;
+          if (state.woodDeposits[key] || state.stoneDeposits[key]) return false;
+          return true;
+        });
+      if (!road) throw new Error("world has no room for D2 roads");
+      taken.add(cellKey(road.x, road.y));
+      const roadId = "road-" + String(state.roadCounter);
+      state.roadCounter += 1;
+      state.roads[roadId] = createRoad(roadId, [cellKey(road.x, road.y)]);
+    }
+    const id = "building-" + String(state.buildingCounter);
+    state.buildingCounter += 1;
+    const building = createBuilding(id, type, spot.x, spot.y);
+    building.status = "operational";
+    building.constructionTicksLeft = 0;
+    state.buildings[id] = building;
+  };
+  for (let i = 0; i < D2_RESIDENCES; i++) place("residence", false);
+  for (let i = 0; i < D2_FARMS; i++) place("farm", true);
+  for (let i = 0; i < D2_WELLS; i++) place("well", true);
+  for (let i = 0; i < D2_WORKSHOPS; i++) place("workshop", true);
+  state.population = D2_POPULATION;
+  state.resources.food = D2_FOOD;
+  state.resources.water = D2_WATER;
 }
