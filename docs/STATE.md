@@ -26,7 +26,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step022 growth & commerce evidence (investigations; tests-only change) |
+| HEAD | Step023 A1 progression depth design (design-only, no code changes) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step022 (growth & commerce evidence, complete) - see `docs/roadmap/Step022-growth-and-commerce-evidence.md`. A1 unblocked per Step022 go-decision.
+Step023 (A1 progression depth design, complete) - see `docs/roadmap/Step023-a1-progression-design.md`. A1 implementation GO: two-age MVP, market1 milestone addition, no migration.
 
 ---
 
