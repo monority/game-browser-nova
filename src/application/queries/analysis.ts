@@ -15,6 +15,7 @@ import {
   MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
 } from "../../domain/economy/economy.js";
 import { environmentalQuality } from "../../domain/environment/environment.js";
+import { getStaffingOverview } from "./staffing.js";
 
 /**
  * Derived analysis views (docs/DATA-CONTRACTS.md §5, docs/game/09-UI-UX.md).
@@ -190,6 +191,19 @@ export function getAlerts(state: GameState): Alert[] {
       severity: quality < 25 ? "warning" : "info",
       message: `Environment: quality ${quality} · pollution ${Math.round(state.pollution)}`,
     });
+  }
+
+  // Workforce visibility (Step025): staff compete for workplaces in fixed
+  // canonical order; a shortage shows as idle eligible workplaces. The alert
+  // states the ratio only — the staffing order is inspectable per building.
+  if (state.population > 0) {
+    const staffing = getStaffingOverview(state);
+    if (staffing.eligible > 0 && staffing.staffed < staffing.eligible) {
+      alerts.push({
+        severity: "info",
+        message: `Workforce: ${staffing.staffed}/${staffing.eligible} workplaces staffed`,
+      });
+    }
   }
 
   return alerts;

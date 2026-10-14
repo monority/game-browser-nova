@@ -68,6 +68,8 @@ export interface Ui {
   activeBuildType(): BuildingType | null;
   roadMode(): boolean;
   setAvailableBuildings(types: BuildingType[]): void;
+  /** Buildings that exist in the palette but are locked behind a later age. */
+  setAgeLocked(types: BuildingType[]): void;
 }
 
 export interface RemoveBuildingInfo {
@@ -76,6 +78,8 @@ export interface RemoveBuildingInfo {
   label: string;
   detail?: string;
   active: boolean;
+  /** Staffing state line for workplaces (states only, Step025). */
+  staffing?: string;
 }
 
 export interface RemoveRoadInfo {
@@ -203,6 +207,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
       }
       button.style.borderColor = TOKENS.borderInfo;
     });
+    button.title = OVERLAY_LEGENDS[mode];
     overlayRow.appendChild(button);
   }
 
@@ -269,14 +274,50 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   root.appendChild(tooltip);
 
   let availableTypes: BuildingType[] = [...PALETTE_TYPES];
+  let ageLockedTypes: BuildingType[] = [];
+
+  /** Button label without the age suffix (base palette labels). */
+  function paletteLabel(type: BuildingType): string {
+    const definition = BUILDING_DEFINITIONS[type];
+    return `${definition.displayName} (${definition.moneyCost}$${definition.plankCost > 0 ? ` +${definition.plankCost}pl` : ""})`;
+  }
+
+  /** One place that reconciles available / age-locked / hidden palette state. */
+  function applyPaletteVisibility(): void {
+    for (const child of paletteRow.children) {
+      const button = child as HTMLButtonElement;
+      const type = button.dataset.buildType as BuildingType;
+      if (ageLockedTypes.includes(type)) {
+        const requiredAge = BUILDING_DEFINITIONS[type].requiredAge ?? 1;
+        button.textContent = `${paletteLabel(type)} — requires Age ${requiredAge}`;
+        button.disabled = true;
+        button.title = `Unlocks in Age ${requiredAge}`;
+        button.style.display = "";
+        button.style.opacity = "0.45";
+        button.style.cursor = "not-allowed";
+      } else if (availableTypes.includes(type)) {
+        button.textContent = paletteLabel(type);
+        button.disabled = false;
+        button.title = "";
+        button.style.display = "";
+        button.style.opacity = "";
+        button.style.cursor = "pointer";
+      } else {
+        button.style.display = "none";
+      }
+    }
+  }
 
   function setAvailableBuildings(types: BuildingType[]): void {
     availableTypes = [...types];
     if (selectedType && !availableTypes.includes(selectedType)) selectedType = null;
-    for (const child of paletteRow.children) {
-      const button = child as HTMLElement;
-      button.style.display = availableTypes.includes(button.dataset.buildType as BuildingType) ? "" : "none";
-    }
+    applyPaletteVisibility();
+    refreshPalette();
+  }
+
+  function setAgeLocked(types: BuildingType[]): void {
+    ageLockedTypes = [...types];
+    applyPaletteVisibility();
     refreshPalette();
   }
 
@@ -302,6 +343,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     activeBuildType: () => selectedType,
     roadMode: () => roadsEnabled,
     setAvailableBuildings,
+    setAgeLocked,
     updateProgression(info) {
       progressionPanel.element.innerHTML = "";
       const header = document.createElement("div");
@@ -462,6 +504,12 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
           detail.style.marginBottom = "6px";
           inspection.element.appendChild(detail);
         }
+        if (info.staffing) {
+          const staffing = staticNote(info.staffing);
+          staffing.dataset.staffing = info.id;
+          staffing.style.marginBottom = "6px";
+          inspection.element.appendChild(staffing);
+        }
         if (info.id === "colony-center") {
           inspection.element.appendChild(
             staticNote("The Colony Center anchor cannot be removed or mothballed."),
@@ -580,3 +628,10 @@ function staticNote(text: string): HTMLDivElement {
   note.style.color = "#8a93a3";
   return note;
 }
+
+/** Overlay legend tooltips (states only). */
+const OVERLAY_LEGENDS: Record<OverlayMode, string> = {
+  none: "No overlay tinting",
+  staffing: "Staffing: green staffed · amber idle (no workers) · gray mothballed",
+  deposits: "Deposits: markers show remaining wood/stone",
+};

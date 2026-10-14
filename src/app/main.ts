@@ -7,6 +7,7 @@ import { cellKey } from "../domain/shared/cells.js";
 import { createRenderer, type Renderer } from "../renderer/renderer.js";
 import { getColonyStats } from "../application/queries/stats.js";
 import { getResourceSummaries, getAlerts, getResourceContributors } from "../application/queries/analysis.js";
+import { getStaffingOverview } from "../application/queries/staffing.js";
 import { evaluateMilestones, canAdvanceAge, hasTech } from "../domain/progression/progression.js";
 import { TECH_DEFINITIONS } from "../content/techs.js";
 import { BUILDING_DEFINITIONS, type BuildingType } from "../content/buildings.js";
@@ -259,12 +260,16 @@ export function boot(root: HTMLElement): { stop(): void } {
     for (const building of Object.values(state.buildings)) {
       if (building.x === x && building.y === y) {
         ui.setStatus(`${building.id}: ${building.type} · ${building.status}`);
+        // staffing line for workplaces: rank in the fixed assignment order
+        // and its state (staffed / idle / mothballed / no road / building)
+        const staffing = getStaffingOverview(state).entries.find((e) => e.id === building.id);
         ui.showInspection({
           kind: "building",
           id: building.id,
           label: `${building.id} — ${building.type} · ${building.status}${building.active ? "" : " · mothballed"}`,
           detail: BUILDING_DETAIL[building.type],
           active: building.active,
+          staffing: staffing?.staffingLine,
         });
         return;
       }
@@ -294,6 +299,9 @@ export function boot(root: HTMLElement): { stop(): void } {
     ui.updateStats(getColonyStats(state));
     ui.setAvailableBuildings(
       BUILD_ORDER.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) <= state.age),
+    );
+    ui.setAgeLocked(
+      BUILD_ORDER.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) > state.age),
     );
     ui.updateForecast(Object.values(getResourceSummaries(state)));
     ui.setAlerts(getAlerts(state));

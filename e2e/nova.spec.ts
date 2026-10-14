@@ -331,8 +331,10 @@ test.describe("NOVA critical flows", () => {
     await pause(page);
 
     // programmatic deterministic build via the diagnostics command surface:
-    // 6-long road strip, workplaces in canonical staffing order (3 wells on
-    // lower rows for early water, 4 farms above), 6 residences elsewhere.
+    // 6-long road strip, workplaces in canonical staffing order, 6 residences
+    // elsewhere. Farms rank ahead of wells: post-D2 the colony starts at
+    // pop 10 with exact water balance, so FOOD is the survival gate —
+    // housing built ahead of food production starves the colony (Step025).
     const built = await page.evaluate(() => {
       const h = (window as unknown as { __nova: NovaHandle }).__nova;
       const s = h.getState();
@@ -364,8 +366,8 @@ test.describe("NOVA critical flows", () => {
       if (!strip) return { ok: false };
       const st = strip as { x: number; y: number; side: number };
       h.command({ kind: "placeRoads", cells: Array.from({ length: 6 }, (_, i) => key(st.x, st.y + i)) });
-      const order: Array<["well" | "farm", number]> = [
-        ["well", 0], ["well", 1], ["well", 2], ["farm", 3], ["farm", 4], ["farm", 5],
+      const order: Array<["farm" | "well", number]> = [
+        ["farm", 0], ["farm", 1], ["farm", 2], ["well", 3], ["well", 4], ["well", 5],
       ];
       for (const [type, i] of order) {
         const r = h.command({ kind: "placeBuilding", type, x: st.x + st.side, y: st.y + i });
@@ -562,6 +564,102 @@ test.describe("NOVA critical flows", () => {
     // overlay back to none
     await page.locator("button[data-action='overlay-none']").click();
     await expect(page.locator("button[data-action='overlay-staffing']")).toBeVisible();
+  });
+
+  test("staffing visibility: age-locked market, workforce alert, mothball lever", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+    await stripToAnchor(page);
+
+    // Age 1: the Market palette entry is visible, disabled and labeled with
+    // its unlock condition instead of being silently hidden (Step025).
+    const marketButton = page.locator("button[data-build-type='market']");
+    await expect(marketButton).toBeVisible();
+    await expect(marketButton).toBeDisabled();
+    await expect(marketButton).toContainText("requires Age 2");
+
+    // Farm A via canvas click; farm B placed so it sorts BEFORE A in the
+    // canonical staffing order (y,x,id) — B gets the single worker.
+    await page.locator("button[data-build-type='farm']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    const placed = await page.evaluate(() => {
+      const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+      const farms = Object.values(s.buildings).filter((b) => b.type === "farm");
+      if (farms.length !== 1) throw new Error("expected exactly one farm");
+      return { x: farms[0]!.x, y: farms[0]!.y };
+    });
+
+    // road north of A, farm B north of the road: B ranks ahead of A
+    await page.evaluate((a) => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const s = h.getState();
+      const road = `${a.x},${a.y - 1}`;
+      const bCell = `${a.x},${a.y - 2}`;
+      const r1 = h.command({ kind: "placeRoads", cells: [road] });
+      if (!r1.ok) throw new Error("road failed: " + r1.reason);
+      const r2 = h.command({ kind: "placeBuilding", type: "farm", x: a.x, y: a.y - 2 });
+      if (!r2.ok) throw new Error("farm B failed: " + r2.reason);
+      s.population = 1;
+      return bCell;
+    }, placed);
+
+    // mature both farms (operational + assignment runs)
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+          return Object.values(s.buildings).filter((b) => b.type === "farm" && b.status === "operational").length;
+        }),
+      )
+      .toBe(2);
+    await page.getByRole("button", { name: "pause", exact: true }).click();
+
+    // both farms operational and B (rank 1) staffed, A (rank 2) idle
+    const states = await page.evaluate(() => {
+      const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+      return Object.values(s.buildings)
+        .filter((b) => b.type === "farm")
+        .map((b) => ({ x: b.x, y: b.y, status: b.status, staffed: b.staffed }));
+    });
+    expect(states).toHaveLength(2);
+    for (const f of states) {
+      expect(f.status).toBe("operational");
+    }
+    const staffedFarm = states.find((f) => f.staffed)!;
+    const idleFarm = states.find((f) => !f.staffed)!;
+    expect(staffedFarm.y).toBeLessThan(idleFarm.y); // canonical order: north farm staffed
+
+    // workforce shortage is visible as an info alert (states only)
+    await expect(page.locator("#stats")).toContainText("Workforce: 1/2 workplaces staffed");
+
+    // inspect the idle farm: the staffing line exposes rank + state
+    await page.locator("button[data-build-type='farm']").click(); // deselect palette
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    await expect(page.locator("#inspection")).toContainText("staffing 2/2 · idle");
+
+    // mothball the staffed farm (rank 1): the worker frees for the idle one
+    const staffedId = await page.evaluate((f) => {
+      const s = (window as unknown as { __nova: NovaHandle }).__nova.getState();
+      const farm = Object.values(s.buildings).find(
+        (b) => b.type === "farm" && b.x === f.x && b.y === f.y,
+      );
+      return farm!.id;
+    }, staffedFarm);
+    await page.evaluate((id) => {
+      const h = (window as unknown as { __nova: NovaHandle }).__nova;
+      const r = h.command({ kind: "setBuildingActive", id, active: false });
+      if (!r.ok) throw new Error("mothball failed: " + r.reason);
+    }, staffedId);
+
+    // one tick: reassignment + alert refresh
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await page.getByRole("button", { name: "pause", exact: true }).click();
+    await expect(page.locator("#stats")).not.toContainText("Workforce:");
+
+    // the previously idle farm is now staffed at rank 1
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    await expect(page.locator("#inspection")).toContainText("staffing 1/1 · staffed");
   });
 
   test("environment: parks keep air clean; removing them degrades quality", async ({ page }) => {
