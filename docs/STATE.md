@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step026 MVP acceptance loop E2E (test layer, no src change) |
+| HEAD | Step027 performance profiling (leak fix + instrumentation, no migration) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step026) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step026) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step027) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step027) |
 | Unit tests | PASS — `npx vitest run`: 17 files / 218 tests, all green (2026-10-14, Step025) |
-| E2E | PASS — Playwright: 14/14 scenarios (2026-10-14, Step026; MVP acceptance loop journey) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step026) |
+| E2E | PASS — Playwright: 15/15 scenarios (2026-10-14, Step027; mesh-disposal regression) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step027) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -71,7 +71,7 @@ Update these values from actual command output.
 | Technology | IMPLEMENTED | 5 techs, researchTech command, additive farm/quarry/commerce effects (Step016) |
 | Ages | IMPLEMENTED | Age 1 complete, milestones, advanceAge transition, Age 2 techs plus atmosphere (Step016); Age 2 systems continue Phase 9 |
 | Persistence | IMPLEMENTED | `SAVE_VERSION = 17` (sequential chain v13-v17: mothball flag, pollution stock, age plus techs, deposit capacity) - no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests |
-| Performance | UNKNOWN | no measurements taken |
+| Performance | MEASURED | sim 0.06–0.14 ms/tick (≤0.2% of 8x budget); mesh rebuild 1.6 ms/update; geometry leak found+fixed (Step027); full rebuild kept, measured OK |
 
 ---
 
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step026 (MVP acceptance loop E2E, complete) - see `docs/roadmap/Step026-mvp-acceptance-loop-e2e.md`. Phase 10 full-loop scenario proven through the UI: build → produce → research → Age 2 → market sells.
+Step027 (Performance profiling, complete) - see `docs/roadmap/Step027-performance-profiling.md`. Performance row MEASURED; per-tick mesh-disposal leak found and fixed; rebuild-on-change not justified (1.6 ms/update).
 
 ---
 

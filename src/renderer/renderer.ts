@@ -10,6 +10,21 @@ import { createBuildingMeshes, BUILDING_PALETTE } from "./shapes.js";
  * update() — called once per simulation tick, not per frame.
  */
 
+/** Profiling counters (Step027): render cost + allocation steady-state. */
+export interface PerfStats {
+  drawCalls: number;
+  geometries: number;
+  textures: number;
+  programs: number;
+  triangles: number;
+  /** update() invocations since boot. */
+  updateCount: number;
+  /** Wall time of the most recent update() (mesh rebuild). */
+  lastUpdateMs: number;
+  /** Mean update() wall time across all invocations. */
+  avgUpdateMs: number;
+}
+
 export interface Renderer {
   update(state: GameState): void;
   /** Active analysis overlay (recolors buildings on the next update). */
@@ -18,6 +33,8 @@ export interface Renderer {
   pickCell(clientX: number, clientY: number): { x: number; y: number } | null;
   /** Hover feedback: highlight a cell green/red per placement validity. */
   setHover(cell: { x: number; y: number } | null, valid: boolean): void;
+  /** Profiling counters (Step027): render cost + allocation steady-state. */
+  perfStats(): PerfStats;
   dispose(): void;
 }
 
@@ -99,7 +116,28 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   let overlayMode: OverlayMode = "none";
 
+  // Step027 profiling instrumentation: update() rebuilds all meshes per
+  // tick; these counters expose the cost and the allocation steady-state.
+  let updateCount = 0;
+  let updateMsTotal = 0;
+  let lastUpdateMs = 0;
+
+  function perfStats(): PerfStats {
+    const info = renderer.info;
+    return {
+      drawCalls: info.render.calls,
+      geometries: info.memory.geometries,
+      textures: info.memory.textures,
+      programs: info.programs?.length ?? 0,
+      triangles: info.render.triangles,
+      updateCount,
+      lastUpdateMs,
+      avgUpdateMs: updateCount > 0 ? updateMsTotal / updateCount : 0,
+    };
+  }
+
   function update(current: GameState): void {
+    const started = performance.now();
     // age atmosphere (docs/game/07-PROGRESSION.md: an age is visibly a chapter)
     const ageTwoPlus = current.age >= 2;
     (scene.fog as THREE.Fog).color.setHex(ageTwoPlus ? 0x181109 : 0x0b0e14);
@@ -109,6 +147,10 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
     rebuildGroup(roadGroup, current, (s) => buildRoads(s));
     rebuildGroup(depositGroup, current, (s) => buildDeposits(s));
     rebuildGroup(buildingGroup, current, (s) => buildBuildings(s, overlayMode));
+
+    lastUpdateMs = performance.now() - started;
+    updateCount += 1;
+    updateMsTotal += lastUpdateMs;
   }
 
   function setOverlay(mode: OverlayMode): void {
@@ -137,7 +179,7 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   update(state);
 
-  return { update, setOverlay, pickCell, setHover, dispose };
+  return { update, setOverlay, pickCell, setHover, dispose, perfStats };
 }
 
 // --- orbit camera (drag rotate, wheel zoom, right-drag pan) ---------------
@@ -368,17 +410,19 @@ function rebuildGroup(
 }
 
 function disposeGroup(group: THREE.Group): void {
+  // Step027: dispose BEFORE detaching — traversing after group.remove()
+  // visits an empty group, which leaked every rebuilt mesh's geometry.
   for (const child of [...group.children]) {
+    child.traverse((object) => {
+      if (object instanceof THREE.Mesh) {
+        object.geometry.dispose();
+        const material = object.material;
+        if (Array.isArray(material)) material.forEach((m) => m.dispose());
+        else material.dispose();
+      }
+    });
     group.remove(child);
   }
-  group.traverse((object) => {
-    if (object instanceof THREE.Mesh) {
-      object.geometry.dispose();
-      const material = object.material;
-      if (Array.isArray(material)) material.forEach((m) => m.dispose());
-      else material.dispose();
-    }
-  });
   group.clear();
 }
 

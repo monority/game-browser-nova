@@ -821,6 +821,33 @@ test.describe("NOVA critical flows", () => {
     expect(Number(marketRow![1])).toBeGreaterThanOrEqual(1);
   });
 
+  test("renderer disposes rebuilt meshes: geometry count stays flat across ticks", async ({ page }) => {
+    // Step027 regression: rebuildGroup must dispose old meshes before
+    // rebuilding; a leak shows as geometries growing with updateCount.
+    await page.goto("/");
+    await pause(page);
+    await page.waitForTimeout(300);
+
+    const before = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.perf(),
+    );
+    expect(before.updateCount).toBeGreaterThan(0);
+    expect(before.geometries).toBeGreaterThan(0);
+
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await page.waitForTimeout(2000); // ~30 rebuilds at 8x
+    await page.getByRole("button", { name: "pause", exact: true }).click();
+
+    const after = await page.evaluate(
+      () => (window as unknown as { __nova: NovaHandle }).__nova.perf(),
+    );
+    expect(after.updateCount).toBeGreaterThan(before.updateCount + 20);
+    // steady-state: geometries track scene contents (≈ draw calls), not ticks
+    expect(after.geometries).toBeLessThanOrEqual(before.geometries + 10);
+    // rebuild cost stays trivial vs the 62.5ms/tick budget at 8x
+    expect(after.avgUpdateMs).toBeLessThan(10);
+  });
+
   test("environment: parks keep air clean; removing them degrades quality", async ({ page }) => {
     await page.goto("/");
     await pause(page);

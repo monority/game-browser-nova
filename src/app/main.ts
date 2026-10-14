@@ -348,6 +348,7 @@ export function boot(root: HTMLElement): { stop(): void } {
       applyCommand(state, command as Parameters<typeof applyCommand>[1]),
     milestones: () => evaluateMilestones(state, state.age),
     canAdvanceAge: () => canAdvanceAge(state),
+    perf: () => renderer.perfStats(),
   };
 
   return {

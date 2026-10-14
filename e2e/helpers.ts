@@ -23,6 +23,16 @@ export interface NovaHandle {
     netMoneyPerTick: number;
   };
   command(cmd: unknown): { ok: boolean; reason?: string };
+  perf(): {
+    drawCalls: number;
+    geometries: number;
+    textures: number;
+    programs: number;
+    triangles: number;
+    updateCount: number;
+    lastUpdateMs: number;
+    avgUpdateMs: number;
+  };
 }
 
 export async function nova(page: Page): Promise<NovaHandle> {
