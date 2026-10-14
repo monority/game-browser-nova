@@ -87,17 +87,42 @@ export function sellMarketSurplus(state: GameState): number {
   return deductFood(state.resources, markets * FOOD_SOLD_PER_MARKET_PER_TICK);
 }
 
+/**
+ * Pure per-tick money projections — the single source of truth for the
+ * money model (Step028): the simulation phases and the derived stats /
+ * alerts views compute from these, so UI and simulation cannot drift.
+ */
+
+/** Taxes: 1 money per inhabitant per tick. */
+export function taxesPerTick(state: GameState): number {
+  return state.population * TAX_PER_INHABITANT_PER_TICK;
+}
+
+/**
+ * Commerce per tick: connection base (population-gated, Step021) plus the
+ * tradeRoutes tech bonus, plus the plank throughput bonus (always on).
+ * `planksProducedThisTick` is the actual transformation output this tick.
+ */
+export function commercePerTick(state: GameState, planksProducedThisTick = 0): number {
+  const perWorkshop =
+    COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce");
+  return (
+    (commerceUnlocked(state) ? connectedWorkshops(state) * perWorkshop : 0) +
+    planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK
+  );
+}
+
+/** Maintenance owed per tick: non-exempt operational buildings (Step028 shared). */
+export function maintenancePerTick(state: GameState): number {
+  return operationalBuildingCount(state) * MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK;
+}
+
 export function collectRevenue(
   state: GameState,
   planksProducedThisTick = 0,
 ): { taxes: number; commerce: number; market: number } {
-  const taxes = state.population * TAX_PER_INHABITANT_PER_TICK;
-  // trade routes tech: +1 commerce per connected workshop per level (Step016)
-  const commercePerWorkshop =
-    COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce");
-  const commerce =
-    (commerceUnlocked(state) ? connectedWorkshops(state) * commercePerWorkshop : 0) +
-    planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
+  const taxes = taxesPerTick(state);
+  const commerce = commercePerTick(state, planksProducedThisTick);
   const marketFood = sellMarketSurplus(state);
   const market = marketFood * MONEY_PER_FOOD_SOLD;
   addMoney(state.resources, taxes + commerce + market);
@@ -126,7 +151,7 @@ export function isMaintenanceExempt(building: { type: string }): boolean {
 }
 
 export function payMaintenance(state: GameState): number {
-  const owed = operationalBuildingCount(state) * MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK;
+  const owed = maintenancePerTick(state);
   addMoney(state.resources, -owed); // clamps at 0: partial payment, never negative
   return owed;
 }

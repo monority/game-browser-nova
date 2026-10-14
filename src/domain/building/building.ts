@@ -20,6 +20,11 @@ export interface Building {
   active: boolean;
 }
 
+/** Operational AND active: the filter every production/economy phase uses. */
+export function isActive(building: Building): boolean {
+  return building.status === "operational" && building.active;
+}
+
 export function createBuilding(id: string, type: BuildingType, x: number, y: number): Building {
   const definition = BUILDING_DEFINITIONS[type];
   return {
@@ -32,13 +37,4 @@ export function createBuilding(id: string, type: BuildingType, x: number, y: num
     staffed: false,
     active: true,
   };
-}
-
-export function isOperational(building: Building): boolean {
-  return building.status === "operational";
-}
-
-/** Operational AND active: the filter every production/economy phase uses. */
-export function isActive(building: Building): boolean {
-  return building.status === "operational" && building.active;
 }

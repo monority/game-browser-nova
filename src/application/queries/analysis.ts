@@ -5,16 +5,15 @@ import {
   WATER_PER_SERVED_COLONIST_PER_TICK,
   foodProductionPerTick,
 } from "../../domain/production/production.js";
-import { commerceUnlocked, expectedMarketSales } from "../../domain/economy/economy.js";
-import { isActive } from "../../domain/building/building.js";
 import {
-  connectedWorkshops,
-  operationalBuildingCount,
-  TAX_PER_INHABITANT_PER_TICK,
-  COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK,
-  MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
+  commercePerTick,
+  expectedMarketSales,
+  maintenancePerTick,
+  taxesPerTick,
 } from "../../domain/economy/economy.js";
+import { isActive } from "../../domain/building/building.js";
 import { environmentalQuality } from "../../domain/environment/environment.js";
+import { plankThroughput } from "../../domain/production/transformation.js";
 import { getStaffingOverview } from "./staffing.js";
 
 /**
@@ -172,11 +171,12 @@ export function getAlerts(state: GameState): Alert[] {
   }
 
   if (state.resources.money === 0 && summaries.food.balancePerTick >= 0) {
-    // money net is only worth reporting when the treasury is stuck
+    // money net is only worth reporting when the treasury is stuck; the
+    // shared economy functions keep this honest with the simulation (Step028)
     const net =
-      state.population * TAX_PER_INHABITANT_PER_TICK +
-      (commerceUnlocked(state) ? connectedWorkshops(state) * COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK : 0) -
-      operationalBuildingCount(state) * MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK;
+      taxesPerTick(state) +
+      commercePerTick(state, plankThroughput(state)) -
+      maintenancePerTick(state);
     if (net < 0) {
       alerts.push({
         severity: "warning",

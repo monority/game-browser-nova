@@ -6,7 +6,6 @@ import { createWorld, isBlocked } from "../src/domain/world/world.js";
 import {
   addMoney,
   deductFood,
-  deductWater,
   INITIAL_TREASURY,
 } from "../src/domain/resource/resource.js";
 
@@ -122,13 +121,6 @@ describe("resource clamping", () => {
     expect(state.resources.food).toBe(2);
     expect(deductFood(state.resources, 10)).toBe(2);
     expect(state.resources.food).toBe(0);
-  });
-
-  it("deductWater returns the amount actually taken and clamps at zero", () => {
-    const state = freshState();
-    state.resources.water = 4;
-    expect(deductWater(state.resources, 6)).toBe(4);
-    expect(state.resources.water).toBe(0);
   });
 
   it("addMoney never drives the treasury negative", () => {

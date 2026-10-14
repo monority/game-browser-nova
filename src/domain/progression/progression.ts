@@ -3,7 +3,6 @@ import { isActive } from "../building/building.js";
 import { TECH_DEFINITIONS, type TechEffect } from "../../content/techs.js";
 import {
   AGE_MILESTONES,
-  STARTING_AGE,
   type MilestoneDefinition,
   type MilestoneDimension,
 } from "../../content/progression.js";
@@ -78,5 +77,3 @@ export function canAdvanceAge(state: GameState): boolean {
     milestones.length > 0 && milestones.every((m) => m.done)
   );
 }
-
-export const PROGRESSION_STARTING_AGE = STARTING_AGE;

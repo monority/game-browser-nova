@@ -15,13 +15,13 @@ export interface ResourceStock {
 }
 
 export const INITIAL_TREASURY = 100;
-export const INITIAL_FOOD = 100;
-export const INITIAL_WATER = 0;
 
 export function createInitialResourceStock(): ResourceStock {
   return {
-    food: INITIAL_FOOD,
-    water: INITIAL_WATER,
+    // Day-0 food/water are set by the D2 colony composition (state.ts);
+    // the pre-D2 baseline is empty (Step028: removed dead 100/0 constants).
+    food: 0,
+    water: 0,
     money: INITIAL_TREASURY,
     wood: 0,
     stone: 0,
@@ -48,12 +48,6 @@ export function deductFood(stock: ResourceStock, amount: number): number {
   return taken;
 }
 
-export function deductWater(stock: ResourceStock, amount: number): number {
-  const taken = Math.min(stock.water, amount);
-  stock.water -= taken;
-  return taken;
-}
-
 export function addWood(stock: ResourceStock, amount: number): void {
   stock.wood = Math.max(0, stock.wood + amount);
 }
@@ -65,12 +59,6 @@ export function addStone(stock: ResourceStock, amount: number): void {
 export function deductWood(stock: ResourceStock, amount: number): number {
   const taken = Math.min(stock.wood, amount);
   stock.wood -= taken;
-  return taken;
-}
-
-export function deductStone(stock: ResourceStock, amount: number): number {
-  const taken = Math.min(stock.stone, amount);
-  stock.stone -= taken;
   return taken;
 }
 

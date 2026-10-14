@@ -1,20 +1,15 @@
 import type { GameState } from "../../domain/simulation/state.js";
 import {
-  commerceUnlocked,
+  commercePerTick,
   connectedMarkets,
   connectedWorkshops,
   expectedMarketSales,
-  operationalBuildingCount,
-  COMMERCE_PER_PLANK_PRODUCED_PER_TICK,
+  maintenancePerTick,
   MONEY_PER_FOOD_SOLD,
+  operationalBuildingCount,
+  taxesPerTick,
 } from "../../domain/economy/economy.js";
-import { techLevel } from "../../domain/progression/progression.js";
 import { plankThroughput } from "../../domain/production/transformation.js";
-import {
-  COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK,
-  MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
-  TAX_PER_INHABITANT_PER_TICK,
-} from "../../domain/economy/economy.js";
 import { housingCapacity } from "../../domain/population/population.js";
 import { environmentalQuality } from "../../domain/environment/environment.js";
 
@@ -39,17 +34,12 @@ export interface ColonyStats {
 }
 
 export function getColonyStats(state: GameState): ColonyStats {
-  const taxes = state.population * TAX_PER_INHABITANT_PER_TICK;
-  // Honest commerce: connection base (pop-gated, Step021) plus tradeRoutes
-  // tech plus plank throughput (Step017, always on). Mirrors collectRevenue.
-  const commerce =
-    (commerceUnlocked(state)
-      ? connectedWorkshops(state) *
-        (COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce"))
-      : 0) +
-    plankThroughput(state) * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
+  // Honest money model (Step028): all rates come from the shared pure
+  // economy functions, so the UI can never drift from the simulation.
+  const taxes = taxesPerTick(state);
+  const commerce = commercePerTick(state, plankThroughput(state));
   const market = expectedMarketSales(state) * MONEY_PER_FOOD_SOLD;
-  const maintenance = operationalBuildingCount(state) * MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK;
+  const maintenance = maintenancePerTick(state);
   return {
     tick: state.tick,
     population: state.population,

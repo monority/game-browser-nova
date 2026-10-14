@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step027 performance profiling (leak fix + instrumentation, no migration) |
+| HEAD | Step028 audit quick wins (dead code + shared economy, no migration) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step027) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step027) |
-| Unit tests | PASS — `npx vitest run`: 17 files / 218 tests, all green (2026-10-14, Step025) |
-| E2E | PASS — Playwright: 15/15 scenarios (2026-10-14, Step027; mesh-disposal regression) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step027) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step028) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step028) |
+| Unit tests | PASS — `npx vitest run`: 17 files / 217 tests, all green (2026-10-14, Step028) |
+| E2E | PASS — Playwright: 15/15 scenarios (2026-10-14, Step028; mesh-disposal regression) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step028) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step027 (Performance profiling, complete) - see `docs/roadmap/Step027-performance-profiling.md`. Performance row MEASURED; per-tick mesh-disposal leak found and fixed; rebuild-on-change not justified (1.6 ms/update).
+Step028 (Audit quick wins, complete) - see `docs/roadmap/Step028-audit-quick-wins.md`. Money model single-sourced (taxesPerTick/commercePerTick/maintenancePerTick); dead code removed (deductStone/deductWater/isOperational/adjacentRemaining/PROGRESSION_STARTING_AGE/INITIAL_FOOD/INITIAL_WATER).
 
 ---
 
