@@ -5,6 +5,8 @@
  * every milestone of the current age is done (§4 player agency).
  */
 
+import type { BuildingType } from "./buildings.js";
+
 export type MilestoneDimension = "population" | "buildings" | "treasury" | "techs";
 
 export interface MilestoneDefinition {
@@ -12,6 +14,8 @@ export interface MilestoneDefinition {
   label: string;
   dimension: MilestoneDimension;
   threshold: number;
+  /** Optional building-type filter (counts only matching active buildings). */
+  buildingType?: BuildingType;
 }
 
 export const STARTING_AGE = 1;
@@ -34,5 +38,8 @@ export const AGE_MILESTONES: Record<number, MilestoneDefinition[]> = {
     { id: "bld14", label: "14 operational buildings", dimension: "buildings", threshold: 14 },
     { id: "tre600", label: "Treasury 600", dimension: "treasury", threshold: 600 },
     { id: "tech5", label: "5 technologies researched", dimension: "techs", threshold: 5 },
+    // Step024: Age-2 trade footprint. Count form (not cumulative sales)
+    // so the milestone derives from buildings state with no migration.
+    { id: "market1", label: "1 operational market", dimension: "buildings", threshold: 1, buildingType: "market" },
   ],
 };

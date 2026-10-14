@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step023 A1 progression depth design (design-only, no code changes) |
+| HEAD | Step024 A1 progression milestone (market1, no migration) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step022) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step022) |
-| Unit tests | PASS — `npx vitest run`: 17 files / 200 tests, all green (2026-10-14, Step022) |
-| E2E | PASS — Playwright: 12/12 scenarios (2026-10-13, Step021; D2-aware journeys) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-13, Step021) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step024) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step024) |
+| Unit tests | PASS — `npx vitest run`: 17 files / 205 tests, all green (2026-10-14, Step024) |
+| E2E | PASS — Playwright: 12/12 scenarios (2026-10-14, Step024; D2-aware journeys) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step024) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step023 (A1 progression depth design, complete) - see `docs/roadmap/Step023-a1-progression-design.md`. A1 implementation GO: two-age MVP, market1 milestone addition, no migration.
+Step024 (A1 progression milestone, complete) - see `docs/roadmap/Step024-a1-progression-milestone.md`. Age-2 set is pop15/bld14/tre600/tech5/market1; full loop validated.
 
 ---
 

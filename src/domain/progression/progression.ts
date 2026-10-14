@@ -4,6 +4,7 @@ import { TECH_DEFINITIONS, type TechEffect } from "../../content/techs.js";
 import {
   AGE_MILESTONES,
   STARTING_AGE,
+  type MilestoneDefinition,
   type MilestoneDimension,
 } from "../../content/progression.js";
 
@@ -26,14 +27,19 @@ export function techLevel(state: GameState, effect: TechEffect): number {
   return level;
 }
 
-function milestoneValue(state: GameState, dimension: MilestoneDimension): number {
+function milestoneValue(state: GameState, definition: MilestoneDefinition): number {
+  const dimension: MilestoneDimension = definition.dimension;
   switch (dimension) {
     case "population":
       return state.population;
     case "buildings": {
       let count = 0;
       for (const building of Object.values(state.buildings)) {
-        if (isActive(building)) count += 1;
+        if (!isActive(building)) continue;
+        // Step024: optional type filter reuses the buildings dimension
+        // (mothballed buildings un-complete, like upkeep and commerce).
+        if (definition.buildingType !== undefined && building.type !== definition.buildingType) continue;
+        count += 1;
       }
       return count;
     }
@@ -55,7 +61,7 @@ export interface MilestoneStatus {
 export function evaluateMilestones(state: GameState, age: number): MilestoneStatus[] {
   const definitions = AGE_MILESTONES[age] ?? [];
   return definitions.map((definition) => {
-    const value = milestoneValue(state, definition.dimension);
+    const value = milestoneValue(state, definition);
     return {
       id: definition.id,
       label: definition.label,

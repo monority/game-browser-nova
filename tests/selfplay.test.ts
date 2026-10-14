@@ -327,7 +327,7 @@ describe("self-play verifier", () => {
       expect(phases.some((x) => x.startsWith(p + "@")), "phase missing: " + p + " (reached: " + phases.join(", ") + ")").toBe(true);
     }
     expect(state.age).toBe(2);
-    expect(evaluateMilestones(state, 2).length).toBe(4);
+    expect(evaluateMilestones(state, 2).length).toBe(5);
     const restored = parseSave(serialize(state));
     expect(restored).toEqual(state);
     console.log("selfplay phases: " + phases.join(", "));

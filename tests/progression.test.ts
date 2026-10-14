@@ -138,8 +138,8 @@ describe("milestones + age transition", () => {
     expect(canAdvanceAge(state)).toBe(true);
     mustOk(applyCommand(state, { kind: "advanceAge" }));
     expect(state.age).toBe(2);
-    // age-2 milestones now evaluated
-    expect(evaluateMilestones(state, 2).length).toBe(4);
+    // age-2 milestones now evaluated (5 with Step024 market1)
+    expect(evaluateMilestones(state, 2).length).toBe(5);
   });
 
   it("milestones are derived from canonical facts (no persisted progress)", () => {
@@ -152,6 +152,88 @@ describe("milestones + age transition", () => {
     expect(evaluateMilestones(state, 1).find((m) => m.id === "pop8")?.done).toBe(false);
   });
 });
+
+describe("market1 milestone (Step024)", () => {
+    function marketState(): GameState {
+      const state = freshState();
+      state.age = 2;
+      state.resources.money = 500;
+      state.resources.planks = 10;
+      return state;
+    }
+
+    function placeMarket(state: GameState): string {
+      const road = freeCell(state);
+      mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+      const adj = adjacentFree(state, road.x, road.y);
+      mustOk(applyCommand(state, { kind: "placeBuilding", type: "market", x: adj.x, y: adj.y }));
+      stepTicks(state, 2); // operational
+      const id = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "market");
+      if (!id) throw new Error("market missing");
+      return id;
+    }
+
+    function marketStatus(state: GameState) {
+      const found = evaluateMilestones(state, 2).find((m) => m.id === "market1");
+      if (!found) throw new Error("market1 missing from age-2 set");
+      return found;
+    }
+
+    it("age-2 set has 5 entries; market1 incomplete with no market", () => {
+      const state = marketState();
+      // D2 ships no markets
+      expect(Object.values(state.buildings).some((b) => b.type === "market")).toBe(false);
+      expect(evaluateMilestones(state, 2).length).toBe(5);
+      expect(marketStatus(state)).toMatchObject({ threshold: 1, value: 0, done: false });
+    });
+
+    it("operational market completes market1", () => {
+      const state = marketState();
+      placeMarket(state);
+      expect(marketStatus(state)).toMatchObject({ value: 1, done: true });
+    });
+
+    it("mothballed market un-completes market1 (operational semantics)", () => {
+      const state = marketState();
+      const id = placeMarket(state);
+      expect(marketStatus(state).done).toBe(true);
+      mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: false }));
+      expect(marketStatus(state)).toMatchObject({ value: 0, done: false });
+      mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: true }));
+      expect(marketStatus(state).done).toBe(true);
+    });
+
+    it("age 2 cannot advance when market1 is the sole unmet prerequisite", () => {
+      const state = marketState();
+      state.population = 15;
+      state.resources.money = 1200; // 5 techs cost 450, leaving 750 >= 600
+      for (const tech of ["cropRotation", "masonry", "tradeRoutes", "irrigation", "deepMining"] as const) {
+        mustOk(applyCommand(state, { kind: "researchTech", techId: tech }));
+      }
+      // pop15 / bld14 (D2 ships 22) / tre600 / tech5 all done; market missing
+      const done = Object.fromEntries(evaluateMilestones(state, 2).map((m) => [m.id, m.done]));
+      expect(done).toEqual({ pop15: true, bld14: true, tre600: true, tech5: true, market1: false });
+      expect(canAdvanceAge(state)).toBe(false);
+      expect(applyCommand(state, { kind: "advanceAge" })).toEqual({
+        ok: false,
+        reason: "milestonesIncomplete",
+      });
+      placeMarket(state);
+      expect(canAdvanceAge(state)).toBe(true);
+      mustOk(applyCommand(state, { kind: "advanceAge" }));
+      expect(state.age).toBe(3);
+    });
+
+    it("market1 round-trips through save/load with no migration", () => {
+      expect(SAVE_VERSION).toBe(17);
+      const state = marketState();
+      placeMarket(state);
+      const before = evaluateMilestones(state, 2);
+      const restored = parseSave(serialize(state));
+      expect(restored).toEqual(state);
+      expect(evaluateMilestones(restored, 2)).toEqual(before);
+    });
+  });
 
 describe("progression persistence", () => {
   it("exposes SAVE_VERSION 17 with the v13 migratable chain", () => {
