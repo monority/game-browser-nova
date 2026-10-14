@@ -176,7 +176,7 @@ interface PlayResult {
   traj: string[];
 }
 
-function playGame(crisisAt = -1, stopEarly = true): PlayResult {
+function playGame(crisisAt = -1, stopEarly = true, housingCap = 14): PlayResult {
   const state = createInitialState(CONFIG);
   const phases: string[] = [];
   const seen = new Set<string>();
@@ -277,7 +277,7 @@ function playGame(crisisAt = -1, stopEarly = true): PlayResult {
         return false;
       }],
       [!banking && countType(state, "workshop") < 4 && money > 50, () => tryBuild("workshop", true, 0)],
-      [!banking && housing < 14 && pop >= housing && money > 60, () => tryBuild("residence", false, 20)],
+      [!banking && housing < housingCap && pop >= housing && money > 60, () => tryBuild("residence", false, 20)],
       [!banking && countType(state, "farm") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("farm", true, 20)],
       [!banking && countType(state, "well") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("well", true, 20)],
       [!banking && countType(state, "lumberCamp") < 1 && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
@@ -342,6 +342,19 @@ describe("self-play verifier", () => {
     expect(state.resources.money).toBeGreaterThanOrEqual(200);
     expect(phases.some((x) => x.startsWith("age2@"))).toBe(true);
     console.log("crisis phases: " + phases.join(", "));
+  }, 180000);
+
+  it("sustains growth beyond pop 12 with water holding (Step022)", () => {
+    // Regression: growth follows housing construction; staffed well
+    // capacity (wells ratio + cropRotation slack + mothball cycling)
+    // keeps water in surplus. Fails if admission water-locks.
+    const { state, phases } = playGame(-1, false, 24);
+    expect(state.population).toBeGreaterThanOrEqual(20);
+    expect(state.resources.water).toBeGreaterThan(0);
+    expect(phases.some((x) => x.startsWith("pop12@"))).toBe(true);
+    const restored = parseSave(serialize(state));
+    expect(restored).toEqual(state);
+    console.log("sustained phases: " + phases.join(", "));
   }, 180000);
 
   it("self-play is deterministic", () => {

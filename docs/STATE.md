@@ -26,13 +26,13 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step021 viable Foundation (implements Step020) |
+| HEAD | Step022 growth & commerce evidence (investigations; tests-only change) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-13, Step021) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-13, Step021) |
-| Unit tests | PASS — `npx vitest run`: 17 files / 198 tests, all green (2026-10-13, Step021) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step022) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step022) |
+| Unit tests | PASS — `npx vitest run`: 17 files / 200 tests, all green (2026-10-14, Step022) |
 | E2E | PASS — Playwright: 12/12 scenarios (2026-10-13, Step021; D2-aware journeys) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-13, Step021) |
 
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step021 (viable Foundation, complete) - see `docs/roadmap/Step021-viable-foundation.md`.
+Step022 (growth & commerce evidence, complete) - see `docs/roadmap/Step022-growth-and-commerce-evidence.md`. A1 unblocked per Step022 go-decision.
 
 ---
 

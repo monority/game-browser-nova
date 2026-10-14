@@ -33,4 +33,4 @@ AUDIT
 - Product decisions that change the contract update `../game/` or
   `../adr/` in the same step and say so explicitly.
 - Validation claims must cite commands actually executed.
-- Current step is tracked here: **Step021 (Viable Foundation - implements Step020, complete - see Step021 file)**. Steps 001–006 describe the pre-reset repository; this repository was rebuilt from their contracts (see Step007).
+- Current step is tracked here: **Step022 (Sustained growth & organic commerce evidence - investigations complete, no src changes - see Step022 file)**. Steps 001–006 describe the pre-reset repository; this repository was rebuilt from their contracts (see Step007).

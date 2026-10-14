@@ -15,7 +15,7 @@ import { getColonyStats } from "../src/application/queries/stats.js";
 import { getResourceSummaries } from "../src/application/queries/analysis.js";
 import { parseSave, serialize, SAVE_VERSION } from "../src/application/persistence/save.js";
 import { BUILDING_PALETTE, createBuildingMeshes } from "../src/renderer/shapes.js";
-import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { adjacentFree, freeCell, mustOk, neighborsOf, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "market-test", width: 16, height: 16 };
 
@@ -156,6 +156,72 @@ describe("market persistence and rendering", () => {
   it("has a distinct stall silhouette", () => {
     const group = createBuildingMeshes("market", BUILDING_PALETTE.market);
     expect(group.children.length).toBeGreaterThan(3); // counter + awning stripes + poles
+  });
+
+  it("organic wood chain: triage staffing produces wood, then planks (Step022)", () => {
+    // No project mode, no state manipulation: D2 start, player commands only.
+    // A late-built camp sorts last, so with 10 workers and 13 eligible
+    // workplaces it starves. Mothballing earlier-sorting workplaces frees
+    // workers deterministically (staffing overlay shows who is staffed).
+    const state = createInitialState({
+      seed: "step022-woodchain",
+      width: 16,
+      height: 16,
+      woodDeposits: [{ x: 5, y: 5, amount: 60 }],
+    });
+    const buildable = (state: GameState, x: number, y: number): boolean => {
+      if (x < 0 || y < 0 || x >= state.world.width || y >= state.world.height) return false;
+      const key = cellKey(x, y);
+      if (state.world.blockedCells[key]) return false;
+      if (state.woodDeposits[key] || state.stoneDeposits[key]) return false;
+      return !Object.values(state.buildings).some((b) => b.x === x && b.y === y);
+    };
+    // Player-plausible placement: first buildable cell by a deposit (the
+    // deposits overlay leads the eye), road beside it, in canonical scan.
+    let campId = "";
+    for (const key of Object.keys(state.woodDeposits).sort()) {
+      const parts = key.split(",").map(Number);
+      const dx = parts[0] ?? 0;
+      const dy = parts[1] ?? 0;
+      for (const n of neighborsOf(dx, dy)) {
+        if (!buildable(state, n.x, n.y)) continue;
+        const road = neighborsOf(n.x, n.y).find(
+          (c) => !(c.x === n.x && c.y === n.y) && buildable(state, c.x, c.y),
+        );
+        if (!road) continue;
+        mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+        const r = applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x: n.x, y: n.y });
+        mustOk(r);
+        campId = `building-${state.buildingCounter - 1}`;
+        break;
+      }
+      if (campId) break;
+    }
+    if (!campId) throw new Error("no camp site by the deposit");
+    stepTicks(state, 2); // camp operational
+    // Blocker reproduced: camp sorts last, workers run out first.
+    stepTicks(state, 30);
+    expect(state.buildings[campId]?.staffed).toBe(false);
+    expect(state.resources.wood).toBe(0);
+    // Triage with buffers to survive the project window (D2 stocks).
+    expect(state.resources.food).toBeGreaterThan(20);
+    expect(state.resources.water).toBeGreaterThan(10);
+    const firstOf = (t: string): string => {
+      const id = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === t);
+      if (!id) throw new Error(`no ${t}`);
+      return id;
+    };
+    // Rest one farm, one well and one shop: eligible drops to workers, so
+    // the last-sorting camp is staffed deterministically, while the other
+    // shop stays staffed and transforms each batch the same tick it lands.
+    // Drains are slow (food -1/tick, water -2/tick) against the buffers.
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: firstOf("farm"), active: false }));
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: firstOf("well"), active: false }));
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: firstOf("workshop"), active: false }));
+    stepTicks(state, 8);
+    expect(state.buildings[campId]?.staffed).toBe(true);
+    expect(state.resources.planks).toBeGreaterThanOrEqual(4);
+    expect(state.population).toBe(10); // buffers held, no wipe
   });
 
   it("market economy is deterministic", () => {
