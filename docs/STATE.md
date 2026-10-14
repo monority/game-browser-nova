@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step028 audit quick wins (dead code + shared economy, no migration) |
+| HEAD | Step029 ui.ts split (panel components, no migration) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step028) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step028) |
-| Unit tests | PASS — `npx vitest run`: 17 files / 217 tests, all green (2026-10-14, Step028) |
-| E2E | PASS — Playwright: 15/15 scenarios (2026-10-14, Step028; mesh-disposal regression) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step028) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step029) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step029) |
+| Unit tests | PASS — `npx vitest run`: 17 files / 217 tests, all green (2026-10-14, Step029) |
+| E2E | PASS — Playwright: 15/15 scenarios (2026-10-14, Step029; mesh-disposal regression) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step029) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step028 (Audit quick wins, complete) - see `docs/roadmap/Step028-audit-quick-wins.md`. Money model single-sourced (taxesPerTick/commercePerTick/maintenancePerTick); dead code removed (deductStone/deductWater/isOperational/adjacentRemaining/PROGRESSION_STARTING_AGE/INITIAL_FOOD/INITIAL_WATER).
+Step029 (ui.ts split, complete) - see `docs/roadmap/Step029-ui-split.md`. ui.ts 637 l. split into kit/stats/controls/inspection/progression panels; createUi API unchanged; 15/15 E2E parity.
 
 ---
 
