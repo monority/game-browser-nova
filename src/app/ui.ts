@@ -565,7 +565,8 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     },
   };
 
-  // initial paint: palette state only; stats arrive with the first tick
+  // initial paint: palette borders only; boot() runs a refreshStats() right
+  // after creation, which applies age locks, stats and progression
   refreshPalette();
 
   return ui;

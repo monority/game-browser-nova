@@ -37,7 +37,24 @@ Consumers:
   creation. `createInitialResourceStock` now sets an empty baseline with
   a comment pointing at the D2 composition.
 
-## 3. Validation (all executed 2026-10-14)
+## 3. Corrective (same step, follow-up commit)
+
+Two defects found by the post-commit gate run:
+
+1. **Missed batch edit**: `adjacentRemaining` (deposits.ts) was reported
+   as removed but the original edit batch had failed atomically (wrong
+   file targeting for edits 1–2 aborted the call). Removed for real;
+   verified by `rg` zero references + gates.
+2. **Boot-time palette race (real UI defect)**: `refreshStats()` only
+   ran from the tick loop and UI callbacks — a game booted paused at
+   tick 0 (the E2E setup pattern) showed the raw palette: Market
+   *enabled* in Age 1 until the first tick. The Step025 staffing E2E
+   had always depended on a pre-pause tick firing (loading-timing race);
+   the Step028 bundle flip made it fail. Fix: one `refreshStats()` at
+   the end of `boot()` — palette age gates, stats and progression are
+   correct from the first frame. Verified: staffing E2E 3/3 repeat.
+
+## 4. Validation (all executed 2026-10-14)
 
 - `npx tsc --noEmit`: PASS. `npx eslint .`: PASS.
 - `npx vitest run`: PASS — 17 files / 217 tests (218 − 1 dead-code test).
@@ -45,7 +62,7 @@ Consumers:
 - `npx playwright test`: PASS — 15/15 (unchanged; the refactor is
   behavior-preserving and the suite proves it).
 
-## 4. Remaining audit items (not done, recorded)
+## 5. Remaining audit items (not done, recorded)
 
 - ~35 over-exported symbols (used internally, exported unnecessarily) —
   cosmetic; un-exporting is mechanical but touches many files.

@@ -81,16 +81,6 @@ export function hasDepositAt(deposits: Deposits, x: number, y: number): boolean 
   return deposit !== undefined && deposit.remaining > 0;
 }
 
-/** Total remaining across deposits orthogonally adjacent to (x, y). */
-export function adjacentRemaining(deposits: Deposits, x: number, y: number): number {
-  let total = 0;
-  for (const { x: nx, y: ny } of orthogonalNeighbors(x, y)) {
-    const deposit = deposits[cellKey(nx, ny)];
-    if (deposit) total += deposit.remaining;
-  }
-  return total;
-}
-
 /**
  * Drain up to `amount` from deposits adjacent to (x, y), lowest canonical
  * key first (documented multi-deposit order). Returns what was extracted.

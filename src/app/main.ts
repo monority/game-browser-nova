@@ -339,6 +339,12 @@ export function boot(root: HTMLElement): { stop(): void } {
   }
   frameHandle = requestAnimationFrame(frame);
 
+  // Boot-time paint (Step028 corrective): palette age gates, stats and
+  // progression must be correct from the first frame — without this, a
+  // game booted (or paused) at tick 0 showed the raw palette state, e.g.
+  // the Market enabled in Age 1 until the first tick refreshed the UI.
+  refreshStats();
+
   // --- diagnostics surface (docs/DEBUGGING.md §3) ------------------------------
   const nova = window as typeof window & { __nova?: unknown };
   nova.__nova = {
