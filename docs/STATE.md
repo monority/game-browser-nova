@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step025 staffing visibility (UI slice, no migration) |
+| HEAD | Step026 MVP acceptance loop E2E (test layer, no src change) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step025) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step025) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step026) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step026) |
 | Unit tests | PASS — `npx vitest run`: 17 files / 218 tests, all green (2026-10-14, Step025) |
-| E2E | PASS — Playwright: 13/13 scenarios (2026-10-14, Step025; staffing-visibility journey) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step025) |
+| E2E | PASS — Playwright: 14/14 scenarios (2026-10-14, Step026; MVP acceptance loop journey) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step026) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step025 (Staffing visibility, complete) - see `docs/roadmap/Step025-staffing-visibility.md`. Staffing order/state inspectable per workplace; workforce shortage alert; age-locked market button labeled.
+Step026 (MVP acceptance loop E2E, complete) - see `docs/roadmap/Step026-mvp-acceptance-loop-e2e.md`. Phase 10 full-loop scenario proven through the UI: build → produce → research → Age 2 → market sells.
 
 ---
 
