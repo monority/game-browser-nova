@@ -40,7 +40,9 @@ describe("resource summaries", () => {
       balancePerTick: 2,
       ticksRemaining: null,
     });
+    // surplus accumulates below the storage cap (Step031 pin at 120)
     expect(s.food.stock).toBeGreaterThan(60);
+    expect(s.food.stock).toBeLessThanOrEqual(120);
   });
 
   it("negative balance: countdown to depletion (deficit beats the trickle)", () => {

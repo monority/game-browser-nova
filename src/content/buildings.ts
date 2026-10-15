@@ -14,6 +14,7 @@ export type BuildingType =
   | "quarry"
   | "park"
   | "market"
+  | "warehouse"
   | "colonyCenter";
 
 export interface BuildingDefinition {
@@ -128,6 +129,19 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     jobCapacity: 0,
     housingCapacity: 0,
     requiredAge: 2,
+  },
+  warehouse: {
+    type: "warehouse",
+    displayName: "Warehouse",
+    constructionTicks: 2,
+    moneyCost: 25,
+    // industry-gated storage (Step031): expanding past the colony base
+    // requires planks, so storage competes with construction.
+    plankCost: 2,
+    waterCost: 0,
+    // passive capacity, no jobs.
+    jobCapacity: 0,
+    housingCapacity: 0,
   },
 };
 

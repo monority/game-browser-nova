@@ -746,11 +746,17 @@ test.describe("NOVA critical flows", () => {
     expect(researched.length).toBe(3);
 
     // --- inventory changes: crop rotation lifts production above need,
-    // the food stock grows ---
+    // the food stock grows (drained below capacity first: a pinned
+    // stock cannot grow by design, Step031) ---
     await page.getByRole("button", { name: "8x", exact: true }).click();
+    await page.evaluate(() => {
+      window.__nova!.getState().resources.food = 40;
+    });
+    await page.getByRole("button", { name: "pause", exact: true }).click();
     const foodBefore = await page.evaluate(
       () => window.__nova!.getState().resources.food,
     );
+    await page.getByRole("button", { name: "8x", exact: true }).click();
     await expect
       .poll(() =>
         page.evaluate(

@@ -6,6 +6,7 @@ import { collectRevenue, payMaintenance } from "@/domain/economy/economy.js";
 import { updateEnvironment } from "@/domain/environment/environment.js";
 import { produceStone, produceWood } from "@/domain/production/extraction.js";
 import { producePlanks } from "@/domain/production/transformation.js";
+import { clampStorage } from "@/domain/storage/storage.js";
 
 /**
  * Fixed deterministic simulation tick (ADR-002).
@@ -18,6 +19,10 @@ import { producePlanks } from "@/domain/production/transformation.js";
  *   4c. produceWood / 4d. produceStone (extraction from finite deposits)
  *   4e. producePlanks (Workshop transformation, 2 wood → 1 plank)
  *   5. consumeFood (all-or-nothing) / consumeWater
+ *   5b. clampStorage (Step031: food/water capped, true surplus lost —
+ *       runs after consumption so the clamp never eats what colonists
+ *       would have consumed this tick)
+ *   6. updatePopulation (starvation + admission)
  *   6. updatePopulation (starvation + admission)
  *   7. assignJobs (next tick's staffing)
  *   8. collectRevenue → 9. payMaintenance (money model, same-tick inflow)
@@ -36,6 +41,8 @@ export function stepSimulation(state: GameState): GameState {
 
   const fed = consumeFood(state);
   consumeWater(state);
+
+  clampStorage(state);
 
   updatePopulation(state, fed);
 

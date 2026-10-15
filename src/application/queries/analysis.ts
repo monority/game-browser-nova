@@ -14,6 +14,7 @@ import {
 import { isActive } from "@/domain/building/building.js";
 import { environmentalQuality } from "@/domain/environment/environment.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
+import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { getStaffingOverview } from "./staffing.js";
 
 /**
@@ -167,6 +168,25 @@ export function getAlerts(state: GameState): Alert[] {
     alerts.push({
       severity: "warning",
       message: `Water: ${waterServed}/${state.population} colonists served`,
+    });
+  }
+
+  // Storage pressure (Step031): stock pinned at capacity while the
+  // balance stays positive means production is wasted each tick.
+  // States the cause only — the fix (warehouse / fewer producers) is
+  // the player's call.
+  const foodCap = foodCapacity(state);
+  if (summaries.food.balancePerTick > 0 && state.resources.food >= foodCap) {
+    alerts.push({
+      severity: "warning",
+      message: `Food storage full (${Math.floor(state.resources.food)}/${foodCap}) · +${summaries.food.balancePerTick}/tick wasted`,
+    });
+  }
+  const waterCap = waterCapacity(state);
+  if (summaries.water.balancePerTick > 0 && state.resources.water >= waterCap) {
+    alerts.push({
+      severity: "warning",
+      message: `Water storage full (${Math.floor(state.resources.water)}/${waterCap}) · +${summaries.water.balancePerTick}/tick wasted`,
     });
   }
 

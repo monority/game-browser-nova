@@ -47,6 +47,7 @@ const BUILD_ORDER: BuildingType[] = [
   "lumberCamp",
   "quarry",
   "park",
+  "warehouse",
   "market",
 ];
 

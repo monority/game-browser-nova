@@ -23,6 +23,7 @@ export const BUILDING_PALETTE: Record<BuildingType, BuildingPalette> = {
   quarry: { body: 0x7c828c, accent: 0xb0b8c4 },
   park: { body: 0x3f7a44, accent: 0x6dbf6a },
   market: { body: 0x8a5a3b, accent: 0xe0c060 },
+  warehouse: { body: 0x6b5a8a, accent: 0xa890c8 },
   colonyCenter: { body: 0x8a9455, accent: 0xd6e07a },
 };
 
@@ -112,6 +113,13 @@ export function createBuildingMeshes(
       add(tree2, 0.16, 0.22, 0.12);
       const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.16, 6), body);
       add(trunk, -0.18, 0.1, -0.14);
+      break;
+    }
+    case "warehouse": {
+      // storage depot: low hall plus stacked crates (Step031 identity).
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.34, 0.55), body), 0, 0.17, 0.05);
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.22, 0.3), accent), -0.15, 0.45, 0);
+      add(new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.18, 0.24), accent), 0.18, 0.43, 0.1);
       break;
     }
   }

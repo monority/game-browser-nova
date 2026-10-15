@@ -9,6 +9,7 @@ import { foodPerFarm } from "@/domain/production/production.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
 import { canAdvanceAge, evaluateMilestones } from "@/domain/progression/progression.js";
 import { getColonyStats } from "@/application/queries/stats.js";
+import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { freeCell, mustOk } from "./helpers.js";
 
@@ -259,7 +260,13 @@ function playGame(crisisAt = -1, stopEarly = true, housingCap = 14): PlayResult 
     const housing = countType(state, "residence");
     manageMothballs(state);
 
-    const staffedFarms = Object.values(state.buildings).filter((b) => b.type === "farm" && b.staffed).length;
+    // Step031: storage pressure — a pinned stock means the surplus
+  // engine outgrew capacity (farm rest thresholds and project buffers
+  // assume headroom). The player answer is a warehouse; the governor
+  // builds up to 4 (each +50/50, industry-gated via 2 planks).
+  const foodPinned = state.resources.food >= foodCapacity(state) - 1;
+  const waterPinned = state.resources.water >= waterCapacity(state) - 1;
+  const staffedFarms = Object.values(state.buildings).filter((b) => b.type === "farm" && b.staffed).length;
     const structuralFoodGap = state.resources.food < pop + 4 && staffedFarms * 2 < pop;
     // Bank phase: at pop>=10 with a living colony, stop expanding and bank
     // 400 for the back-to-back tech run (tre200 must hold at advance).
@@ -277,6 +284,7 @@ function playGame(crisisAt = -1, stopEarly = true, housingCap = 14): PlayResult 
         return false;
       }],
       [!banking && countType(state, "workshop") < 4 && money > 50, () => tryBuild("workshop", true, 0)],
+      [!banking && (foodPinned || waterPinned) && countType(state, "warehouse") < 4 && money > 60, () => tryBuild("warehouse", false, 20)],
       [!banking && housing < housingCap && pop >= housing && money > 60, () => tryBuild("residence", false, 20)],
       [!banking && countType(state, "farm") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("farm", true, 20)],
       [!banking && countType(state, "well") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("well", true, 20)],

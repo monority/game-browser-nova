@@ -12,6 +12,7 @@ import {
 import { plankThroughput } from "@/domain/production/transformation.js";
 import { housingCapacity } from "@/domain/population/population.js";
 import { environmentalQuality } from "@/domain/environment/environment.js";
+import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 
 /** Derived read-only view for the UI (queries never mutate state). */
 
@@ -19,6 +20,8 @@ export interface ColonyStats {
   tick: number;
   population: number;
   housingCapacity: number;
+  foodCapacity: number;
+  waterCapacity: number;
   resources: GameState["resources"];
   pollution: number;
   envQuality: number;
@@ -44,6 +47,8 @@ export function getColonyStats(state: GameState): ColonyStats {
     tick: state.tick,
     population: state.population,
     housingCapacity: housingCapacity(state),
+    foodCapacity: foodCapacity(state),
+    waterCapacity: waterCapacity(state),
     resources: { ...state.resources },
     pollution: state.pollution,
     envQuality: environmentalQuality(state),

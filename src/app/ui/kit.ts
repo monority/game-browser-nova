@@ -28,6 +28,7 @@ export const PALETTE_TYPES: BuildingType[] = [
   "lumberCamp",
   "quarry",
   "park",
+  "warehouse",
   "market",
 ];
 
