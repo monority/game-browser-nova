@@ -7,6 +7,13 @@ export default defineConfig({
     target: "es2022",
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // three.js dominates the bundle (~500kB): isolate vendor churn
+        // from app code for cache stability.
+        manualChunks: { three: ["three"] },
+      },
+    },
   },
   test: {
     include: ["tests/**/*.test.ts"],

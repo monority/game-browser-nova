@@ -6,9 +6,10 @@ import { getColonyStats } from "@/application/queries/stats.js";
 import { getResourceSummaries, getAlerts, getResourceContributors } from "@/application/queries/analysis.js";
 import { evaluateMilestones, canAdvanceAge, hasTech } from "@/domain/progression/progression.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
-import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
+import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 import { AGE_NAMES } from "@/content/progression.js";
 import { createUi, type Ui } from "./ui.js";
+import { PALETTE_TYPES } from "./ui/kit.js";
 import {
   parseSaveString,
   saveToString,
@@ -38,18 +39,8 @@ const DEFAULT_CONFIG = {
   stoneDeposits: [{ x: 7, y: 18, amount: 50 }],
 };
 
-// Palette unlocks follow building ages (Phase 9: Market appears in Age 2).
-const BUILD_ORDER: BuildingType[] = [
-  "residence",
-  "farm",
-  "well",
-  "workshop",
-  "lumberCamp",
-  "quarry",
-  "park",
-  "warehouse",
-  "market",
-];
+// Palette unlocks follow building ages (Phase 9: Market appears in Age 2);
+// order comes from the single PALETTE_TYPES source in ui/kit.
 
 export function boot(root: HTMLElement): { stop(): void } {
   let state: GameState = createInitialState(DEFAULT_CONFIG);
@@ -69,10 +60,10 @@ export function boot(root: HTMLElement): { stop(): void } {
     if (!ui) return;
     ui.updateStats(getColonyStats(state));
     ui.setAvailableBuildings(
-      BUILD_ORDER.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) <= state.age),
+      PALETTE_TYPES.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) <= state.age),
     );
     ui.setAgeLocked(
-      BUILD_ORDER.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) > state.age),
+      PALETTE_TYPES.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) > state.age),
     );
     ui.updateForecast(Object.values(getResourceSummaries(state)));
     ui.setAlerts(getAlerts(state));
