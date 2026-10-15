@@ -62,7 +62,14 @@ export function serialize(state: GameState): SaveDocument {
       woodDeposits: (state.worldConfig.woodDeposits ?? []).map((d) => ({ ...d })),
       stoneDeposits: (state.worldConfig.stoneDeposits ?? []).map((d) => ({ ...d })),
     },
-    deposits: { wood: state.woodDeposits, stone: state.stoneDeposits },
+    deposits: {
+      wood: Object.fromEntries(
+        Object.entries(state.woodDeposits).map(([key, cell]) => [key, { ...cell }]),
+      ),
+      stone: Object.fromEntries(
+        Object.entries(state.stoneDeposits).map(([key, cell]) => [key, { ...cell }]),
+      ),
+    },
     pollution: state.pollution,
     age: state.age,
     researchedTechs: [...state.researchedTechs],

@@ -56,6 +56,17 @@ describe("save format", () => {
     expect(restored.woodDeposits[cellKey(3, 3)]?.remaining).toBe(4);
   });
 
+  it("serialize detaches deposit cells (doc mutation leaves state intact)", () => {
+    const state = richState();
+    const key = cellKey(3, 3);
+    const before = state.woodDeposits[key]?.remaining;
+    const doc = serialize(state);
+    const cell = doc.deposits.wood[key];
+    if (!cell) throw new Error("missing deposit cell in save doc");
+    cell.remaining = (before ?? 0) + 999;
+    expect(state.woodDeposits[key]?.remaining).toBe(before);
+  });
+
   it("regenerates identical terrain from the seed (config-only persistence)", () => {
     const state = richState();
     const restored = parseSave(serialize(state));
