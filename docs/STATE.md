@@ -26,7 +26,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step029 ui.ts split (panel components, no migration) |
+| HEAD | Step030 structure plan (design-only, awaiting GO) |
 | Working tree | CLEAN |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step029 (ui.ts split, complete) - see `docs/roadmap/Step029-ui-split.md`. ui.ts 637 l. split into kit/stats/controls/inspection/progression panels; createUi API unchanged; 15/15 E2E parity.
+Step030 (structure plan, design-only, awaiting GO) - see `docs/roadmap/Step030-structure-plan.md`. S1 CSS tokens layer, S2 main.ts split, S3 hygiene, S4 alias (optional).
 
 ---
 
