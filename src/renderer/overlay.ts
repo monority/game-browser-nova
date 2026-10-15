@@ -1,5 +1,5 @@
-import type { GameState } from "../domain/simulation/state.js";
-import { cellKey } from "../domain/shared/cells.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { cellKey } from "@/domain/shared/cells.js";
 
 /**
  * Overlay state mapping (presentation logic, no Three.js here — pure and

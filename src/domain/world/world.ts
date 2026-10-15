@@ -1,5 +1,5 @@
-import { cellKey } from "../shared/cells.js";
-import { createRng, hashString } from "../shared/rng.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createRng, hashString } from "@/domain/shared/rng.js";
 import type { DepositSeed } from "./deposits.js";
 
 /** World generation parameters (ADR-005: deterministic from seed + parameters). */

@@ -1,11 +1,11 @@
-import type { GameState } from "../simulation/state.js";
-import { isAdjacentToRoad } from "../network/network.js";
-import { isActive } from "../building/building.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isAdjacentToRoad } from "@/domain/network/network.js";
+import { isActive } from "@/domain/building/building.js";
 import {
   environmentalQuality,
   MIN_QUALITY_FOR_ADMISSION,
-} from "../environment/environment.js";
-import { BUILDING_DEFINITIONS } from "../../content/buildings.js";
+} from "@/domain/environment/environment.js";
+import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 
 /** Housing capacity = active operational residences × capacity (1 each). */
 export function housingCapacity(state: GameState): number {

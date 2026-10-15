@@ -1,19 +1,19 @@
-import type { GameState } from "../../domain/simulation/state.js";
+import type { GameState } from "@/domain/simulation/state.js";
 import {
   WATER_PER_WELL_PER_TICK,
   FOOD_PER_COLONIST_PER_TICK,
   WATER_PER_SERVED_COLONIST_PER_TICK,
   foodProductionPerTick,
-} from "../../domain/production/production.js";
+} from "@/domain/production/production.js";
 import {
   commercePerTick,
   expectedMarketSales,
   maintenancePerTick,
   taxesPerTick,
-} from "../../domain/economy/economy.js";
-import { isActive } from "../../domain/building/building.js";
-import { environmentalQuality } from "../../domain/environment/environment.js";
-import { plankThroughput } from "../../domain/production/transformation.js";
+} from "@/domain/economy/economy.js";
+import { isActive } from "@/domain/building/building.js";
+import { environmentalQuality } from "@/domain/environment/environment.js";
+import { plankThroughput } from "@/domain/production/transformation.js";
 import { getStaffingOverview } from "./staffing.js";
 
 /**

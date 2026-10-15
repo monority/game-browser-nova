@@ -1,7 +1,7 @@
-import type { GameState } from "../simulation/state.js";
-import { isAdjacentToRoad } from "../network/network.js";
-import { isActive } from "../building/building.js";
-import { BUILDING_DEFINITIONS } from "../../content/buildings.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isAdjacentToRoad } from "@/domain/network/network.js";
+import { isActive } from "@/domain/building/building.js";
+import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 
 
 /**

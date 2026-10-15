@@ -1,11 +1,11 @@
-import type { BuildingType } from "../content/buildings.js";
-import type { ColonyStats } from "../application/queries/stats.js";
-import type { ResourceContributors, ResourceForecast, Alert, SurvivalResource } from "../application/queries/analysis.js";
-import type { OverlayMode } from "../renderer/overlay.js";
-import { createStatsPanel } from "./ui/statsPanel.js";
-import { createControlsPanel } from "./ui/controlsPanel.js";
-import { createInspectionPanel, type InspectionInfo, type RemoveBuildingInfo, type RemoveRoadInfo } from "./ui/inspectionPanel.js";
-import { createProgressionPanel, type ProgressionInfo } from "./ui/progressionPanel.js";
+import type { BuildingType } from "@/content/buildings.js";
+import type { ColonyStats } from "@/application/queries/stats.js";
+import type { ResourceContributors, ResourceForecast, Alert, SurvivalResource } from "@/application/queries/analysis.js";
+import type { OverlayMode } from "@/renderer/overlay.js";
+import { createStatsPanel } from "@/app/ui/statsPanel.js";
+import { createControlsPanel } from "@/app/ui/controlsPanel.js";
+import { createInspectionPanel, type InspectionInfo, type RemoveBuildingInfo, type RemoveRoadInfo } from "@/app/ui/inspectionPanel.js";
+import { createProgressionPanel, type ProgressionInfo } from "@/app/ui/progressionPanel.js";
 
 /**
  * DOM UI (presentation only): displays derived state, collects player

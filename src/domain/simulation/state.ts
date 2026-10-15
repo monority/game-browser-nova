@@ -1,10 +1,10 @@
-import { createInitialResourceStock, type ResourceStock } from "../resource/resource.js";
-import { createWorld, isBlocked, type World, type WorldConfig } from "../world/world.js";
-import { normalizeDeposits, type Deposits } from "../world/deposits.js";
-import { cellKey } from "../shared/cells.js";
-import { STARTING_AGE } from "../../content/progression.js";
-import { createBuilding, type Building } from "../building/building.js";
-import { createRoad, type Road } from "../road/road.js";
+import { createInitialResourceStock, type ResourceStock } from "@/domain/resource/resource.js";
+import { createWorld, isBlocked, type World, type WorldConfig } from "@/domain/world/world.js";
+import { normalizeDeposits, type Deposits } from "@/domain/world/deposits.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { STARTING_AGE } from "@/content/progression.js";
+import { createBuilding, type Building } from "@/domain/building/building.js";
+import { createRoad, type Road } from "@/domain/road/road.js";
 
 /**
  * Canonical simulation state: facts only, no derived values, no

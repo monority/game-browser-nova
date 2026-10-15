@@ -1,6 +1,6 @@
-import type { BuildingType } from "../../content/buildings.js";
-import { BUILDING_DEFINITIONS } from "../../content/buildings.js";
-import type { OverlayMode } from "../../renderer/overlay.js";
+import type { BuildingType } from "@/content/buildings.js";
+import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
+import type { OverlayMode } from "@/renderer/overlay.js";
 import { PALETTE_TYPES, SPEED_SETTINGS, panel, row, textButton } from "./kit.js";
 
 /**

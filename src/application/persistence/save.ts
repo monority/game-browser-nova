@@ -1,13 +1,13 @@
-import { BUILDING_DEFINITIONS, type BuildingType } from "../../content/buildings.js";
-import { TECH_DEFINITIONS } from "../../content/techs.js";
-import { parseCellKey } from "../../domain/shared/cells.js";
-import type { Building, BuildingStatus } from "../../domain/building/building.js";
-import type { Road } from "../../domain/road/road.js";
-import { depositCapacities, type Deposits } from "../../domain/world/deposits.js";
-import { createWorld } from "../../domain/world/world.js";
-import type { GameState } from "../../domain/simulation/state.js";
-import type { ResourceStock } from "../../domain/resource/resource.js";
-import type { WorldConfig } from "../../domain/world/world.js";
+import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
+import { TECH_DEFINITIONS } from "@/content/techs.js";
+import { parseCellKey } from "@/domain/shared/cells.js";
+import type { Building, BuildingStatus } from "@/domain/building/building.js";
+import type { Road } from "@/domain/road/road.js";
+import { depositCapacities, type Deposits } from "@/domain/world/deposits.js";
+import { createWorld } from "@/domain/world/world.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import type { ResourceStock } from "@/domain/resource/resource.js";
+import type { WorldConfig } from "@/domain/world/world.js";
 
 /**
  * Versioned persistence (ADR-006). This rebuild starts fresh at v13 —

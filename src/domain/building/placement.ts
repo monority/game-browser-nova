@@ -1,9 +1,9 @@
-import { BUILDING_DEFINITIONS, type BuildingType } from "../../content/buildings.js";
-import { cellKey } from "../shared/cells.js";
-import { isBlocked } from "../world/world.js";
-import { hasDepositAt } from "../world/deposits.js";
-import { allRoadCells } from "../road/road.js";
-import type { GameState } from "../simulation/state.js";
+import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { isBlocked } from "@/domain/world/world.js";
+import { hasDepositAt } from "@/domain/world/deposits.js";
+import { allRoadCells } from "@/domain/road/road.js";
+import type { GameState } from "@/domain/simulation/state.js";
 
 /** Placement validation is a pure domain check; deduction is atomic in the command layer. */
 

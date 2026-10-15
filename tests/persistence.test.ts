@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
 import {
   SAVE_VERSION,
   parseSave,
@@ -10,7 +10,7 @@ import {
   saveToString,
   serialize,
   SaveValidationError,
-} from "../src/application/persistence/save.js";
+} from "@/application/persistence/save.js";
 import { mustOk } from "./helpers.js";
 
 const CONFIG = {

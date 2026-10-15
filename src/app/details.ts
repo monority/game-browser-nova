@@ -1,4 +1,4 @@
-import type { BuildingType } from "../content/buildings.js";
+import type { BuildingType } from "@/content/buildings.js";
 
 /** Per-type inspection detail (presentation copy, no simulation rules). */
 

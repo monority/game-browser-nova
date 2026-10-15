@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import type { BuildingType } from "../content/buildings.js";
+import type { BuildingType } from "@/content/buildings.js";
 
 /**
  * Parametric building silhouettes (docs/game/10-VISUAL-DIRECTION.md §3:

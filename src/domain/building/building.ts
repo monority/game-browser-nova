@@ -1,4 +1,4 @@
-import { BUILDING_DEFINITIONS, type BuildingType } from "../../content/buildings.js";
+import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
 
 export type BuildingStatus = "underConstruction" | "operational";
 

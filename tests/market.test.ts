@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
 import {
   FOOD_SOLD_PER_MARKET_PER_TICK,
   MONEY_PER_FOOD_SOLD,
@@ -10,11 +10,11 @@ import {
   connectedMarkets,
   expectedMarketSales,
   sellMarketSurplus,
-} from "../src/domain/economy/economy.js";
-import { getColonyStats } from "../src/application/queries/stats.js";
-import { getResourceSummaries } from "../src/application/queries/analysis.js";
-import { parseSave, serialize, SAVE_VERSION } from "../src/application/persistence/save.js";
-import { BUILDING_PALETTE, createBuildingMeshes } from "../src/renderer/shapes.js";
+} from "@/domain/economy/economy.js";
+import { getColonyStats } from "@/application/queries/stats.js";
+import { getResourceSummaries } from "@/application/queries/analysis.js";
+import { parseSave, serialize, SAVE_VERSION } from "@/application/persistence/save.js";
+import { BUILDING_PALETTE, createBuildingMeshes } from "@/renderer/shapes.js";
 import { adjacentFree, freeCell, mustOk, neighborsOf, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "market-test", width: 16, height: 16 };

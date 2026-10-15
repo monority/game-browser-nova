@@ -1,6 +1,6 @@
-import type { GameState } from "../simulation/state.js";
-import { isActive } from "../building/building.js";
-import { regrowAdjacent } from "../world/deposits.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isActive } from "@/domain/building/building.js";
+import { regrowAdjacent } from "@/domain/world/deposits.js";
 
 /**
  * Environment system (MVP Phase 7, minimal coherent form):

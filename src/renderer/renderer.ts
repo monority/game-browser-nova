@@ -1,6 +1,6 @@
 import * as THREE from "three";
-import type { GameState } from "../domain/simulation/state.js";
-import { parseCellKey } from "../domain/shared/cells.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { parseCellKey } from "@/domain/shared/cells.js";
 import { computeOverlay, type OverlayMode, type OverlayTint } from "./overlay.js";
 import { createBuildingMeshes, BUILDING_PALETTE } from "./shapes.js";
 

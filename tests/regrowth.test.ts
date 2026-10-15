@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
-import { normalizeDeposits, regrowAdjacent } from "../src/domain/world/deposits.js";
-import { WOOD_REGROWTH_PER_PARK_PER_TICK } from "../src/domain/environment/environment.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
+import { normalizeDeposits, regrowAdjacent } from "@/domain/world/deposits.js";
+import { WOOD_REGROWTH_PER_PARK_PER_TICK } from "@/domain/environment/environment.js";
 import {
   parseSave,
   serialize,
   SAVE_VERSION,
   MIGRATABLE_SAVE_VERSION,
-} from "../src/application/persistence/save.js";
+} from "@/application/persistence/save.js";
 import { mustOk } from "./helpers.js";
 
 const CONFIG = {

@@ -1,4 +1,4 @@
-import type { BuildingType } from "../../content/buildings.js";
+import type { BuildingType } from "@/content/buildings.js";
 
 /**
  * UI kit: element factories for the panel components (Step031).

@@ -1,11 +1,11 @@
 import type { GameState } from "./state.js";
-import { produceFood, produceWater, consumeFood, consumeWater } from "../production/production.js";
-import { updatePopulation } from "../population/population.js";
-import { assignJobs } from "../jobs/jobs.js";
-import { collectRevenue, payMaintenance } from "../economy/economy.js";
-import { updateEnvironment } from "../environment/environment.js";
-import { produceStone, produceWood } from "../production/extraction.js";
-import { producePlanks } from "../production/transformation.js";
+import { produceFood, produceWater, consumeFood, consumeWater } from "@/domain/production/production.js";
+import { updatePopulation } from "@/domain/population/population.js";
+import { assignJobs } from "@/domain/jobs/jobs.js";
+import { collectRevenue, payMaintenance } from "@/domain/economy/economy.js";
+import { updateEnvironment } from "@/domain/environment/environment.js";
+import { produceStone, produceWood } from "@/domain/production/extraction.js";
+import { producePlanks } from "@/domain/production/transformation.js";
 
 /**
  * Fixed deterministic simulation tick (ADR-002).

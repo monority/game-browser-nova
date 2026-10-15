@@ -1,6 +1,6 @@
-import type { GameState } from "../simulation/state.js";
-import { isActive } from "../building/building.js";
-import { addPlanks, deductWood } from "../resource/resource.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isActive } from "@/domain/building/building.js";
+import { addPlanks, deductWood } from "@/domain/resource/resource.js";
 
 /**
  * First physical transformation (Step006 contract).

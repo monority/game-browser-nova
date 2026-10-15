@@ -1,9 +1,9 @@
-import type { GameState } from "../../domain/simulation/state.js";
-import type { Building } from "../../domain/building/building.js";
-import type { BuildingType } from "../../content/buildings.js";
-import { isActive } from "../../domain/building/building.js";
-import { isAdjacentToRoad } from "../../domain/network/network.js";
-import { BUILDING_DEFINITIONS } from "../../content/buildings.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import type { Building } from "@/domain/building/building.js";
+import type { BuildingType } from "@/content/buildings.js";
+import { isActive } from "@/domain/building/building.js";
+import { isAdjacentToRoad } from "@/domain/network/network.js";
+import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 
 /**
  * Staffing visibility (Step025): a derived, read-only view of the workforce

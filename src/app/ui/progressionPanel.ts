@@ -1,4 +1,4 @@
-import type { MilestoneStatus } from "../../domain/progression/progression.js";
+import type { MilestoneStatus } from "@/domain/progression/progression.js";
 import { panel, sectionHeader, statRow, textButton } from "./kit.js";
 
 /**

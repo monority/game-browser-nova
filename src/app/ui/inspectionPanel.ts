@@ -1,4 +1,4 @@
-import type { ResourceContributors } from "../../application/queries/analysis.js";
+import type { ResourceContributors } from "@/application/queries/analysis.js";
 import { panel, row, staticNote, textButton } from "./kit.js";
 
 /**

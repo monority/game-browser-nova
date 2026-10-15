@@ -1,7 +1,7 @@
-import type { GameState } from "../simulation/state.js";
-import { isActive } from "../building/building.js";
-import { techLevel } from "../progression/progression.js";
-import { addFood, addWater, deductFood } from "../resource/resource.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isActive } from "@/domain/building/building.js";
+import { techLevel } from "@/domain/progression/progression.js";
+import { addFood, addWater, deductFood } from "@/domain/resource/resource.js";
 
 export const FOOD_PER_FARM_PER_TICK = 2;
 export const WATER_PER_WELL_PER_TICK = 2;

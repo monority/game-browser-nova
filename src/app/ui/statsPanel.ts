@@ -1,5 +1,5 @@
-import type { ColonyStats } from "../../application/queries/stats.js";
-import type { Alert, ResourceForecast, SurvivalResource } from "../../application/queries/analysis.js";
+import type { ColonyStats } from "@/application/queries/stats.js";
+import type { Alert, ResourceForecast, SurvivalResource } from "@/application/queries/analysis.js";
 import { panel, row, sectionHeader, statRow } from "./kit.js";
 
 /**

@@ -1,8 +1,8 @@
-import type { GameState } from "../domain/simulation/state.js";
-import type { ColonyStats } from "../application/queries/stats.js";
-import type { MilestoneStatus } from "../domain/progression/progression.js";
-import type { PerfStats } from "../renderer/renderer.js";
-import type { applyCommand } from "../domain/simulation/commands.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import type { ColonyStats } from "@/application/queries/stats.js";
+import type { MilestoneStatus } from "@/domain/progression/progression.js";
+import type { PerfStats } from "@/renderer/renderer.js";
+import type { applyCommand } from "@/domain/simulation/commands.js";
 
 /**
  * Diagnostics surface (docs/DEBUGGING.md §3): the stable `__nova`

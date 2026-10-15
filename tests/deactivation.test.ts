@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
-import { housingCapacity, availableJobs } from "../src/domain/population/population.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
+import { housingCapacity, availableJobs } from "@/domain/population/population.js";
 import {
   parseSave,
   serialize,
   SAVE_VERSION,
   MIGRATABLE_SAVE_VERSION,
   SaveValidationError,
-} from "../src/application/persistence/save.js";
+} from "@/application/persistence/save.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
-import { allRoadCells } from "../src/domain/road/road.js";
+import { allRoadCells } from "@/domain/road/road.js";
 
 const CONFIG = { seed: "deactivate-test", width: 16, height: 16 };
 

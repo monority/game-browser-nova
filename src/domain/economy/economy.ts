@@ -1,9 +1,9 @@
-import type { GameState } from "../simulation/state.js";
-import { isAdjacentToRoad } from "../network/network.js";
-import { isActive } from "../building/building.js";
-import { addMoney, deductFood } from "../resource/resource.js";
-import { foodProductionPerTick, FOOD_PER_COLONIST_PER_TICK } from "../production/production.js";
-import { techLevel } from "../progression/progression.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isAdjacentToRoad } from "@/domain/network/network.js";
+import { isActive } from "@/domain/building/building.js";
+import { addMoney, deductFood } from "@/domain/resource/resource.js";
+import { foodProductionPerTick, FOOD_PER_COLONIST_PER_TICK } from "@/domain/production/production.js";
+import { techLevel } from "@/domain/progression/progression.js";
 
 /**
  * Step001 money model (validated baseline):

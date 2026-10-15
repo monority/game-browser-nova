@@ -1,4 +1,4 @@
-import type { GameState } from "../../domain/simulation/state.js";
+import type { GameState } from "@/domain/simulation/state.js";
 import {
   commercePerTick,
   connectedMarkets,
@@ -8,10 +8,10 @@ import {
   MONEY_PER_FOOD_SOLD,
   operationalBuildingCount,
   taxesPerTick,
-} from "../../domain/economy/economy.js";
-import { plankThroughput } from "../../domain/production/transformation.js";
-import { housingCapacity } from "../../domain/population/population.js";
-import { environmentalQuality } from "../../domain/environment/environment.js";
+} from "@/domain/economy/economy.js";
+import { plankThroughput } from "@/domain/production/transformation.js";
+import { housingCapacity } from "@/domain/population/population.js";
+import { environmentalQuality } from "@/domain/environment/environment.js";
 
 /** Derived read-only view for the UI (queries never mutate state). */
 

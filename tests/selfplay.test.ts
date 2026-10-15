@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
-import { allRoadCells } from "../src/domain/road/road.js";
-import { BUILDING_DEFINITIONS, type BuildingType } from "../src/content/buildings.js";
-import { foodPerFarm } from "../src/domain/production/production.js";
-import { TECH_DEFINITIONS } from "../src/content/techs.js";
-import { canAdvanceAge, evaluateMilestones } from "../src/domain/progression/progression.js";
-import { getColonyStats } from "../src/application/queries/stats.js";
-import { parseSave, serialize } from "../src/application/persistence/save.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
+import { allRoadCells } from "@/domain/road/road.js";
+import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
+import { foodPerFarm } from "@/domain/production/production.js";
+import { TECH_DEFINITIONS } from "@/content/techs.js";
+import { canAdvanceAge, evaluateMilestones } from "@/domain/progression/progression.js";
+import { getColonyStats } from "@/application/queries/stats.js";
+import { parseSave, serialize } from "@/application/persistence/save.js";
 import { freeCell, mustOk } from "./helpers.js";
 
 /**

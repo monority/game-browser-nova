@@ -1,5 +1,5 @@
-import { cellKey, parseCellKey } from "../shared/cells.js";
-import type { Road } from "../road/road.js";
+import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
+import type { Road } from "@/domain/road/road.js";
 
 /**
  * Road networks: orthogonal connected components of road cells.

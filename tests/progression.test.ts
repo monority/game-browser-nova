@@ -1,21 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
 import {
   evaluateMilestones,
   canAdvanceAge,
   hasTech,
   techLevel,
-} from "../src/domain/progression/progression.js";
-import { getResourceSummaries } from "../src/application/queries/analysis.js";
+} from "@/domain/progression/progression.js";
+import { getResourceSummaries } from "@/application/queries/analysis.js";
 import {
   SAVE_VERSION,
   MIGRATABLE_SAVE_VERSION,
   parseSave,
   serialize,
-} from "../src/application/persistence/save.js";
+} from "@/application/persistence/save.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "progression-test", width: 16, height: 16 };

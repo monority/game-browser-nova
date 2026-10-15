@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { stepSimulation, stepTicks } from "../src/domain/simulation/tick.js";
-import { createWorld, isBlocked } from "../src/domain/world/world.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { stepSimulation, stepTicks } from "@/domain/simulation/tick.js";
+import { createWorld, isBlocked } from "@/domain/world/world.js";
 import {
   addMoney,
   deductFood,
   INITIAL_TREASURY,
-} from "../src/domain/resource/resource.js";
+} from "@/domain/resource/resource.js";
 
 const CONFIG = { seed: "test-seed", width: 24, height: 24 };
 

@@ -1,4 +1,4 @@
-import { cellKey, orthogonalNeighbors, sortedCellKeys } from "../shared/cells.js";
+import { cellKey, orthogonalNeighbors, sortedCellKeys } from "@/domain/shared/cells.js";
 
 /**
  * Shape-generic finite deposit bookkeeping (Step005 generalization).

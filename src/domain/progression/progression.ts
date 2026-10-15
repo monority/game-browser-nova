@@ -1,11 +1,11 @@
-import type { GameState } from "../simulation/state.js";
-import { isActive } from "../building/building.js";
-import { TECH_DEFINITIONS, type TechEffect } from "../../content/techs.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isActive } from "@/domain/building/building.js";
+import { TECH_DEFINITIONS, type TechEffect } from "@/content/techs.js";
 import {
   AGE_MILESTONES,
   type MilestoneDefinition,
   type MilestoneDimension,
-} from "../../content/progression.js";
+} from "@/content/progression.js";
 
 /**
  * Progression domain (docs/game/07-PROGRESSION.md): technologies with

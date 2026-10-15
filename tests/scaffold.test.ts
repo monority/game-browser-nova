@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NOVA_VERSION } from "../src/index.js";
+import { NOVA_VERSION } from "@/index.js";
 
 describe("scaffold", () => {
   it("exposes the library barrel", () => {

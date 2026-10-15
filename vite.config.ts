@@ -13,8 +13,9 @@ export default defineConfig({
     environment: "node",
   },
   resolve: {
-    // keep aliases minimal; none needed yet
-    alias: {},
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+    },
   },
   root: fileURLToPath(new URL(".", import.meta.url)),
 });

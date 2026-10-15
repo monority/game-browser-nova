@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
 import {
   WOOD_PER_COLONY_CENTER_PER_TICK,
   WOOD_PER_LUMBER_CAMP_PER_TICK,
-} from "../src/domain/production/extraction.js";
-import { normalizeDeposits } from "../src/domain/world/deposits.js";
+} from "@/domain/production/extraction.js";
+import { normalizeDeposits } from "@/domain/world/deposits.js";
 import { mustOk, stripToAnchor } from "./helpers.js";
 
 /**

@@ -1,8 +1,8 @@
-import type { GameState } from "../simulation/state.js";
-import { isActive } from "../building/building.js";
-import { techLevel } from "../progression/progression.js";
-import { extractAdjacent } from "../world/deposits.js";
-import { addStone, addWood } from "../resource/resource.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { isActive } from "@/domain/building/building.js";
+import { techLevel } from "@/domain/progression/progression.js";
+import { extractAdjacent } from "@/domain/world/deposits.js";
+import { addStone, addWood } from "@/domain/resource/resource.js";
 
 /**
  * Physical extraction (Steps 003/005 contract).

@@ -1,10 +1,10 @@
-import type { GameState } from "../domain/simulation/state.js";
-import { applyCommand } from "../domain/simulation/commands.js";
-import { validatePlacement } from "../domain/building/placement.js";
-import { allRoadCells } from "../domain/road/road.js";
-import { cellKey } from "../domain/shared/cells.js";
-import type { Renderer } from "../renderer/renderer.js";
-import { getStaffingOverview } from "../application/queries/staffing.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { validatePlacement } from "@/domain/building/placement.js";
+import { allRoadCells } from "@/domain/road/road.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import type { Renderer } from "@/renderer/renderer.js";
+import { getStaffingOverview } from "@/application/queries/staffing.js";
 import { BUILDING_DETAIL } from "./details.js";
 import type { Ui } from "./ui.js";
 

@@ -1,4 +1,4 @@
-import { parseCellKey } from "../shared/cells.js";
+import { parseCellKey } from "@/domain/shared/cells.js";
 /** Roads persist as cell lists; 5 money per cell (validated contract). */
 
 export interface Road {

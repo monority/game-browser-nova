@@ -1,19 +1,19 @@
-import { createInitialState, type GameState } from "../domain/simulation/state.js";
-import { stepSimulation } from "../domain/simulation/tick.js";
-import { applyCommand } from "../domain/simulation/commands.js";
-import { createRenderer, type Renderer } from "../renderer/renderer.js";
-import { getColonyStats } from "../application/queries/stats.js";
-import { getResourceSummaries, getAlerts, getResourceContributors } from "../application/queries/analysis.js";
-import { evaluateMilestones, canAdvanceAge, hasTech } from "../domain/progression/progression.js";
-import { TECH_DEFINITIONS } from "../content/techs.js";
-import { BUILDING_DEFINITIONS, type BuildingType } from "../content/buildings.js";
-import { AGE_NAMES } from "../content/progression.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { stepSimulation } from "@/domain/simulation/tick.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { createRenderer, type Renderer } from "@/renderer/renderer.js";
+import { getColonyStats } from "@/application/queries/stats.js";
+import { getResourceSummaries, getAlerts, getResourceContributors } from "@/application/queries/analysis.js";
+import { evaluateMilestones, canAdvanceAge, hasTech } from "@/domain/progression/progression.js";
+import { TECH_DEFINITIONS } from "@/content/techs.js";
+import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
+import { AGE_NAMES } from "@/content/progression.js";
 import { createUi, type Ui } from "./ui.js";
 import {
   parseSaveString,
   saveToString,
   SaveValidationError,
-} from "../application/persistence/save.js";
+} from "@/application/persistence/save.js";
 import { attachInput } from "./input.js";
 import { startFixedTimestepLoop } from "./loop.js";
 import { attachDiagnostics } from "./diagnostics.js";

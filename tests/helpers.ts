@@ -1,7 +1,7 @@
-import { cellKey } from "../src/domain/shared/cells.js";
-import type { GameState } from "../src/domain/simulation/state.js";
-import { allRoadCells } from "../src/domain/road/road.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import type { GameState } from "@/domain/simulation/state.js";
+import { allRoadCells } from "@/domain/road/road.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
 
 export function mustOk(result: { ok: boolean; reason?: string }): void {
   if (!result.ok) throw new Error(`command failed: ${result.reason ?? "?"}`);

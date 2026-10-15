@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "../src/domain/shared/cells.js";
-import { createInitialState, type GameState } from "../src/domain/simulation/state.js";
-import { applyCommand } from "../src/domain/simulation/commands.js";
-import { stepTicks } from "../src/domain/simulation/tick.js";
+import { cellKey } from "@/domain/shared/cells.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
 import {
   COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK,
   MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
@@ -11,7 +11,7 @@ import {
   collectRevenue,
   connectedWorkshops,
   payMaintenance,
-} from "../src/domain/economy/economy.js";
+} from "@/domain/economy/economy.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "econ-test", width: 16, height: 16 };

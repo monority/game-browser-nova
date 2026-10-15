@@ -1,11 +1,11 @@
-import { BUILDING_DEFINITIONS, ROAD_MONEY_COST_PER_CELL, type BuildingType } from "../../content/buildings.js";
-import { validatePlacement, validateRoads, validateRemoval, validateRoadRemoval, validateSetActivation, type PlacementValidation, type RoadValidation, type RemovalValidation, type RoadRemovalValidation, type ActivationValidation } from "../building/placement.js";
-import { createBuilding } from "../building/building.js";
-import { createRoad } from "../road/road.js";
-import { parseCellKey } from "../shared/cells.js";
-import { deductPlanks } from "../resource/resource.js";
-import { canAdvanceAge, hasTech } from "../progression/progression.js";
-import { TECH_DEFINITIONS } from "../../content/techs.js";
+import { BUILDING_DEFINITIONS, ROAD_MONEY_COST_PER_CELL, type BuildingType } from "@/content/buildings.js";
+import { validatePlacement, validateRoads, validateRemoval, validateRoadRemoval, validateSetActivation, type PlacementValidation, type RoadValidation, type RemovalValidation, type RoadRemovalValidation, type ActivationValidation } from "@/domain/building/placement.js";
+import { createBuilding } from "@/domain/building/building.js";
+import { createRoad } from "@/domain/road/road.js";
+import { parseCellKey } from "@/domain/shared/cells.js";
+import { deductPlanks } from "@/domain/resource/resource.js";
+import { canAdvanceAge, hasTech } from "@/domain/progression/progression.js";
+import { TECH_DEFINITIONS } from "@/content/techs.js";
 import type { GameState } from "./state.js";
 
 /**
