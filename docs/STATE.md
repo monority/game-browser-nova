@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step030 structure plan (design-only, awaiting GO) |
-| Working tree | CLEAN |
+| HEAD | S1–S4 structure slices executed (S1 CSS tokens `2e58ecf`, S2 boot split `a09cacd`, S3 hygiene `eb29737`, S4 `@/` alias `ac0cd3c`) |
+| Working tree | Untracked only: `prompt.md` (preserved per its header), `e2e/zz-parity-shot.spec.ts` + `parity-*.png` (temp S1 parity proof, uncommitted) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-14, Step029) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-14, Step029) |
-| Unit tests | PASS — `npx vitest run`: 17 files / 217 tests, all green (2026-10-14, Step029) |
-| E2E | PASS — Playwright: 15/15 scenarios (2026-10-14, Step029; mesh-disposal regression) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-14, Step029) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, post-S4) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-15, post-S4) |
+| Unit tests | PASS — `npx vitest run`: 18 files / 218 tests, all green (2026-10-15, post-S4; +1 serialize-detach regression) |
+| E2E | PASS — Playwright `e2e/nova.spec.ts`: 15/15 scenarios (2026-10-15, post-S4; `__nova` + selector contracts untouched) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-15, post-S4) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -64,13 +64,13 @@ Update these values from actual command output.
 | Storage | PARTIAL | Food/Water uncapped colony stocks; treasury uncapped; no storage capacity mechanics (StorageHub never rebuilt — audit D5 consciously parked) |
 | Logistics | PARTIAL | road networks + road access for staffing and commerce (orthogonal components); no distance/congestion/capacity effects |
 | Analysis | IMPLEMENTED | derived stats + resource forecasts (production/consumption/balance/ticks-remaining) + state alerts (never prescriptive) + staffing overlay + forecast drill-down (Step010–011); commerce throughput-anchored (Step012: 2/connected + 1/plank produced); food forecast includes farm tech (Step016) and nets the market drain (Step017) |
-| UI | IMPLEMENTED | palette, road mode, hover validity + info tooltip, inspection (detail/mothball/remove), time controls pause/1×–8× with keyboard (Space/1/2/4/8; rate bug fixed Step010), save/load, forecast + alerts; progression panel, research, age advance (Step016); age-gated palette plus market row (Step017) |
+| UI | IMPLEMENTED | palette, road mode, hover validity + info tooltip, inspection (detail/mothball/remove), time controls pause/1×–8× with keyboard (Space/1/2/4/8; rate bug fixed Step010), save/load, forecast + alerts; progression panel, research, age advance (Step016); age-gated palette plus market row (Step017); S1: visuals in `src/styles/nova.css` via `data-*` attrs, JS paints only tooltip geometry |
 | Deactivation (mothball) | IMPLEMENTED | `setBuildingActive` (Step009): inactive = no maintenance/output/housing/staffing/commerce; anchor protected; next-tick reactivation; SAVE_VERSION 14 + v13→v14 migration |
 | Demolition | IMPLEMENTED | `removeBuilding` / `removeRoads` commands (Step008): anchor-protected, no refund, cell reuse, deterministic staffing recalculation, immediate maintenance relief; save v13 round-trips removals | 
 | Environment | IMPLEMENTED | global pollution stock, park absorption, admission quality gate (Step014); parks regrow adjacent wood to capacity (Step018) |
 | Technology | IMPLEMENTED | 5 techs, researchTech command, additive farm/quarry/commerce effects (Step016) |
 | Ages | IMPLEMENTED | Age 1 complete, milestones, advanceAge transition, Age 2 techs plus atmosphere (Step016); Age 2 systems continue Phase 9 |
-| Persistence | IMPLEMENTED | `SAVE_VERSION = 17` (sequential chain v13-v17: mothball flag, pollution stock, age plus techs, deposit capacity) - no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests |
+| Persistence | IMPLEMENTED | `SAVE_VERSION = 17` (sequential chain v13-v17: mothball flag, pollution stock, age plus techs, deposit capacity) - no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests; `serialize` deep-copies deposit cells (S3 detach regression test) |
 | Performance | MEASURED | sim 0.06–0.14 ms/tick (≤0.2% of 8x budget); mesh rebuild 1.6 ms/update; geometry leak found+fixed (Step027); full rebuild kept, measured OK |
 
 ---
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step030 (structure plan, design-only, awaiting GO) - see `docs/roadmap/Step030-structure-plan.md`. S1 CSS tokens layer, S2 main.ts split, S3 hygiene, S4 alias (optional).
+Step030 executed S1–S4 (see `docs/roadmap/Step030-structure-plan.md`): S1 CSS tokens layer (`src/styles/nova.css`, `main.ts` entry 6l via S2 `app/boot.ts` + `input.ts` + `loop.ts` + `diagnostics.ts`), S3 hygiene (`check` script, serialize detach), S4 `@/` alias (`tsconfig.paths` + vite alias, sibling `./x.js` imports kept relative).
 
 ---
 
