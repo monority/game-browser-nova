@@ -27,7 +27,7 @@ Never mark a feature complete without implementation and validation evidence.
 |---|---|
 | Branch | `master` (local only; no remote configured) |
 | HEAD | S1–S4 structure slices executed (S1 CSS tokens `2e58ecf`, S2 boot split `a09cacd`, S3 hygiene `eb29737`, S4 `@/` alias `ac0cd3c`) |
-| Working tree | Untracked only: `prompt.md` (preserved per its header), `e2e/zz-parity-shot.spec.ts` + `parity-*.png` (temp S1 parity proof, uncommitted) |
+| Working tree | Untracked only: `prompt.md` (preserved per its header) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, post-S4) |

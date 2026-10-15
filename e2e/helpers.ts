@@ -2,10 +2,23 @@ import { expect, type Page } from "@playwright/test";
 
 /** Test helpers for the NOVA browser surface. */
 
+/**
+ * E2E-local contract of the `__nova` diagnostics surface: the wire
+ * subset the tests actually read. Declared global so specs use
+ * `window.__nova` directly — no per-site casts.
+ */
+declare global {
+  interface Window {
+    __nova?: NovaHandle;
+  }
+}
+
 export interface NovaHandle {
   getState(): {
     tick: number;
     population: number;
+    age: number;
+    researchedTechs: string[];
     resources: Record<string, number>;
     buildings: Record<string, { id: string; type: string; status: string; x: number; y: number; staffed: boolean; active: boolean }>;
     world: { width: number; height: number; blockedCells: Record<string, true> };
@@ -37,7 +50,7 @@ export interface NovaHandle {
 
 export async function nova(page: Page): Promise<NovaHandle> {
   return page.evaluate(() => {
-    const handle = (window as unknown as { __nova: NovaHandle }).__nova;
+    const handle = window.__nova;
     if (!handle) throw new Error("__nova missing");
     return handle;
   });
@@ -48,7 +61,7 @@ export async function waitForTick(page: Page, tick: number): Promise<void> {
   await expect
     .poll(
       async () =>
-        page.evaluate(() => (window as unknown as { __nova: NovaHandle }).__nova.getState().tick),
+        page.evaluate(() => window.__nova?.getState().tick),
       { timeout: 30_000, intervals: [250] },
     )
     .toBeGreaterThanOrEqual(tick);
@@ -60,7 +73,8 @@ export async function waitForTick(page: Page, tick: number): Promise<void> {
  */
 export async function stripToAnchor(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const h = (window as unknown as { __nova: NovaHandle }).__nova;
+    const h = window.__nova;
+    if (!h) throw new Error("__nova missing");
     const s = h.getState();
     for (const id of Object.keys(s.buildings)) {
       if (id === "colony-center") continue;
