@@ -1,0 +1,274 @@
+/**
+ * NOVA design layer (Step031, shadcn-style structure):
+ * single source of design truth — tokens as custom properties, layout
+ * and visuals as semantic classes/attribute rules. JS toggles state
+ * (data-attrs, disabled, hidden), never paints styles. Geometry driven
+ * by pointer position (tooltip) is the only inline style allowed.
+ */
+
+:root {
+  /* color tokens (docs/game/10-VISUAL-DIRECTION.md: dark but colorful) */
+  --nova-surface: #0b0e14;
+  --nova-bg: rgba(11, 14, 20, 0.88);
+  --nova-tooltip-bg: rgba(11, 14, 20, 0.92);
+  --nova-border: #2c3442;
+  --nova-accent: #7fb069;
+  --nova-info: #5bc0eb;
+  --nova-text: #d8dee9;
+  --nova-muted: #8a93a3;
+  --nova-ok: #7fb069;
+  --nova-warn: #d9a44a;
+  --nova-danger: #d96a4a;
+  --nova-btn-bg: #161b26;
+  --nova-btn-hover: #1e2534;
+
+  /* shape */
+  --nova-radius-panel: 8px;
+  --nova-radius-btn: 5px;
+  --nova-radius-tip: 4px;
+
+  /* type */
+  --nova-font: system-ui, sans-serif;
+  --nova-font-size: 13px;
+}
+
+/* --- base (was index.html inline style) --------------------------------- */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--nova-surface);
+  color: var(--nova-text);
+  font-family: var(--nova-font);
+  overflow: hidden;
+}
+
+#app {
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+}
+
+/* --- UI root -------------------------------------------------------------- */
+
+#ui {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  font-family: var(--nova-font);
+  font-size: var(--nova-font-size);
+  color: var(--nova-text);
+}
+
+/* --- panels --------------------------------------------------------------- */
+
+.nova-panel {
+  position: absolute;
+  pointer-events: auto;
+  background: var(--nova-bg);
+  border: 1px solid var(--nova-border);
+  border-radius: var(--nova-radius-panel);
+  padding: 10px;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.nova-panel[hidden] {
+  display: none;
+}
+
+/* panel positions (state-free layout) */
+#stats {
+  top: 12px;
+  left: 12px;
+  width: 210px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+#controls {
+  bottom: 12px;
+  left: 12px;
+  right: 12px;
+}
+
+#inspection {
+  top: 12px;
+  right: 12px;
+  width: 220px;
+}
+
+#progression {
+  bottom: 110px;
+  right: 12px;
+  width: 240px;
+}
+
+/* --- buttons -------------------------------------------------------------- */
+
+.nova-btn {
+  background: var(--nova-btn-bg);
+  color: var(--nova-text);
+  border: 1px solid var(--nova-border);
+  border-radius: var(--nova-radius-btn);
+  padding: 4px 9px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.nova-btn:hover {
+  background: var(--nova-btn-hover);
+}
+
+.nova-btn--accent {
+  border-color: var(--nova-accent);
+}
+
+/* palette entries locked behind a later age (native disabled + data-locked) */
+[data-build-type]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- selection / active state (data-attrs drive the visuals) ------------- */
+
+#controls [data-selected="true"] {
+  border-color: var(--nova-accent);
+}
+
+#controls [data-road][data-active="true"] {
+  border-color: var(--nova-accent);
+}
+
+#controls .nova-speed-btn[data-active="true"] {
+  border-color: var(--nova-accent);
+}
+
+#controls .nova-overlay-btn[data-active="true"] {
+  border-color: var(--nova-info);
+}
+
+/* --- layout rows ---------------------------------------------------------- */
+
+.nova-row {
+  display: flex;
+}
+
+.nova-row--gap {
+  gap: 6px;
+}
+
+.nova-row--between {
+  justify-content: space-between;
+}
+
+.nova-row--wrap {
+  flex-wrap: wrap;
+}
+
+.nova-row--mt {
+  margin-top: 6px;
+}
+
+/* --- text roles ----------------------------------------------------------- */
+
+.nova-title {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.nova-label {
+  margin-bottom: 6px;
+}
+
+.nova-sub {
+  color: var(--nova-muted);
+  margin-bottom: 4px;
+}
+
+.nova-note {
+  color: var(--nova-muted);
+}
+
+.nova-note--mb {
+  margin-bottom: 6px;
+}
+
+.nova-section {
+  color: var(--nova-muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 6px 0 2px;
+}
+
+.nova-section--loose {
+  margin: 8px 0 2px;
+}
+
+.nova-value--ok {
+  color: var(--nova-ok);
+}
+
+.nova-value--warn {
+  color: var(--nova-warn);
+}
+
+.nova-value--danger {
+  color: var(--nova-danger);
+}
+
+.nova-muted {
+  color: var(--nova-muted);
+}
+
+/* --- forecast / alerts ---------------------------------------------------- */
+
+.nova-forecast-row {
+  cursor: pointer;
+}
+
+.nova-alerts {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nova-alert--warning {
+  color: var(--nova-warn);
+}
+
+.nova-alert--info {
+  color: var(--nova-muted);
+}
+
+/* --- status + tooltip ----------------------------------------------------- */
+
+.nova-status {
+  position: absolute;
+  bottom: 96px;
+  left: 12px;
+  pointer-events: none;
+  padding: 4px 8px;
+  background: var(--nova-bg);
+  border-radius: var(--nova-radius-tip);
+  min-height: 18px;
+}
+
+.nova-tooltip {
+  position: absolute;
+  pointer-events: none;
+  padding: 3px 7px;
+  background: var(--nova-tooltip-bg);
+  border: 1px solid var(--nova-border);
+  border-radius: var(--nova-radius-tip);
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 5;
+}
+
+.nova-tooltip[hidden] {
+  display: none;
+}

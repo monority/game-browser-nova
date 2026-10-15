@@ -1,11 +1,11 @@
 import type { ColonyStats } from "../../application/queries/stats.js";
 import type { Alert, ResourceForecast, SurvivalResource } from "../../application/queries/analysis.js";
-import { panel, sectionHeader, statRow, TOKENS } from "./kit.js";
+import { panel, row, sectionHeader, statRow } from "./kit.js";
 
 /**
- * Stats + forecast + alerts panel (Step029 split): the single left
- * column. updateStats repaints the stat rows (wiping forecast/alerts —
- * the caller re-appends them right after, refreshStats order contract).
+ * Stats + forecast + alerts panel: the single left column.
+ * updateStats repaints the stat rows (wiping forecast/alerts — the
+ * caller re-appends them right after, refreshStats order contract).
  */
 
 export interface StatsPanel {
@@ -18,13 +18,7 @@ export interface StatsPanel {
 export function createStatsPanel(callbacks: {
   onForecastRowClick(resource: SurvivalResource): void;
 }): StatsPanel {
-  const { element } = panel("stats", {
-    top: "12px",
-    left: "12px",
-    width: "210px",
-    maxHeight: "60vh",
-    overflowY: "auto",
-  });
+  const { element } = panel("stats");
 
   function updateStats(stats: ColonyStats): void {
     element.innerHTML = "";
@@ -47,12 +41,12 @@ export function createStatsPanel(callbacks: {
       ["Net money/tick", String(stats.netMoneyPerTick)],
     ];
     for (const [label, value] of rows) {
-      const row = statRow(label, value);
       if (label === "Net money/tick") {
-        (row.children[1] as HTMLElement).style.color =
-          stats.netMoneyPerTick >= 0 ? TOKENS.ok : TOKENS.danger;
+        const valueClass = stats.netMoneyPerTick >= 0 ? "nova-value--ok" : "nova-value--danger";
+        element.appendChild(statRow(label, value, valueClass));
+      } else {
+        element.appendChild(statRow(label, value));
       }
-      element.appendChild(row);
     }
   }
 
@@ -63,24 +57,21 @@ export function createStatsPanel(callbacks: {
       .forEach((n) => n.remove());
     const section = document.createElement("div");
     section.dataset.section = "forecast";
-    const header = sectionHeader("Forecast");
-    header.style.margin = "8px 0 2px";
-    section.appendChild(header);
+    section.appendChild(sectionHeader("Forecast", true));
     for (const f of forecasts) {
       const name = f.resource.charAt(0).toUpperCase() + f.resource.slice(1);
       const remaining = f.ticksRemaining !== null ? ` → ${f.ticksRemaining} ticks` : "";
-      const row = document.createElement("div");
-      row.style.cssText = "display:flex;justify-content:space-between;cursor:pointer";
-      row.title = "Click: show contributing buildings";
-      row.dataset.resource = f.resource;
+      const rowEl = row("nova-row--between nova-forecast-row");
+      rowEl.title = "Click: show contributing buildings";
+      rowEl.dataset.resource = f.resource;
       const label = document.createElement("span");
       label.textContent = `${name} ${f.productionPerTick}/${f.consumptionPerTick}`;
       const value = document.createElement("span");
       value.textContent = `${Math.floor(f.stock)}${remaining}`;
-      value.style.color = f.balancePerTick < 0 ? TOKENS.danger : TOKENS.text;
-      row.append(label, value);
-      row.addEventListener("click", () => callbacks.onForecastRowClick(f.resource));
-      section.appendChild(row);
+      if (f.balancePerTick < 0) value.className = "nova-value--danger";
+      rowEl.append(label, value);
+      rowEl.addEventListener("click", () => callbacks.onForecastRowClick(f.resource));
+      section.appendChild(rowEl);
     }
     element.appendChild(section);
   }
@@ -92,10 +83,12 @@ export function createStatsPanel(callbacks: {
     if (alerts.length === 0) return;
     const section = document.createElement("div");
     section.dataset.section = "alerts";
+    section.className = "nova-alerts";
     for (const alert of alerts) {
       const line = document.createElement("div");
       line.textContent = alert.message;
-      line.style.color = alert.severity === "warning" ? TOKENS.warn : TOKENS.muted;
+      line.className =
+        alert.severity === "warning" ? "nova-alert--warning" : "nova-alert--info";
       section.appendChild(line);
     }
     element.appendChild(section);

@@ -1,10 +1,10 @@
 import type { ResourceContributors } from "../../application/queries/analysis.js";
-import { panel, staticNote, textButton, TOKENS } from "./kit.js";
+import { panel, row, staticNote, textButton } from "./kit.js";
 
 /**
- * Inspection panel (Step029 split): the right column — building
- * inspection (with mothball/remove actions) and analysis drill-down
- * share this panel; the latest selection wins.
+ * Inspection panel: the right column — building inspection (with
+ * mothball/remove actions) and analysis drill-down share this panel;
+ * the latest selection wins. Visibility = native hidden attribute.
  */
 
 export interface RemoveBuildingInfo {
@@ -38,11 +38,11 @@ export function createInspectionPanel(callbacks: {
 }): InspectionPanel {
   let currentInspection: InspectionInfo = null;
 
-  const { element } = panel("inspection", { top: "12px", right: "12px", width: "220px" });
-  element.style.display = "none";
+  const { element } = panel("inspection");
+  element.hidden = true;
 
   const inspectionLabel = document.createElement("div");
-  inspectionLabel.style.marginBottom = "6px";
+  inspectionLabel.className = "nova-label";
 
   const deactivateButton = textButton("Mothball", "deactivate-building", () => {
     const info = currentInspection;
@@ -68,34 +68,35 @@ export function createInspectionPanel(callbacks: {
     // drill-down — the latest selection wins
     element.innerHTML = "";
     if (!info) {
-      element.style.display = "none";
+      element.hidden = true;
       return;
     }
-    element.style.display = "block";
+    element.hidden = false;
     element.dataset.drilldown = info.resource;
     const header = document.createElement("div");
     header.textContent = `${info.resource.charAt(0).toUpperCase() + info.resource.slice(1)} — contributors`;
-    header.style.cssText = "margin-bottom:6px;font-weight:600";
+    header.className = "nova-title";
     element.appendChild(header);
-    const consumer = document.createElement("div");
-    consumer.textContent = `Consumption: ${info.consumptionPerTick}/tick (population)`;
-    consumer.style.cssText = "margin-bottom:6px;color:" + TOKENS.muted;
-    element.appendChild(consumer);
+    element.appendChild(
+      staticNote(`Consumption: ${info.consumptionPerTick}/tick (population)`, "nova-note--mb"),
+    );
     if (info.producers.length === 0) {
       element.appendChild(staticNote("No producing buildings."));
       return;
     }
     for (const p of info.producers) {
-      const row = document.createElement("div");
-      row.style.cssText = "display:flex;justify-content:space-between";
+      const rowEl = row("nova-row--between");
       const name = document.createElement("span");
       name.textContent = `${p.type} · ${p.id} @ ${p.x},${p.y}`;
       const stateSpan = document.createElement("span");
-      const stateText = !p.active ? "mothballed" : p.staffed ? "staffed" : "idle";
-      stateSpan.textContent = stateText;
-      stateSpan.style.color = !p.active ? TOKENS.muted : p.staffed ? TOKENS.ok : TOKENS.warn;
-      row.append(name, stateSpan);
-      element.appendChild(row);
+      stateSpan.textContent = !p.active ? "mothballed" : p.staffed ? "staffed" : "idle";
+      stateSpan.className = !p.active
+        ? "nova-muted"
+        : p.staffed
+          ? "nova-value--ok"
+          : "nova-value--warn";
+      rowEl.append(name, stateSpan);
+      element.appendChild(rowEl);
     }
   }
 
@@ -103,24 +104,21 @@ export function createInspectionPanel(callbacks: {
     currentInspection = info;
     element.innerHTML = "";
     if (!info) {
-      element.style.display = "none";
+      element.hidden = true;
       return;
     }
-    element.style.display = "block";
+    element.hidden = false;
     element.dataset.inspection = info.kind === "building" ? info.id : "road";
     delete element.dataset.drilldown;
     inspectionLabel.textContent = info.label;
     element.appendChild(inspectionLabel);
     if (info.kind === "building") {
       if (info.detail) {
-        const detail = staticNote(info.detail);
-        detail.style.marginBottom = "6px";
-        element.appendChild(detail);
+        element.appendChild(staticNote(info.detail, "nova-note--mb"));
       }
       if (info.staffing) {
-        const staffing = staticNote(info.staffing);
+        const staffing = staticNote(info.staffing, "nova-note--mb");
         staffing.dataset.staffing = info.id;
-        staffing.style.marginBottom = "6px";
         element.appendChild(staffing);
       }
       if (info.id === "colony-center") {

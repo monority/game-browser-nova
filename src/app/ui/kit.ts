@@ -1,23 +1,10 @@
 import type { BuildingType } from "../../content/buildings.js";
 
 /**
- * UI kit: shared design tokens and DOM primitives for the panel
- * components (Step029 split). Presentation only, no simulation rules.
+ * UI kit: element factories for the panel components (Step031).
+ * Visuals live in src/styles/nova.css — factories only set semantic
+ * classes and data attributes; JS never paints styles here.
  */
-
-/** UI color tokens (docs/game/10-VISUAL-DIRECTION.md: dark but colorful). */
-export const TOKENS = {
-  bg: "rgba(11,14,20,0.88)",
-  border: "#2c3442",
-  borderActive: "#7fb069",
-  borderInfo: "#5bc0eb",
-  text: "#d8dee9",
-  muted: "#8a93a3",
-  ok: "#7fb069",
-  warn: "#d9a44a",
-  danger: "#d96a4a",
-  buttonBg: "#161b26",
-} as const;
 
 export interface SpeedSetting {
   id: "pause" | "1x" | "2x" | "4x" | "8x";
@@ -44,43 +31,12 @@ export const PALETTE_TYPES: BuildingType[] = [
   "market",
 ];
 
-/** An absolutely positioned themed panel container. */
-export function panel(
-  id: string,
-  position: Partial<CSSStyleDeclaration>,
-): { element: HTMLDivElement } {
+/** Themed absolutely positioned panel; position/layout rules live in CSS (#stats etc.). */
+export function panel(id: string): { element: HTMLDivElement } {
   const element = document.createElement("div");
   element.id = id;
-  Object.assign(element.style, {
-    position: "absolute",
-    pointerEvents: "auto",
-    background: TOKENS.bg,
-    border: "1px solid " + TOKENS.border,
-    borderRadius: "8px",
-    padding: "10px",
-    backdropFilter: "blur(6px)",
-    boxShadow: "0 4px 16px rgba(0,0,0,0.35)",
-    ...position,
-  } satisfies Partial<CSSStyleDeclaration>);
+  element.className = "nova-panel";
   return { element };
-}
-
-export function styleButton(button: HTMLButtonElement): void {
-  Object.assign(button.style, {
-    background: TOKENS.buttonBg,
-    color: TOKENS.text,
-    border: "1px solid " + TOKENS.border,
-    borderRadius: "5px",
-    padding: "4px 9px",
-    cursor: "pointer",
-    transition: "border-color 0.15s, background 0.15s",
-  } satisfies Partial<CSSStyleDeclaration>);
-  button.addEventListener("mouseenter", () => {
-    button.style.background = "#1e2534";
-  });
-  button.addEventListener("mouseleave", () => {
-    button.style.background = TOKENS.buttonBg;
-  });
 }
 
 /** Themed action button with a stable `data-action` selector key. */
@@ -92,39 +48,43 @@ export function textButton(
   const button = document.createElement("button");
   button.textContent = label;
   button.dataset.action = datasetKey;
-  styleButton(button);
+  button.className = "nova-btn";
   button.addEventListener("click", onClick);
   return button;
 }
 
 /** Muted explanatory line (states only, never instructions). */
-export function staticNote(text: string): HTMLDivElement {
+export function staticNote(text: string, extraClass?: string): HTMLDivElement {
   const note = document.createElement("div");
   note.textContent = text;
-  note.style.color = TOKENS.muted;
+  note.className = extraClass ? `nova-note ${extraClass}` : "nova-note";
   return note;
 }
 
-/** Section header style shared by stats/progression panels. */
-export function sectionHeader(text: string): HTMLDivElement {
+/** Uppercase section header; `loose` uses the 8px top margin variant. */
+export function sectionHeader(text: string, loose = false): HTMLDivElement {
   const header = document.createElement("div");
   header.textContent = text;
-  header.style.cssText =
-    "color:" +
-    TOKENS.muted +
-    ";font-size:11px;text-transform:uppercase;letter-spacing:0.08em";
+  header.className = loose ? "nova-section nova-section--loose" : "nova-section";
   return header;
 }
 
-/** Two-column label/value row. */
-export function statRow(label: string, value: string): HTMLDivElement {
+/** Two-column label/value row; `valueClass` colors the value (ok/warn/danger). */
+export function statRow(label: string, value: string, valueClass?: string): HTMLDivElement {
   const row = document.createElement("div");
-  row.style.display = "flex";
-  row.style.justifyContent = "space-between";
+  row.className = "nova-row nova-row--between";
   const labelSpan = document.createElement("span");
   labelSpan.textContent = label;
   const valueSpan = document.createElement("span");
   valueSpan.textContent = value;
+  if (valueClass) valueSpan.className = valueClass;
   row.append(labelSpan, valueSpan);
   return row;
+}
+
+/** Row-shaped div with layout classes (gap/margin variants). */
+export function row(extraClasses: string): HTMLDivElement {
+  const div = document.createElement("div");
+  div.className = `nova-row ${extraClasses}`.trim();
+  return div;
 }

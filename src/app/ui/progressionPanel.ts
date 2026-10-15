@@ -1,10 +1,10 @@
 import type { MilestoneStatus } from "../../domain/progression/progression.js";
-import { panel, textButton, TOKENS } from "./kit.js";
+import { panel, sectionHeader, statRow, textButton } from "./kit.js";
 
 /**
- * Progression panel (Step029 split): age header, milestone rows,
- * research list and the advance action. Re-rendered wholesale per
- * update — milestone/tech sets are small.
+ * Progression panel: age header, milestone rows, research list and the
+ * advance action. Re-rendered wholesale per update — milestone/tech
+ * sets are small.
  */
 
 export interface ProgressionInfo {
@@ -33,50 +33,37 @@ export function createProgressionPanel(callbacks: {
   onResearchTech(techId: string): void;
   onAdvanceAge(): void;
 }): ProgressionPanel {
-  const { element } = panel("progression", { bottom: "110px", right: "12px", width: "240px" });
-
-  function sectionLabel(text: string): HTMLDivElement {
-    const label = document.createElement("div");
-    label.textContent = text;
-    label.style.cssText =
-      "color:" +
-      TOKENS.muted +
-      ";font-size:11px;text-transform:uppercase;letter-spacing:0.08em;margin:6px 0 2px";
-    return label;
-  }
+  const { element } = panel("progression");
 
   function update(info: ProgressionInfo): void {
     element.innerHTML = "";
     const header = document.createElement("div");
     header.textContent = `${info.ageName} (Age ${info.age})`;
-    header.style.cssText = "font-weight:600;margin-bottom:6px";
+    header.className = "nova-title";
     element.appendChild(header);
 
-    element.appendChild(sectionLabel("Milestones"));
+    element.appendChild(sectionHeader("Milestones"));
     for (const milestone of info.milestones) {
-      const row = document.createElement("div");
-      row.style.cssText = "display:flex;justify-content:space-between";
-      const label = document.createElement("span");
-      label.textContent = milestone.label;
-      const value = document.createElement("span");
-      value.textContent = milestone.done
-        ? "✓"
-        : `${Math.min(milestone.value, milestone.threshold)}/${milestone.threshold}`;
-      value.style.color = milestone.done ? TOKENS.ok : TOKENS.text;
-      row.append(label, value);
-      element.appendChild(row);
+      const valueClass = milestone.done ? "nova-value--ok" : undefined;
+      element.appendChild(
+        statRow(
+          milestone.label,
+          milestone.done
+            ? "✓"
+            : `${Math.min(milestone.value, milestone.threshold)}/${milestone.threshold}`,
+          valueClass,
+        ),
+      );
     }
 
-    const researchHeader = sectionLabel("Research");
-    researchHeader.style.margin = "8px 0 2px";
-    element.appendChild(researchHeader);
+    element.appendChild(sectionHeader("Research", true));
     const researched = document.createElement("div");
     researched.textContent =
       info.researchedTechs.length > 0
         ? "Researched: " +
           info.researchedTechs.map((id) => TECH_NAMES[id] ?? id).join(", ")
         : "Researched: none";
-    researched.style.cssText = "color:" + TOKENS.muted + ";margin-bottom:4px";
+    researched.className = "nova-sub";
     element.appendChild(researched);
     for (const tech of info.availableTechs) {
       const button = textButton(`${tech.displayName} (${tech.cost}$)`, `research-${tech.id}`, () => {
@@ -89,7 +76,7 @@ export function createProgressionPanel(callbacks: {
       const advance = textButton(`Advance to Age ${info.age + 1}`, "advance-age", () => {
         callbacks.onAdvanceAge();
       });
-      advance.style.borderColor = TOKENS.borderActive;
+      advance.classList.add("nova-btn--accent");
       element.appendChild(advance);
     }
   }

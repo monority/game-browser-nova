@@ -2,7 +2,6 @@ import type { BuildingType } from "../content/buildings.js";
 import type { ColonyStats } from "../application/queries/stats.js";
 import type { ResourceContributors, ResourceForecast, Alert, SurvivalResource } from "../application/queries/analysis.js";
 import type { OverlayMode } from "../renderer/overlay.js";
-import { TOKENS } from "./ui/kit.js";
 import { createStatsPanel } from "./ui/statsPanel.js";
 import { createControlsPanel } from "./ui/controlsPanel.js";
 import { createInspectionPanel, type InspectionInfo, type RemoveBuildingInfo, type RemoveRoadInfo } from "./ui/inspectionPanel.js";
@@ -55,14 +54,6 @@ export interface UiCallbacks {
 export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   const root = document.createElement("div");
   root.id = "ui";
-  Object.assign(root.style, {
-    position: "absolute",
-    inset: "0",
-    pointerEvents: "none",
-    fontFamily: "system-ui, sans-serif",
-    fontSize: "13px",
-    color: TOKENS.text,
-  } satisfies Partial<CSSStyleDeclaration>);
   container.appendChild(root);
 
   const stats = createStatsPanel({ onForecastRowClick: callbacks.onForecastRowClick });
@@ -87,32 +78,13 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
 
   // --- status line -------------------------------------------------------------
   const status = document.createElement("div");
-  Object.assign(status.style, {
-    position: "absolute",
-    bottom: "96px",
-    left: "12px",
-    pointerEvents: "none",
-    padding: "4px 8px",
-    background: TOKENS.bg,
-    borderRadius: "4px",
-    minHeight: "18px",
-  } satisfies Partial<CSSStyleDeclaration>);
+  status.className = "nova-status";
   root.appendChild(status);
 
   // --- hover tooltip -----------------------------------------------------------
   const tooltip = document.createElement("div");
-  Object.assign(tooltip.style, {
-    position: "absolute",
-    display: "none",
-    pointerEvents: "none",
-    padding: "3px 7px",
-    background: "rgba(11,14,20,0.92)",
-    border: "1px solid " + TOKENS.border,
-    borderRadius: "4px",
-    fontSize: "12px",
-    whiteSpace: "nowrap",
-    zIndex: "5",
-  } satisfies Partial<CSSStyleDeclaration>);
+  tooltip.className = "nova-tooltip";
+  tooltip.hidden = true;
   root.appendChild(tooltip);
 
   return {
@@ -132,13 +104,13 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     },
     showTooltip(text, clientX, clientY) {
       if (!text || clientX === undefined || clientY === undefined) {
-        tooltip.style.display = "none";
+        tooltip.hidden = true;
         return;
       }
       tooltip.textContent = text;
       tooltip.style.left = `${clientX + 14}px`;
       tooltip.style.top = `${clientY + 14}px`;
-      tooltip.style.display = "block";
+      tooltip.hidden = false;
     },
   };
 }

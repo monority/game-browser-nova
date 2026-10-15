@@ -1,12 +1,15 @@
 import type { BuildingType } from "../../content/buildings.js";
 import { BUILDING_DEFINITIONS } from "../../content/buildings.js";
 import type { OverlayMode } from "../../renderer/overlay.js";
-import { PALETTE_TYPES, SPEED_SETTINGS, panel, styleButton, textButton, TOKENS } from "./kit.js";
+import { PALETTE_TYPES, SPEED_SETTINGS, panel, row, textButton } from "./kit.js";
 
 /**
- * Controls panel (Step029 split): the bottom bar — build palette with
- * age locks, road mode, save/load, overlay toggles, time controls.
- * Owns the placement selection state (selectedType / roadsEnabled).
+ * Controls panel: the bottom bar — build palette with age locks, road
+ * mode, save/load, overlay toggles, time controls. Owns the placement
+ * selection state (selectedType / roadsEnabled).
+ *
+ * State is expressed as data-attributes / native attrs (selected,
+ * active, disabled, hidden); nova.css paints them.
  */
 
 export interface ControlsPanel {
@@ -31,6 +34,15 @@ function paletteLabel(type: BuildingType): string {
   return `${definition.displayName} (${definition.moneyCost}$${definition.plankCost > 0 ? ` +${definition.plankCost}pl` : ""})`;
 }
 
+/** Mark one button active in its row; clears the siblings' data-active. */
+function setActive(container: HTMLElement, active: HTMLElement | null): void {
+  for (const child of container.children) {
+    if (child === active) continue;
+    delete (child as HTMLElement).dataset.active;
+  }
+  if (active) active.dataset.active = "true";
+}
+
 export function createControlsPanel(callbacks: {
   onBuildTypeSelected(type: BuildingType | null): void;
   onRoadModeToggled(enabled: boolean): void;
@@ -44,16 +56,14 @@ export function createControlsPanel(callbacks: {
   let availableTypes: BuildingType[] = [...PALETTE_TYPES];
   let ageLockedTypes: BuildingType[] = [];
 
-  const { element } = panel("controls", { bottom: "12px", left: "12px", right: "12px" });
+  const { element } = panel("controls");
 
-  const paletteRow = document.createElement("div");
-  paletteRow.style.display = "flex";
-  paletteRow.style.gap = "6px";
+  const paletteRow = row("nova-row--gap");
   for (const type of PALETTE_TYPES) {
     const button = document.createElement("button");
     button.dataset.buildType = type;
     button.textContent = paletteLabel(type);
-    styleButton(button);
+    button.className = "nova-btn";
     button.addEventListener("click", () => {
       selectedType = selectedType === type ? null : type;
       if (selectedType) setRoads(false);
@@ -65,7 +75,7 @@ export function createControlsPanel(callbacks: {
   const roadButton = document.createElement("button");
   roadButton.dataset.road = "true";
   roadButton.textContent = "Road (5$/cell)";
-  styleButton(roadButton);
+  roadButton.className = "nova-btn";
   roadButton.addEventListener("click", () => {
     setRoads(!roadsEnabled);
     refreshPalette();
@@ -74,30 +84,20 @@ export function createControlsPanel(callbacks: {
   const saveButton = textButton("Save", "save", callbacks.onSave);
   const loadButton = textButton("Load", "load", callbacks.onLoad);
 
-  const speedRow = document.createElement("div");
-  speedRow.style.display = "flex";
-  speedRow.style.gap = "6px";
-  speedRow.style.marginTop = "6px";
+  const speedRow = row("nova-row--gap nova-row--mt");
   for (const setting of SPEED_SETTINGS) {
     const button = textButton(setting.id, `speed-${setting.id}`, () => {
       callbacks.onSpeedChanged(setting.ticksPerSecond, setting.id);
-      for (const child of speedRow.children) {
-        (child as HTMLElement).style.borderColor = TOKENS.border;
-      }
-      button.style.borderColor = TOKENS.borderActive;
+      setActive(speedRow, button);
     });
+    button.classList.add("nova-speed-btn");
     speedRow.appendChild(button);
   }
 
-  const controlsRow = document.createElement("div");
-  controlsRow.style.display = "flex";
-  controlsRow.style.gap = "6px";
-  controlsRow.style.flexWrap = "wrap";
+  const controlsRow = row("nova-row--gap nova-row--wrap");
   controlsRow.append(roadButton, saveButton, loadButton);
 
-  // --- overlay toggle group --------------------------------------------------
-  const overlayRow = document.createElement("div");
-  overlayRow.style.cssText = "display:flex;gap:6px;margin-top:6px";
+  const overlayRow = row("nova-row--gap nova-row--mt");
   const overlayModes: Array<[OverlayMode, string]> = [
     ["none", "No overlay"],
     ["staffing", "Staffing"],
@@ -106,18 +106,19 @@ export function createControlsPanel(callbacks: {
   for (const [mode, label] of overlayModes) {
     const button = textButton(label, `overlay-${mode}`, () => {
       callbacks.onOverlayChanged(mode);
-      for (const child of overlayRow.children) {
-        (child as HTMLElement).style.borderColor = TOKENS.border;
-      }
-      button.style.borderColor = TOKENS.borderInfo;
+      setActive(overlayRow, button);
     });
+    button.classList.add("nova-overlay-btn");
     button.title = OVERLAY_LEGENDS[mode];
     overlayRow.appendChild(button);
   }
 
   element.append(controlsRow, paletteRow, overlayRow, speedRow);
 
-  /** One place that reconciles available / age-locked / hidden palette state. */
+  /**
+   * One place that reconciles palette state: native hidden/disabled
+   * attributes plus data-locked; CSS paints the three states.
+   */
   function applyPaletteVisibility(): void {
     for (const child of paletteRow.children) {
       const button = child as HTMLButtonElement;
@@ -125,20 +126,19 @@ export function createControlsPanel(callbacks: {
       if (ageLockedTypes.includes(type)) {
         const requiredAge = BUILDING_DEFINITIONS[type].requiredAge ?? 1;
         button.textContent = `${paletteLabel(type)} — requires Age ${requiredAge}`;
-        button.disabled = true;
         button.title = `Unlocks in Age ${requiredAge}`;
-        button.style.display = "";
-        button.style.opacity = "0.45";
-        button.style.cursor = "not-allowed";
+        button.dataset.locked = "true";
+        button.disabled = true;
+        button.hidden = false;
       } else if (availableTypes.includes(type)) {
         button.textContent = paletteLabel(type);
-        button.disabled = false;
         button.title = "";
-        button.style.display = "";
-        button.style.opacity = "";
-        button.style.cursor = "pointer";
+        delete button.dataset.locked;
+        button.disabled = false;
+        button.hidden = false;
       } else {
-        button.style.display = "none";
+        button.hidden = true;
+        button.disabled = true;
       }
     }
   }
@@ -146,10 +146,11 @@ export function createControlsPanel(callbacks: {
   function refreshPalette(): void {
     for (const child of paletteRow.children) {
       const button = child as HTMLElement;
-      button.style.borderColor =
-        button.dataset.buildType === selectedType ? TOKENS.borderActive : TOKENS.border;
+      if (button.dataset.buildType === selectedType) button.dataset.selected = "true";
+      else delete button.dataset.selected;
     }
-    roadButton.style.borderColor = roadsEnabled ? TOKENS.borderActive : TOKENS.border;
+    if (roadsEnabled) roadButton.dataset.active = "true";
+    else delete roadButton.dataset.active;
     if (!selectedType && !roadsEnabled) callbacks.onBuildTypeSelected(null);
     else if (selectedType) callbacks.onBuildTypeSelected(selectedType);
   }
@@ -173,7 +174,7 @@ export function createControlsPanel(callbacks: {
     refreshPalette();
   }
 
-  // initial paint: palette borders; createUi's caller (boot) runs a
+  // initial paint: palette state; createUi's caller (boot) runs a
   // refreshStats() right after creation which applies age locks
   refreshPalette();
 
