@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | S1–S4 structure slices executed (S1 CSS tokens `2e58ecf`, S2 boot split `a09cacd`, S3 hygiene `eb29737`, S4 `@/` alias `ac0cd3c`) |
+| HEAD | Step031 storage + cleanup (warehouse `d746482`, palette dedup + vendor chunk `dfdcb09`) |
 | Working tree | Untracked only: `prompt.md` (preserved per its header) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, post-S4) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-15, post-S4) |
-| Unit tests | PASS — `npx vitest run`: 18 files / 218 tests, all green (2026-10-15, post-S4; +1 serialize-detach regression) |
-| E2E | PASS — Playwright `e2e/nova.spec.ts`: 15/15 scenarios (2026-10-15, post-S4; `__nova` + selector contracts untouched) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build) (2026-10-15, post-S4) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, Step031) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-15, Step031) |
+| Unit tests | PASS — `npx vitest run`: 19 files / 230 tests, all green (2026-10-15, Step031; +12 storage) |
+| E2E | PASS — Playwright `e2e/nova.spec.ts`: 15/15 scenarios (2026-10-15, Step031; MVP loop drains stock before growth proof) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 53kB + three 471kB vendor chunk) (2026-10-15, Step031) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
