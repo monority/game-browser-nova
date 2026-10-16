@@ -26,7 +26,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step033 settings (prefs module, reset action, boot restore) |
+| HEAD | Step034 over-export verdict, no-op (docs-only) |
 | Working tree | Untracked only: `prompt.md` (preserved per its header) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
@@ -108,7 +108,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step033 settings, implemented (see `docs/roadmap/Step033-settings.md`): prefs module + reset action + boot restore; 249 unit, 19/19 E2E.
+Step034 over-export sweep, verified no-op (see `docs/roadmap/Step034-over-export-verdict.md`): all 223 src exports have ≥1 external referrer; no code changes.
 
 ---
 
