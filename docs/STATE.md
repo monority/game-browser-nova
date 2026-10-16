@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step030 executed S1–S4 (see `docs/roadmap/Step030-structure-plan.md`): S1 CSS tokens layer (`src/styles/nova.css`, `main.ts` entry 6l via S2 `app/boot.ts` + `input.ts` + `loop.ts` + `diagnostics.ts`), S3 hygiene (`check` script, serialize detach), S4 `@/` alias (`tsconfig.paths` + vite alias, sibling `./x.js` imports kept relative).
+Step031 storage capacity, implemented (see `docs/roadmap/Step031-storage.md`): derived food/water caps (base 120/80, +60/40 per operational warehouse at 25$ + 2 planks, upkeep 1, unstaffed); tick clamps true surplus after consumption; storage-full alerts; caps in stats; treasury uncapped. No save migration. Cleanup: single palette order source, three vendor chunk (app 53kB + three 471kB).
 
 ---
 
