@@ -33,7 +33,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, Step031) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-15, Step031) |
 | Unit tests | PASS — `npx vitest run`: 19 files / 235 tests, all green (2026-10-16, Step032; +2 loop guard) |
-| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction): 15/15 scenarios (2026-10-15, Step031; MVP loop drains stock before growth proof) |
+| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction): 15/15 scenarios, executed 2026-10-16 on local Chromium (Step032; browsers installed this session, no CI yet) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 53kB + three 471kB vendor chunk) (2026-10-15, Step031) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
