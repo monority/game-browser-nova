@@ -67,7 +67,12 @@ export function connectedMarkets(state: GameState): number {
   return count;
 }
 
-/** Pure forecast of next-tick market sales (food units, before pricing). */
+/**
+ * Pure forecast of market sales (food units, before pricing).
+ * Read on pre-tick state it equals what the market will sell this tick;
+ * read on post-tick state it projects next-tick sales. The UI calls it
+ * post-tick, so the drain shown is next tick's.
+ */
 export function expectedMarketSales(state: GameState): number {
   const markets = connectedMarkets(state);
   if (markets === 0) return 0;

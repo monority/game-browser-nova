@@ -12,6 +12,12 @@ import {
   sellMarketSurplus,
 } from "@/domain/economy/economy.js";
 import { getColonyStats } from "@/application/queries/stats.js";
+import {
+  consumeFood,
+  consumeWater,
+  produceFood,
+  produceWater,
+} from "@/domain/production/production.js";
 import { getResourceSummaries } from "@/application/queries/analysis.js";
 import { parseSave, serialize, SAVE_VERSION } from "@/application/persistence/save.js";
 import { BUILDING_PALETTE, createBuildingMeshes } from "@/renderer/shapes.js";
@@ -141,6 +147,36 @@ describe("market stats and forecast", () => {
     expect(summaries.food.consumptionPerTick).toBe(1);
     expect(summaries.food.balancePerTick).toBe(0); // 3 - 1 - 2 market drain
   });
+});
+
+describe("market forecast precision", () => {
+  // The forecast read on pre-tick state equals the units the market
+  // actually sells that tick (surplus, exact, famine, per-market cap).
+  // Read on post-tick state it projects next-tick sales instead — the
+  // UI calls it post-tick, so the drain shown is next tick's.
+  const cases: Array<{ food: number; population: number; expected: number; farm: boolean }> = [
+    { food: 10, population: 1, expected: 2, farm: true }, // surplus
+    { food: 0, population: 3, expected: 0, farm: true }, // exact: production 3 == requirement 3
+    { food: 0, population: 5, expected: 0, farm: false }, // famine: trickle alone cannot feed 5
+    { food: 500, population: 1, expected: 2, farm: true }, // cap: one market sells at most 2
+  ];
+  for (const c of cases) {
+    it(`forecast ${c.expected}, sells ${c.expected} (food ${c.food}, pop ${c.population})`, () => {
+      const state = freshState();
+      placeConnectedMarket(state);
+      if (c.farm) placeConnectedFarm(state);
+      state.population = c.population;
+      stepTicks(state, 2); // farm staffed when present
+      state.resources.food = c.food;
+      expect(expectedMarketSales(state)).toBe(c.expected);
+      // mirror tick phases 2+5, then the market sale
+      produceFood(state);
+      produceWater(state);
+      consumeFood(state);
+      consumeWater(state);
+      expect(sellMarketSurplus(state)).toBe(c.expected);
+    });
+  }
 });
 
 describe("market persistence and rendering", () => {
