@@ -42,7 +42,7 @@ export function plankThroughput(state: GameState): number {
   return state.resources.wood >= workshops * WOOD_PER_PLANK_BATCH ? workshops : 0;
 }
 
-/** Tick phase 4e: plank transformation. Returns the planks produced. */
+/** Tick phase 4: plank transformation. Returns the planks produced. */
 export function producePlanks(state: GameState): number {
   const workshops = plankThroughput(state);
   if (workshops === 0) return 0;

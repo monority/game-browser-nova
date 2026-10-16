@@ -33,7 +33,7 @@ function extractShares(
   return taken;
 }
 
-/** Tick phase 4c: wood extraction (staffed camps + unstaffed Colony Center). */
+/** Tick phase 3: wood extraction (staffed camps + unstaffed Colony Center). */
 export function produceWood(state: GameState): void {
   const sources: Array<{ x: number; y: number; share: number }> = [];
   for (const building of Object.values(state.buildings)) {
@@ -50,7 +50,7 @@ export function produceWood(state: GameState): void {
   addWood(state.resources, extracted);
 }
 
-/** Tick phase 4d: stone extraction (staffed quarries only — the anchor collects no stone). */
+/** Tick phase 3: stone extraction (staffed quarries only — the anchor collects no stone). */
 export function produceStone(state: GameState): void {
   const sources: Array<{ x: number; y: number; share: number }> = [];
   for (const building of Object.values(state.buildings)) {

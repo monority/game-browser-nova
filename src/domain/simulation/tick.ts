@@ -15,17 +15,16 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *
  * Current pipeline (mirrors the validated phase order):
  *   1. advanceConstruction
- *   3. produceFood / 4. produceWater   (previous tick's staffing)
- *   4c. produceWood / 4d. produceStone (extraction from finite deposits)
- *   4e. producePlanks (Workshop transformation, 2 wood → 1 plank)
+ *   2. produceFood / produceWater (previous tick's staffing)
+ *   3. produceWood / produceStone (extraction from finite deposits)
+ *   4. producePlanks (Workshop transformation, 2 wood → 1 plank)
  *   5. consumeFood (all-or-nothing) / consumeWater
- *   5b. clampStorage (Step031: food/water capped, true surplus lost —
+ *   6. clampStorage (Step031: food/water capped, true surplus lost —
  *       runs after consumption so the clamp never eats what colonists
  *       would have consumed this tick)
- *   6. updatePopulation (starvation + admission)
- *   6. updatePopulation (starvation + admission)
- *   7. assignJobs (next tick's staffing)
- *   8. collectRevenue → 9. payMaintenance (money model, same-tick inflow)
+ *   7. updatePopulation (starvation + admission)
+ *   8. assignJobs (next tick's staffing)
+ *   9. collectRevenue → payMaintenance (money model, same-tick inflow)
  *   10. updateEnvironment (pollution flows + park wood regrowth)
  */
 export function stepSimulation(state: GameState): GameState {

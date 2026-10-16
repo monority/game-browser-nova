@@ -1,4 +1,12 @@
-# NOVA — Current Task
+# NOVA — Task Pointer (archived Step015 content below)
+
+> Current source of truth: `docs/STATE.md` (repository state) and
+> `docs/roadmap/` (per-step reports, Step000–Step031). This file's
+> Step015 task completed 2026-10-12; kept as pointer only.
+
+---
+
+# NOVA — Current Task (Step015, completed 2026-10-12)
 
 ## Objective
 
