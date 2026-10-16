@@ -26,13 +26,13 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step031 storage + cleanup (warehouse `d746482`, palette dedup + vendor chunk `dfdcb09`) |
+| HEAD | Step032 loop guard + load refresh (`loop.ts` onError, boot pause+status; load repaints UI) |
 | Working tree | Untracked only: `prompt.md` (preserved per its header) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, Step031) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-15, Step031) |
-| Unit tests | PASS — `npx vitest run`: 19 files / 230 tests, all green (2026-10-15, Step031; +12 storage) |
+| Unit tests | PASS — `npx vitest run`: 19 files / 235 tests, all green (2026-10-16, Step032; +2 loop guard) |
 | E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction): 15/15 scenarios (2026-10-15, Step031; MVP loop drains stock before growth proof) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 53kB + three 471kB vendor chunk) (2026-10-15, Step031) |
 
@@ -100,7 +100,6 @@ Examples of explicitly deferred systems:
 - advanced global economy;
 - advanced events;
 - building removal refunds (no-refund policy decided, Step008);
-- storage capacity mechanics;
 - fertility beyond Step014 pollution/quality/parks.
 
 Do not implement deferred scope without an explicit product decision.
@@ -109,7 +108,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step031 storage capacity, implemented (see `docs/roadmap/Step031-storage.md`): derived food/water caps (base 120/80, +60/40 per operational warehouse at 25$ + 2 planks, upkeep 1, unstaffed); tick clamps true surplus after consumption; storage-full alerts; caps in stats; treasury uncapped. No save migration. Cleanup: single palette order source, three vendor chunk (app 53kB + three 471kB).
+Step032 loop guard + load refresh, implemented (see `docs/roadmap/Step032-loop-guard-load-refresh.md`): tick exceptions stop the loop deliberately with pause + status (no silent freeze); load repaints stats/palette/inspection. E2E execution still blocked (no browsers).
 
 ---
 

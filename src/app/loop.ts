@@ -7,6 +7,7 @@
 export function startFixedTimestepLoop(
   onTick: () => void,
   tickMs: () => number,
+  onError?: (error: unknown) => void,
 ): { stop(): void } {
   let last = performance.now();
   let accumulator = 0;
@@ -19,9 +20,19 @@ export function startFixedTimestepLoop(
     last = now;
     accumulator = Math.min(accumulator, 1000);
     const step = tickMs();
-    while (accumulator >= step) {
-      onTick();
-      accumulator -= step;
+    try {
+      while (accumulator >= step) {
+        onTick();
+        accumulator -= step;
+      }
+    } catch (error) {
+      // A throwing tick must never kill the loop silently: stop
+      // deliberately (no reschedule below) and report through onError
+      // so the app can pause and tell the player what happened.
+      stopped = true;
+      cancelAnimationFrame(frameHandle);
+      onError?.(error);
+      return;
     }
     frameHandle = requestAnimationFrame(frame);
   }

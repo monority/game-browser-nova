@@ -107,6 +107,8 @@ export function boot(root: HTMLElement): { stop(): void } {
       try {
         const loaded = parseSaveString(text);
         swapState(loaded);
+        ui.showInspection(null);
+        refreshStats();
         ui.setStatus("Colony loaded.");
       } catch (error) {
         ui.setStatus(
@@ -194,6 +196,12 @@ export function boot(root: HTMLElement): { stop(): void } {
       refreshStats();
     },
     () => (paused ? Infinity : BASE_TICK_MS / ticksPerSecond),
+    (error) => {
+      paused = true;
+      ui?.setStatus(
+        `Simulation halted: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    },
   );
 
   // Boot-time paint (Step028 corrective): palette age gates, stats and
