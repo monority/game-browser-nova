@@ -2,6 +2,7 @@ import { createInitialState, type GameState } from "@/domain/simulation/state.js
 import { stepSimulation } from "@/domain/simulation/tick.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { createRenderer, type Renderer } from "@/renderer/renderer.js";
+import type { OverlayMode } from "@/renderer/overlay.js";
 import { getColonyStats } from "@/application/queries/stats.js";
 import { getResourceSummaries, getAlerts, getResourceContributors } from "@/application/queries/analysis.js";
 import { evaluateMilestones, canAdvanceAge, hasTech } from "@/domain/progression/progression.js";
@@ -12,9 +13,17 @@ import { createUi, type Ui } from "./ui.js";
 import { PALETTE_TYPES } from "./ui/kit.js";
 import {
   parseSaveString,
+  SAVE_STORAGE_KEY,
   saveToString,
   SaveValidationError,
 } from "@/application/persistence/save.js";
+import {
+  clearSaveSlot,
+  coerceOverlayMode,
+  coerceSpeedId,
+  loadPreferences,
+  savePreferences,
+} from "@/application/persistence/preferences.js";
 import { attachInput } from "./input.js";
 import { startFixedTimestepLoop } from "./loop.js";
 import { attachDiagnostics } from "./diagnostics.js";
@@ -26,7 +35,6 @@ import { attachDiagnostics } from "./diagnostics.js";
  */
 
 const BASE_TICK_MS = 500; // 1x speed — fixed simulation tick
-const SAVE_STORAGE_KEY = "nova-save";
 
 const DEFAULT_CONFIG = {
   seed: "nova-default",
@@ -49,6 +57,7 @@ export function boot(root: HTMLElement): { stop(): void } {
   let ticksPerSecond = 2; // 1x
   let paused = false;
   let lastSpeedId = "1x";
+  let overlayMode: OverlayMode = "none";
 
   function swapState(next: GameState): void {
     state = next;
@@ -87,6 +96,10 @@ export function boot(root: HTMLElement): { stop(): void } {
         ticksPerSecond = tps;
         lastSpeedId = id;
       }
+      savePreferences(localStorage, {
+        speedId: coerceSpeedId(id),
+        overlay: overlayMode,
+      });
     },
     onSave: () => {
       if (!ui) return;
@@ -117,6 +130,17 @@ export function boot(root: HTMLElement): { stop(): void } {
             : `Load failed: ${String(error)}`,
         );
       }
+    },
+    onResetSave: () => {
+      if (!ui) return;
+      const result = clearSaveSlot(localStorage, SAVE_STORAGE_KEY);
+      ui.setStatus(
+        result === "cleared"
+          ? "Save slot cleared."
+          : result === "empty"
+            ? "No saved colony found."
+            : "Reset failed: storage unavailable.",
+      );
     },
     onBuildTypeSelected: () => {
       /* selection state lives in the UI; hover/click read it each event */
@@ -153,8 +177,13 @@ export function boot(root: HTMLElement): { stop(): void } {
     },
     onOverlayChanged: (mode) => {
       if (!ui) return;
+      overlayMode = mode;
       renderer.setOverlay(mode);
       ui.setStatus(mode === "none" ? "" : `Overlay: ${mode}`);
+      savePreferences(localStorage, {
+        speedId: coerceSpeedId(lastSpeedId),
+        overlay: coerceOverlayMode(mode),
+      });
     },
     onForecastRowClick: (resource) => {
       ui?.showDrillDown(getResourceContributors(state, resource));
@@ -174,6 +203,21 @@ export function boot(root: HTMLElement): { stop(): void } {
       refreshStats();
     },
   });
+
+  // Restore UI preferences (Step033): click the real buttons so the
+  // tested handlers run (speed state + active markers + overlay +
+  // status). Valid saved values win; missing/invalid fall back to the
+  // defaults above. `lastSpeedId` starts at "1x", so a restored pause
+  // keeps Space-resume working.
+  {
+    const prefs = loadPreferences(localStorage);
+    ui?.root
+      .querySelector<HTMLButtonElement>(`button[data-action='speed-${prefs.speedId}']`)
+      ?.click();
+    ui?.root
+      .querySelector<HTMLButtonElement>(`button[data-action='overlay-${prefs.overlay}']`)
+      ?.click();
+  }
 
   const input = attachInput({
     root,

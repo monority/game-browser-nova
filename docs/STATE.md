@@ -26,14 +26,14 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step032 loop guard + load refresh (`loop.ts` onError, boot pause+status; load repaints UI) |
+| HEAD | Step033 settings (prefs module, reset action, boot restore) |
 | Working tree | Untracked only: `prompt.md` (preserved per its header) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, Step031) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-15, Step031) |
-| Unit tests | PASS — `npx vitest run`: 19 files / 235 tests, all green (2026-10-16, Step032; +2 loop guard) |
-| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction): 15/15 scenarios, executed 2026-10-16 on local Chromium (Step032; browsers installed this session, no CI yet) |
+| Unit tests | PASS — `npx vitest run`: 20 files / 249 tests, all green (2026-10-16, Step033; +14 preferences) |
+| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings): 19/19 scenarios, executed 2026-10-16 on local Chromium (Step033) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 53kB + three 471kB vendor chunk) (2026-10-15, Step031) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
@@ -108,7 +108,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step032 loop guard + load refresh, implemented (see `docs/roadmap/Step032-loop-guard-load-refresh.md`): tick exceptions stop the loop deliberately with pause + status (no silent freeze); load repaints stats/palette/inspection. E2E execution still blocked (no browsers).
+Step033 settings, implemented (see `docs/roadmap/Step033-settings.md`): prefs module + reset action + boot restore; 249 unit, 19/19 E2E.
 
 ---
 

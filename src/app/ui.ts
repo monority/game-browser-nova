@@ -42,6 +42,7 @@ export interface UiCallbacks {
   onSpeedChanged(ticksPerSecond: number, id: string): void;
   onSave(): void;
   onLoad(): void;
+  onResetSave(): void;
   onRemoveBuilding(id: string): void;
   onRemoveRoadCell(cell: string): void;
   onSetBuildingActive(id: string, active: boolean): void;
@@ -63,6 +64,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     onSpeedChanged: callbacks.onSpeedChanged,
     onSave: callbacks.onSave,
     onLoad: callbacks.onLoad,
+    onResetSave: callbacks.onResetSave,
     onOverlayChanged: callbacks.onOverlayChanged,
   });
   const inspection = createInspectionPanel({

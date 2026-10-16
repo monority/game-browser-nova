@@ -49,6 +49,7 @@ export function createControlsPanel(callbacks: {
   onSpeedChanged(ticksPerSecond: number, id: string): void;
   onSave(): void;
   onLoad(): void;
+  onResetSave(): void;
   onOverlayChanged(mode: OverlayMode): void;
 }): ControlsPanel {
   let selectedType: BuildingType | null = null;
@@ -84,6 +85,35 @@ export function createControlsPanel(callbacks: {
   const saveButton = textButton("Save", "save", callbacks.onSave);
   const loadButton = textButton("Load", "load", callbacks.onLoad);
 
+  // Destructive reset needs confirmation: first click arms (the armed
+  // label is the confirmation prompt), second click within the window
+  // deletes. Arming expires silently; nothing is ever deleted on arm.
+  const RESET_LABEL = "Reset saved colony";
+  const RESET_ARMED_LABEL = "Confirm reset?";
+  const RESET_ARM_MS = 8000;
+  let resetArmed = false;
+  let resetTimer: ReturnType<typeof setTimeout> | undefined;
+  function disarmReset(resetButton: HTMLButtonElement): void {
+    resetArmed = false;
+    if (resetTimer !== undefined) {
+      clearTimeout(resetTimer);
+      resetTimer = undefined;
+    }
+    resetButton.textContent = RESET_LABEL;
+    resetButton.title = "";
+  }
+  const resetButton = textButton(RESET_LABEL, "reset-save", () => {
+    if (!resetArmed) {
+      resetArmed = true;
+      resetButton.textContent = RESET_ARMED_LABEL;
+      resetButton.title = "Click again to delete the saved colony";
+      resetTimer = setTimeout(() => disarmReset(resetButton), RESET_ARM_MS);
+      return;
+    }
+    disarmReset(resetButton);
+    callbacks.onResetSave();
+  });
+
   const speedRow = row("nova-row--gap nova-row--mt");
   for (const setting of SPEED_SETTINGS) {
     const button = textButton(setting.id, `speed-${setting.id}`, () => {
@@ -95,7 +125,7 @@ export function createControlsPanel(callbacks: {
   }
 
   const controlsRow = row("nova-row--gap nova-row--wrap");
-  controlsRow.append(roadButton, saveButton, loadButton);
+  controlsRow.append(roadButton, saveButton, loadButton, resetButton);
 
   const overlayRow = row("nova-row--gap nova-row--mt");
   const overlayModes: Array<[OverlayMode, string]> = [

@@ -25,6 +25,8 @@ import type { WorldConfig } from "@/domain/world/world.js";
 export const SAVE_VERSION = 17;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
+/** The single localStorage slot this game reads and writes. */
+export const SAVE_STORAGE_KEY = "nova-save";
 
 export interface SaveDocument {
   formatVersion: number;
