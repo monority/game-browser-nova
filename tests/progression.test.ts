@@ -17,6 +17,7 @@ import {
   serialize,
 } from "@/application/persistence/save.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { AGE_NAMES } from "@/content/progression.js";
 
 const CONFIG = { seed: "progression-test", width: 16, height: 16 };
 
@@ -232,6 +233,86 @@ describe("market1 milestone (Step024)", () => {
       const restored = parseSave(serialize(state));
       expect(restored).toEqual(state);
       expect(evaluateMilestones(restored, 2)).toEqual(before);
+    });
+  });
+
+describe("age-3 prosperity set (Step035)", () => {
+    function age3State(): GameState {
+      const state = freshState();
+      state.age = 3;
+      state.resources.money = 5000;
+      state.resources.planks = 20;
+      return state;
+    }
+
+    function completeColony(state: GameState): void {
+      // D2 ships 10 res / 2 shops / 22 buildings; top up to thresholds.
+      // Milestones read operational+active only — no roads or staffing needed.
+      for (let i = 0; i < 10; i++) {
+        const cell = freeCell(state);
+        mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: cell.x, y: cell.y }));
+      }
+      const shop = freeCell(state);
+      mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: shop.x, y: shop.y }));
+      stepTicks(state, 2); // operational
+      state.population = 20;
+    }
+
+    function age3Status(state: GameState) {
+      const found = evaluateMilestones(state, 3);
+      if (found.length !== 5) throw new Error("age-3 set must have 5 entries");
+      return found;
+    }
+
+    it("age-3 set has 5 entries; D2 baseline completes none of the count gates", () => {
+      expect(AGE_NAMES[3]).toBe("Age of Prosperity");
+      const state = age3State();
+      const done = Object.fromEntries(age3Status(state).map((m) => [m.id, m.done]));
+      // D2: pop10, money5000 (test grant), 22 buildings, 10 res, 2 shops
+      expect(done).toEqual({ pop20: false, tre1500: true, bld30: false, res20: false, shop3: false });
+      expect(canAdvanceAge(state)).toBe(false);
+    });
+
+    it("age 3 cannot advance when tre1500 is the sole unmet prerequisite", () => {
+      const state = age3State();
+      completeColony(state);
+      state.resources.money = 1000; // everything else done; treasury short
+      const done = Object.fromEntries(age3Status(state).map((m) => [m.id, m.done]));
+      expect(done).toEqual({ pop20: true, tre1500: false, bld30: true, res20: true, shop3: true });
+      expect(canAdvanceAge(state)).toBe(false);
+      expect(applyCommand(state, { kind: "advanceAge" })).toEqual({
+        ok: false,
+        reason: "milestonesIncomplete",
+      });
+      state.resources.money = 2000;
+      expect(canAdvanceAge(state)).toBe(true);
+    });
+
+    it("mothballed workshops un-complete shop3 (operational semantics)", () => {
+      const state = age3State();
+      completeColony(state);
+      state.population = 20;
+      const status = () => age3Status(state).find((m) => m.id === "shop3")!;
+      expect(status().done).toBe(true);
+      // Mothball all three shops (D2 ships 2 + 1 built): value drops to 0.
+      for (const id of Object.keys(state.buildings).filter(
+        (k) => state.buildings[k]?.type === "workshop",
+      )) {
+        mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: false }));
+      }
+      expect(status()).toMatchObject({ value: 0, done: false });
+    });
+
+    it("age-3 set round-trips through save/load with no migration", () => {
+      expect(SAVE_VERSION).toBe(17);
+      const state = age3State();
+      completeColony(state);
+      state.population = 20;
+      state.age = 3;
+      const before = evaluateMilestones(state, 3);
+      const restored = parseSave(serialize(state));
+      expect(restored).toEqual(state);
+      expect(evaluateMilestones(restored, 3)).toEqual(before);
     });
   });
 
