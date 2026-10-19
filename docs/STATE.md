@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step035 Age 3 setup (prosperity milestones, phased governor, directed tail) |
+| HEAD | Step036 Age-3 E2E journey (`e2e/progression.spec.ts`) |
 | Working tree | Untracked only: `prompt.md` (preserved per its header) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-15, Step031) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-15, Step031) |
-| Unit tests | PASS — `npx vitest run`: 20 files / 254 tests, all green (2026-10-16, Step035; +4 age-3 unit + 1 age-3 self-play) |
-| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings): 19/19 scenarios, executed 2026-10-16 on local Chromium (Step033) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 53kB + three 471kB vendor chunk) (2026-10-15, Step031) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-19, Step036) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-19, Step036) |
+| Unit tests | PASS — `npx vitest run`: 20 files / 254 tests, all green (2026-10-19, Step036) |
+| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression): 20/20 scenarios, executed 2026-10-19 on local Chromium (Step036; age-3 journey 3/3 stable) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 53kB + three 471kB vendor chunk) (2026-10-19, Step036) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -108,7 +108,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step035 Age 3 setup, implemented (see `docs/roadmap/Step035-age3-setup.md`): prosperity milestones from existing dimensions; phased governor + directed tail reach Age 3 in self-play; 254 unit, 19/19 E2E.
+Step036 Age-3 E2E journey, implemented (see `docs/roadmap/Step036-age3-e2e.md`): Age 1 → 2 → 3 through the progression panel UI; 254 unit, 20/20 E2E.
 
 ---
 
