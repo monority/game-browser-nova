@@ -26,7 +26,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step039 defect fixes (per-workshop plank batches, load overlay coherence, stale claims) |
+| HEAD | Step040 CI race fix (MVP acceptance loop cold drain; first green GitHub runs) |
 | Working tree | CLEAN after CI commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
@@ -34,7 +34,8 @@ Never mark a feature complete without implementation and validation evidence.
 | Lint | PASS — `npx eslint .`, no findings (2026-10-20, Step039) |
 | Unit tests | PASS — `npx vitest run`: 20 files / 272 tests, all green (2026-10-20, Step039; +1 transformation shortfall) |
 | E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 31/31 scenarios, executed 2026-10-20 on local Chromium (Step039; +1 overlay-load coherence) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step039) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step040) |
+| CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
