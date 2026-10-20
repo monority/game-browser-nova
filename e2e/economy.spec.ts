@@ -204,12 +204,15 @@ test.describe("NOVA economy", () => {
 
     // --- inventory changes: crop rotation lifts production above need,
     // the food stock grows (drained below capacity first: a pinned
-    // stock cannot grow by design, Step031) ---
-    await page.getByRole("button", { name: "8x", exact: true }).click();
+    // stock cannot grow by design, Step031). The sim is PAUSED here
+    // (toggled before the research section): the drain is cold, so the
+    // baseline read is exact. On a slow CI runner a running-tick drain
+    // refills the stock to the 120 cap before the baseline read
+    // (observed: Expected > 120, Received 120), making the growth
+    // assertion unsatisfiable.
     await page.evaluate(() => {
       window.__nova!.getState().resources.food = 40;
     });
-    await page.getByRole("button", { name: "pause", exact: true }).click();
     const foodBefore = await page.evaluate(
       () => window.__nova!.getState().resources.food,
     );
