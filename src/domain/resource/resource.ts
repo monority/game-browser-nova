@@ -48,6 +48,19 @@ export function deductFood(stock: ResourceStock, amount: number): number {
   return taken;
 }
 
+export function deductWater(stock: ResourceStock, amount: number): number {
+  const taken = Math.min(stock.water, amount);
+  stock.water -= taken;
+  return taken;
+}
+
+export function deductMoney(stock: ResourceStock, amount: number): number {
+  // Mirrors the consumable deduct contract: clamp at available, never negative.
+  const taken = Math.min(stock.money, amount);
+  stock.money -= taken;
+  return taken;
+}
+
 export function addWood(stock: ResourceStock, amount: number): void {
   stock.wood = Math.max(0, stock.wood + amount);
 }

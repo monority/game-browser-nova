@@ -14,6 +14,21 @@ export interface BuildingPalette {
   accent: number;
 }
 
+/**
+ * Renderer-owned map of shared plain materials (Tier2): keyed by
+ * `slot:color`, created lazily. Only plain (untinted, opaque) materials
+ * may live here — overlay tints and under-construction transparency
+ * mutate material state, so those keep per-building instances.
+ */
+export type BuildingMaterialCache = Map<string, THREE.MeshLambertMaterial>;
+
+const CACHED_FLAG = "novaCached";
+
+/** True when the material came from a shared cache (must not be disposed per rebuild). */
+export function isCachedMaterial(material: THREE.Material): boolean {
+  return material.userData[CACHED_FLAG] === true;
+}
+
 export const BUILDING_PALETTE: Record<BuildingType, BuildingPalette> = {
   residence: { body: 0x3f6fa8, accent: 0x6fb3e0 },
   farm: { body: 0x5c8a4e, accent: 0x9fce7a },
@@ -30,10 +45,22 @@ export const BUILDING_PALETTE: Record<BuildingType, BuildingPalette> = {
 export function createBuildingMeshes(
   type: BuildingType,
   palette: BuildingPalette,
+  cache?: BuildingMaterialCache,
 ): THREE.Group {
   const group = new THREE.Group();
-  const body = new THREE.MeshLambertMaterial({ color: palette.body });
-  const accent = new THREE.MeshLambertMaterial({ color: palette.accent });
+  const material = (slot: "body" | "accent", color: number): THREE.MeshLambertMaterial => {
+    if (!cache) return new THREE.MeshLambertMaterial({ color });
+    const key = `${slot}:${color}`;
+    let cached = cache.get(key);
+    if (!cached) {
+      cached = new THREE.MeshLambertMaterial({ color });
+      cached.userData[CACHED_FLAG] = true;
+      cache.set(key, cached);
+    }
+    return cached;
+  };
+  const body = material("body", palette.body);
+  const accent = material("accent", palette.accent);
 
   const add = (mesh: THREE.Mesh, x: number, y: number, z: number): void => {
     mesh.position.set(x, y, z);

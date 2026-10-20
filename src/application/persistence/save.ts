@@ -5,6 +5,7 @@ import type { Building, BuildingStatus } from "@/domain/building/building.js";
 import type { Road } from "@/domain/road/road.js";
 import { depositCapacities, type Deposits } from "@/domain/world/deposits.js";
 import { createWorld } from "@/domain/world/world.js";
+import { POLLUTION_MAX } from "@/domain/environment/environment.js";
 import type { GameState } from "@/domain/simulation/state.js";
 import type { ResourceStock } from "@/domain/resource/resource.js";
 import type { WorldConfig } from "@/domain/world/world.js";
@@ -180,6 +181,11 @@ export function parseSave(input: unknown): GameState {
   const roadCounter = expectPositiveInt(doc.roadCounter, "roadCounter");
 
   const pollution = expectNonNegativeNumber(doc.pollution, "pollution");
+  // Tier1: the domain documents pollution as a 0–100 stock
+  // (domain/environment/environment.ts); reject out-of-range saves.
+  if (pollution > POLLUTION_MAX) {
+    throw new SaveValidationError(`pollution must be <= ${POLLUTION_MAX}`);
+  }
   const age = expectPositiveInt(doc.age, "age");
   if (!Array.isArray(doc.researchedTechs)) {
     throw new SaveValidationError("save.researchedTechs must be an array");
@@ -279,7 +285,9 @@ function migrateV16ToV17(document: Record<string, unknown>): Record<string, unkn
   const deposits = (document.deposits ?? {}) as Record<string, unknown>;
   return {
     ...document,
-    formatVersion: SAVE_VERSION,
+    // Tier1: literal version, matching the idiom of the sibling migrations —
+    // referencing SAVE_VERSION here would silently mislabel if it ever moved.
+    formatVersion: 17,
     deposits: {
       wood: withCapacities(deposits.wood, world.woodDeposits),
       stone: withCapacities(deposits.stone, world.stoneDeposits),
@@ -377,10 +385,14 @@ function expectDeposits(value: unknown, field: string): Deposits {
       throw new SaveValidationError(`${field} has an invalid cell key: ${key}`);
     }
     if (!isRecord(raw)) throw new SaveValidationError(`${field}.${key} must be an object`);
-    deposits[key] = {
-      remaining: expectNonNegativeNumber(raw.remaining, `${field}.${key}.remaining`),
-      capacity: expectNonNegativeNumber(raw.capacity, `${field}.${key}.capacity`),
-    };
+    const remaining = expectNonNegativeNumber(raw.remaining, `${field}.${key}.remaining`);
+    const capacity = expectNonNegativeNumber(raw.capacity, `${field}.${key}.capacity`);
+    // Tier1: a deposit can never hold more than its regrowth ceiling —
+    // remaining > capacity is corrupt, not a plausible state.
+    if (remaining > capacity) {
+      throw new SaveValidationError(`${field}.${key}.remaining exceeds capacity`);
+    }
+    deposits[key] = { remaining, capacity };
   }
   return deposits;
 }

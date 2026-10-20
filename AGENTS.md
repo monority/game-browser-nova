@@ -96,7 +96,7 @@ Preferred dependency direction:
 
 Domain code must not depend on React, Three.js, DOM, or browser APIs.
 
-React must not contain core simulation rules.
+UI code must not contain core simulation rules.
 
 Three.js must not contain simulation rules.
 

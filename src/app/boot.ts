@@ -74,8 +74,11 @@ export function boot(root: HTMLElement): { stop(): void } {
     ui.setAgeLocked(
       PALETTE_TYPES.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) > state.age),
     );
-    ui.updateForecast(Object.values(getResourceSummaries(state)));
-    ui.setAlerts(getAlerts(state));
+    // Tier2: compute the resource summaries once per tick; the forecast
+    // and getAlerts share them (was computed twice).
+    const summaries = getResourceSummaries(state);
+    ui.updateForecast(Object.values(summaries));
+    ui.setAlerts(getAlerts(state, summaries));
     const milestones = evaluateMilestones(state, state.age);
     ui.updateProgression({
       age: state.age,

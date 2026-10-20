@@ -1,4 +1,4 @@
-import type { GameState } from "@/domain/simulation/state.js";
+import { D2_FOOD, D2_WATER, type GameState } from "@/domain/simulation/state.js";
 import { isActive } from "@/domain/building/building.js";
 
 /**
@@ -7,12 +7,16 @@ import { isActive } from "@/domain/building/building.js";
  * one day-0 stock per operational warehouse. Derived only, never
  * persisted (same pattern as housingCapacity): no save migration.
  * Money stays an uncapped accounted treasury.
+ *
+ * Tier1: the base and per-warehouse amounts derive from the D2 constants
+ * (state.ts) — the documented "twice the day-0 stock" / "one day-0 stock
+ * per warehouse" rules now share one source of truth.
  */
 
-export const BASE_FOOD_CAPACITY = 120;
-export const BASE_WATER_CAPACITY = 80;
-export const FOOD_PER_WAREHOUSE = 60;
-export const WATER_PER_WAREHOUSE = 40;
+export const BASE_FOOD_CAPACITY = D2_FOOD * 2;
+export const BASE_WATER_CAPACITY = D2_WATER * 2;
+export const FOOD_PER_WAREHOUSE = D2_FOOD;
+export const WATER_PER_WAREHOUSE = D2_WATER;
 
 /** Operational warehouses: active flag + operational status (mothball removes). */
 export function operationalWarehouses(state: GameState): number {

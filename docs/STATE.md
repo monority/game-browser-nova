@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step036 Age-3 E2E journey (`e2e/progression.spec.ts`) |
-| Working tree | Untracked only: `prompt.md` (preserved per its header) |
+| HEAD | Step037 Tier1+Tier2 batch adoption (ChatGPT-session work, reviewed + re-validated) |
+| Working tree | CLEAN after adoption commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-19, Step036) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-19, Step036) |
-| Unit tests | PASS — `npx vitest run`: 20 files / 254 tests, all green (2026-10-19, Step036) |
-| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression): 20/20 scenarios, executed 2026-10-19 on local Chromium (Step036; age-3 journey 3/3 stable) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 53kB + three 471kB vendor chunk) (2026-10-19, Step036) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-20, Step037) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-20, Step037) |
+| Unit tests | PASS — `npx vitest run`: 20 files / 271 tests, all green (2026-10-20, Step037; +17 Tier) |
+| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 30/30 scenarios, executed 2026-10-20 on local Chromium (Step037; +10 Tier) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step037) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -108,7 +108,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step036 Age-3 E2E journey, implemented (see `docs/roadmap/Step036-age3-e2e.md`): Age 1 → 2 → 3 through the progression panel UI; 254 unit, 20/20 E2E.
+Step037 Tier1+Tier2 batch adoption, complete (see `docs/roadmap/Step037-tier-adoption.md`): ChatGPT/Codex-session work adopted after review + fresh gates — resize/hover-leak/atomic-deduction/save-guards (Tier1), a11y live regions + in-place panels + food/water/pollution overlays + material cache (Tier2); 271 unit, 30/30 E2E.
 
 ---
 

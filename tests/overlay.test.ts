@@ -3,7 +3,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
-import { computeOverlay, type OverlayCell } from "@/renderer/overlay.js";
+import { computeOverlay, type OverlayCell, type OverlayMode } from "@/renderer/overlay.js";
 import { getResourceContributors } from "@/application/queries/analysis.js";
 import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
@@ -32,7 +32,7 @@ function staffedColony(): GameState {
   return state;
 }
 
-function tints(state: GameState, mode: "staffing" | "deposits" | "none"): Map<string, string> {
+function tints(state: GameState, mode: OverlayMode): Map<string, string> {
   return new Map(computeOverlay(state, mode).map((c: OverlayCell) => [c.key, c.tint]));
 }
 
@@ -79,6 +79,108 @@ describe("staffing overlay mapping", () => {
   it("deposits mode produces no building tints (markers carry the data)", () => {
     const state = staffedColony();
     expect(tints(state, "deposits").size).toBe(0);
+  });
+});
+
+describe("food overlay mapping", () => {
+  it("staffed farm with a non-negative balance is ok; well/workshop/residences untinted", () => {
+    const state = staffedColony();
+    // food: staffed farm 2 + Center trickle 1 = 3; consumption 2 → balance +1
+    const t = tints(state, "food");
+    expect(t.get(cellKey(1, 0))).toBe("ok");
+    expect(t.has(cellKey(1, 1))).toBe(false); // well
+    expect(t.has(cellKey(1, 2))).toBe(false); // workshop
+    for (const b of Object.values(state.buildings)) {
+      if (b.type === "residence") expect(t.has(cellKey(b.x, b.y))).toBe(false);
+    }
+  });
+
+  it("negative food balance turns the producing farm warn", () => {
+    const state = staffedColony();
+    state.population = 50; // consumption 50 vs production 3
+    expect(tints(state, "food").get(cellKey(1, 0))).toBe("warn");
+  });
+
+  it("mothballed farms are off", () => {
+    const state = staffedColony();
+    const farmId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "farm");
+    if (!farmId) throw new Error("farm missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
+    expect(tints(state, "food").get(cellKey(1, 0))).toBe("off");
+  });
+
+  it("under-construction farms are untinted", () => {
+    const state = staffedColony();
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 3)] }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 3 }));
+    const building = Object.values(state.buildings).find(
+      (b) => b.type === "farm" && b.x === 1 && b.y === 3,
+    );
+    if (!building) throw new Error("farm missing");
+    expect(building.status).toBe("underConstruction");
+    expect(tints(state, "food").has(cellKey(1, 3))).toBe(false);
+  });
+});
+
+describe("water overlay mapping", () => {
+  it("well ok when the water balance covers the population; deficit warns", () => {
+    const state = staffedColony();
+    // well staffed → 2/tick; pop 2 → balance 0 → ok
+    expect(tints(state, "water").get(cellKey(1, 1))).toBe("ok");
+    state.population = 50;
+    expect(tints(state, "water").get(cellKey(1, 1))).toBe("warn");
+  });
+
+  it("mothballed wells are off", () => {
+    const state = staffedColony();
+    const wellId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "well");
+    if (!wellId) throw new Error("well missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: wellId, active: false }));
+    expect(tints(state, "water").get(cellKey(1, 1))).toBe("off");
+  });
+
+  it("farms and other buildings are not tinted", () => {
+    const state = staffedColony();
+    const t = tints(state, "water");
+    expect(t.has(cellKey(1, 0))).toBe(false); // farm
+    expect(t.has(cellKey(1, 2))).toBe(false); // workshop
+  });
+});
+
+describe("pollution overlay mapping", () => {
+  it("active emitters are ok while quality stays high; farms untinted", () => {
+    const state = staffedColony();
+    const t = tints(state, "pollution");
+    expect(t.get(cellKey(1, 2))).toBe("ok"); // active workshop, quality 94
+    expect(t.has(cellKey(1, 0))).toBe(false); // farm
+    expect(t.has(cellKey(1, 1))).toBe(false); // well
+  });
+
+  it("emitters turn warn when quality drops below the alert threshold", () => {
+    const state = staffedColony();
+    state.pollution = 60; // quality 40 < 50
+    expect(tints(state, "pollution").get(cellKey(1, 2))).toBe("warn");
+  });
+
+  it("mothballed emitters are off", () => {
+    const state = staffedColony();
+    const workshopId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "workshop");
+    if (!workshopId) throw new Error("workshop missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: workshopId, active: false }));
+    expect(tints(state, "pollution").get(cellKey(1, 2))).toBe("off");
+  });
+
+  it("parks are untinted under construction, ok while active, off when mothballed", () => {
+    const state = staffedColony();
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "park", x: spot.x, y: spot.y }));
+    expect(tints(state, "pollution").has(cellKey(spot.x, spot.y))).toBe(false); // under construction
+    stepTicks(state, 3);
+    expect(tints(state, "pollution").get(cellKey(spot.x, spot.y))).toBe("ok");
+    const parkId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "park");
+    if (!parkId) throw new Error("park missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: parkId, active: false }));
+    expect(tints(state, "pollution").get(cellKey(spot.x, spot.y))).toBe("off");
   });
 });
 

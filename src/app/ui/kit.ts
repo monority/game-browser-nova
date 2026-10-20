@@ -83,6 +83,38 @@ export function statRow(label: string, value: string, valueClass?: string): HTML
   return row;
 }
 
+/** Persistent stat row (Tier2): stable DOM node; `set` writes only when
+ * the text/class actually changed — no per-tick childList churn. */
+export interface LiveStatRow {
+  element: HTMLDivElement;
+  set(value: string, valueClass?: string): void;
+}
+
+export function liveStatRow(label: string): LiveStatRow {
+  const element = document.createElement("div");
+  element.className = "nova-row nova-row--between";
+  const labelSpan = document.createElement("span");
+  labelSpan.textContent = label;
+  const valueSpan = document.createElement("span");
+  element.append(labelSpan, valueSpan);
+  let lastValue: string | null = null;
+  let lastClass: string | null = null;
+  return {
+    element,
+    set(value: string, valueClass?: string): void {
+      if (value !== lastValue) {
+        valueSpan.textContent = value;
+        lastValue = value;
+      }
+      const cls = valueClass ?? "";
+      if (cls !== lastClass) {
+        valueSpan.className = cls;
+        lastClass = cls;
+      }
+    },
+  };
+}
+
 /** Row-shaped div with layout classes (gap/margin variants). */
 export function row(extraClasses: string): HTMLDivElement {
   const div = document.createElement("div");

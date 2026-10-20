@@ -12,7 +12,7 @@ import {
   taxesPerTick,
 } from "@/domain/economy/economy.js";
 import { isActive } from "@/domain/building/building.js";
-import { environmentalQuality } from "@/domain/environment/environment.js";
+import { ENV_QUALITY_ALERT_THRESHOLD, environmentalQuality } from "@/domain/environment/environment.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { getStaffingOverview } from "./staffing.js";
@@ -146,9 +146,16 @@ export interface Alert {
   message: string;
 }
 
-export function getAlerts(state: GameState): Alert[] {
+/**
+ * `summaries` is optional: refreshStats (boot) already computes
+ * getResourceSummaries once per tick and passes it in — avoiding a
+ * duplicate projection. Callers without summaries pay the default.
+ */
+export function getAlerts(
+  state: GameState,
+  summaries: Record<SurvivalResource, ResourceForecast> = getResourceSummaries(state),
+): Alert[] {
   const alerts: Alert[] = [];
-  const summaries = getResourceSummaries(state);
 
   if (summaries.food.balancePerTick < 0) {
     const ticks = summaries.food.ticksRemaining ?? 0;
@@ -206,7 +213,7 @@ export function getAlerts(state: GameState): Alert[] {
   }
 
   const quality = environmentalQuality(state);
-  if (quality < 50) {
+  if (quality < ENV_QUALITY_ALERT_THRESHOLD) {
     alerts.push({
       severity: quality < 25 ? "warning" : "info",
       message: `Environment: quality ${quality} · pollution ${Math.round(state.pollution)}`,

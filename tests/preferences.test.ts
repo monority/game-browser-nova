@@ -92,7 +92,7 @@ describe("parsePreferences", () => {
     for (const setting of SPEED_SETTINGS) {
       expect(storedSpeedIds()).toContain(setting.id);
     }
-    expect(storedOverlayModes()).toEqual(["none", "staffing", "deposits"]);
+    expect(storedOverlayModes()).toEqual(["none", "staffing", "deposits", "food", "water", "pollution"]);
   });
 });
 
@@ -134,6 +134,7 @@ describe("coerce helpers", () => {
     expect(coerceSpeedId("16x")).toBe("1x");
     expect(coerceSpeedId("")).toBe("1x");
     expect(coerceOverlayMode("deposits")).toBe("deposits");
+    expect(coerceOverlayMode("food")).toBe("food");
     expect(coerceOverlayMode("satellite")).toBe("none");
   });
 });

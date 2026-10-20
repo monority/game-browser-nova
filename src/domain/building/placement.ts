@@ -1,4 +1,4 @@
-import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
+import { BUILDING_DEFINITIONS, ROAD_MONEY_COST_PER_CELL, type BuildingType } from "@/content/buildings.js";
 import { cellKey } from "@/domain/shared/cells.js";
 import { isBlocked } from "@/domain/world/world.js";
 import { hasDepositAt } from "@/domain/world/deposits.js";
@@ -105,7 +105,9 @@ export function validateRoads(state: GameState, cells: readonly string[]): RoadV
   }
 
   const uniqueCount = seen.size;
-  if (state.resources.money < uniqueCount * 5) {
+  // Tier1: same constant as the charge in commands.ts — validation and
+  // deduction can no longer drift apart.
+  if (state.resources.money < uniqueCount * ROAD_MONEY_COST_PER_CELL) {
     return { ok: false, reason: "insufficientMoney" };
   }
   return { ok: true };

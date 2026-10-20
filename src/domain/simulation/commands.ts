@@ -3,7 +3,7 @@ import { validatePlacement, validateRoads, validateRemoval, validateRoadRemoval,
 import { createBuilding } from "@/domain/building/building.js";
 import { createRoad } from "@/domain/road/road.js";
 import { parseCellKey } from "@/domain/shared/cells.js";
-import { deductPlanks } from "@/domain/resource/resource.js";
+import { deductMoney, deductPlanks, deductWater } from "@/domain/resource/resource.js";
 import { canAdvanceAge, hasTech } from "@/domain/progression/progression.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
 import type { GameState } from "./state.js";
@@ -57,8 +57,11 @@ function applyPlaceBuilding(
   if (!validation.ok) return validation;
 
   const definition = BUILDING_DEFINITIONS[type];
-  state.resources.money -= definition.moneyCost;
-  state.resources.water = Math.max(0, state.resources.water - definition.waterCost);
+  // Tier1: route every deduction through the resource helpers (atomic,
+  // clamped >= 0) — validation already guaranteed full funds, so the
+  // taken amounts equal the costs exactly as before.
+  deductMoney(state.resources, definition.moneyCost);
+  deductWater(state.resources, definition.waterCost);
   deductPlanks(state.resources, definition.plankCost); // atomic, clamped >= 0
 
   const id = `building-${state.buildingCounter}`;
@@ -77,7 +80,7 @@ function applyPlaceRoads(state: GameState, cells: readonly string[]): CommandRes
     return pa.y - pb.y || pa.x - pb.x;
   });
 
-  state.resources.money -= unique.length * ROAD_MONEY_COST_PER_CELL;
+  deductMoney(state.resources, unique.length * ROAD_MONEY_COST_PER_CELL);
 
   const id = `road-${state.roadCounter}`;
   state.roadCounter += 1;
@@ -133,7 +136,7 @@ function applyResearchTech(state: GameState, techId: string): CommandResult {
   if (state.resources.money < definition.cost) {
     return { ok: false, reason: "insufficientMoney" };
   }
-  state.resources.money -= definition.cost;
+  deductMoney(state.resources, definition.cost);
   state.researchedTechs.push(techId);
   return { ok: true };
 }

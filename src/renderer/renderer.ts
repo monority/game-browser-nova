@@ -2,7 +2,12 @@ import * as THREE from "three";
 import type { GameState } from "@/domain/simulation/state.js";
 import { parseCellKey } from "@/domain/shared/cells.js";
 import { computeOverlay, type OverlayMode, type OverlayTint } from "./overlay.js";
-import { createBuildingMeshes, BUILDING_PALETTE } from "./shapes.js";
+import {
+  createBuildingMeshes,
+  BUILDING_PALETTE,
+  isCachedMaterial,
+  type BuildingMaterialCache,
+} from "./shapes.js";
 
 /**
  * Presentation layer (ADR-001): the renderer consumes simulation state
@@ -59,6 +64,18 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
 
+  // Tier1: keep the canvas aspect-correct when the container resizes
+  // (window resize, layout change). Single observer, torn down in dispose().
+  const resizeObserver = new ResizeObserver(() => {
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    if (width === 0 || height === 0) return; // hidden container: keep last size
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+  });
+  resizeObserver.observe(container);
+
   scene.add(new THREE.HemisphereLight(0x9db4d6, 0x1d2b24, 0.75));
   scene.add(new THREE.AmbientLight(0xffffff, 0.25));
   const directional = new THREE.DirectionalLight(0xfff2df, 1.15);
@@ -74,6 +91,10 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
   const roadGroup = new THREE.Group();
   const depositGroup = new THREE.Group();
   scene.add(buildingGroup, roadGroup, depositGroup);
+
+  // Tier2: shared plain building materials survive per-tick rebuilds
+  // (tinted/under-construction buildings still get fresh instances).
+  const buildingMaterialCache: BuildingMaterialCache = new Map();
 
   // --- hover highlight (single reusable mesh, never rebuilt) --------------
   const hoverMaterial = new THREE.MeshBasicMaterial({
@@ -146,7 +167,7 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
     rebuildGroup(roadGroup, current, (s) => buildRoads(s));
     rebuildGroup(depositGroup, current, (s) => buildDeposits(s));
-    rebuildGroup(buildingGroup, current, (s) => buildBuildings(s, overlayMode));
+    rebuildGroup(buildingGroup, current, (s) => buildBuildings(s, overlayMode, buildingMaterialCache));
 
     lastUpdateMs = performance.now() - started;
     updateCount += 1;
@@ -168,11 +189,19 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   function dispose(): void {
     cancelAnimationFrame(frameHandle);
+    resizeObserver.disconnect();
     orbit.detach();
     disposeGroup(staticGroup);
     disposeGroup(buildingGroup);
     disposeGroup(roadGroup);
     disposeGroup(depositGroup);
+    // Tier1: the hover mesh lives outside the rebuilt groups — dispose its
+    // resources explicitly so repeated load cycles do not leak them.
+    hoverMesh.geometry.dispose();
+    hoverMaterial.dispose();
+    // Tier2: shared building materials outlive rebuilds — dispose with the renderer.
+    for (const material of buildingMaterialCache.values()) material.dispose();
+    buildingMaterialCache.clear();
     renderer.dispose();
     renderer.domElement.remove();
   }
@@ -362,14 +391,25 @@ const OVERLAY_TINTS: Record<OverlayTint, number> = {
   off: 0x555b66,
 };
 
-function buildBuildings(state: GameState, overlayMode: OverlayMode): THREE.Group {
+function buildBuildings(
+  state: GameState,
+  overlayMode: OverlayMode,
+  cache: BuildingMaterialCache,
+): THREE.Group {
   const group = new THREE.Group();
   const tints = new Map(computeOverlay(state, overlayMode).map((c) => [c.key, c.tint]));
   for (const building of Object.values(state.buildings)) {
     const key = `${building.x},${building.y}`;
     const tint = tints.get(key);
+    const underConstruction = building.status === "underConstruction";
     const palette = BUILDING_PALETTE[building.type];
-    const meshes = createBuildingMeshes(building.type, palette);
+    // Tier2: materials mutate for tints/transparency — those buildings
+    // keep fresh instances; plain ones share the cache.
+    const meshes = createBuildingMeshes(
+      building.type,
+      palette,
+      tint === undefined && !underConstruction ? cache : undefined,
+    );
     meshes.position.set((building.x + 0.5) * TILE, 0, (building.y + 0.5) * TILE);
 
     if (tint !== undefined) {
@@ -381,7 +421,7 @@ function buildBuildings(state: GameState, overlayMode: OverlayMode): THREE.Group
         }
       });
     }
-    if (building.status === "underConstruction") {
+    if (underConstruction) {
       meshes.traverse((object) => {
         if (object instanceof THREE.Mesh) {
           const material = object.material as THREE.MeshLambertMaterial;
@@ -403,8 +443,7 @@ function rebuildGroup(
   disposeGroup(group);
   const rebuilt = build(state);
   for (const child of rebuilt.children) {
-    if (!child) console.error("NOVA-DEBUG: undefined child in", group.id ?? group.type, "from", build.name);
-    else group.add(child);
+    group.add(child);
   }
   rebuilt.clear();
 }
@@ -412,13 +451,20 @@ function rebuildGroup(
 function disposeGroup(group: THREE.Group): void {
   // Step027: dispose BEFORE detaching — traversing after group.remove()
   // visits an empty group, which leaked every rebuilt mesh's geometry.
+  // Tier2: cached materials outlive rebuilds — skip them here (the
+  // renderer disposes the cache once, in dispose()).
   for (const child of [...group.children]) {
     child.traverse((object) => {
       if (object instanceof THREE.Mesh) {
         object.geometry.dispose();
         const material = object.material;
-        if (Array.isArray(material)) material.forEach((m) => m.dispose());
-        else material.dispose();
+        if (Array.isArray(material)) {
+          material.forEach((m) => {
+            if (!isCachedMaterial(m)) m.dispose();
+          });
+        } else if (!isCachedMaterial(material)) {
+          material.dispose();
+        }
       }
     });
     group.remove(child);

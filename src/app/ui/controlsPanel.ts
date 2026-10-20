@@ -26,6 +26,10 @@ const OVERLAY_LEGENDS: Record<OverlayMode, string> = {
   none: "No overlay tinting",
   staffing: "Staffing: green staffed · amber idle (no workers) · gray mothballed",
   deposits: "Deposits: markers show remaining wood/stone",
+  food: "Food: farms show the colony food balance — green ok · amber deficit · gray not producing",
+  water: "Water: wells show the colony water balance — green ok · amber deficit · gray not producing",
+  pollution:
+    "Pollution: emitters green clean (quality ≥ 50) · amber dirty (quality < 50) · gray inactive · parks green active",
 };
 
 /** Button label without the age suffix (base palette labels). */
@@ -132,6 +136,9 @@ export function createControlsPanel(callbacks: {
     ["none", "No overlay"],
     ["staffing", "Staffing"],
     ["deposits", "Deposits"],
+    ["food", "Food"],
+    ["water", "Water"],
+    ["pollution", "Pollution"],
   ];
   for (const [mode, label] of overlayModes) {
     const button = textButton(label, `overlay-${mode}`, () => {
@@ -155,14 +162,19 @@ export function createControlsPanel(callbacks: {
       const type = button.dataset.buildType as BuildingType;
       if (ageLockedTypes.includes(type)) {
         const requiredAge = BUILDING_DEFINITIONS[type].requiredAge ?? 1;
-        button.textContent = `${paletteLabel(type)} — requires Age ${requiredAge}`;
-        button.title = `Unlocks in Age ${requiredAge}`;
+        // Tier2: only touch the DOM when the visible state changed
+        const label = `${paletteLabel(type)} — requires Age ${requiredAge}`;
+        if (button.textContent !== label) button.textContent = label;
+        if (button.title !== `Unlocks in Age ${requiredAge}`) {
+          button.title = `Unlocks in Age ${requiredAge}`;
+        }
         button.dataset.locked = "true";
         button.disabled = true;
         button.hidden = false;
       } else if (availableTypes.includes(type)) {
-        button.textContent = paletteLabel(type);
-        button.title = "";
+        const label = paletteLabel(type);
+        if (button.textContent !== label) button.textContent = label;
+        if (button.title !== "") button.title = "";
         delete button.dataset.locked;
         button.disabled = false;
         button.hidden = false;
@@ -191,7 +203,14 @@ export function createControlsPanel(callbacks: {
     callbacks.onRoadModeToggled(enabled);
   }
 
+  // Tier2: refreshStats runs every tick — skip reconciliation when the
+  // palette inputs did not change (same list, same order).
+  function sameTypes(a: BuildingType[], b: BuildingType[]): boolean {
+    return a.length === b.length && a.every((type, i) => type === b[i]);
+  }
+
   function setAvailableBuildings(types: BuildingType[]): void {
+    if (sameTypes(availableTypes, types)) return;
     availableTypes = [...types];
     if (selectedType && !availableTypes.includes(selectedType)) selectedType = null;
     applyPaletteVisibility();
@@ -199,6 +218,7 @@ export function createControlsPanel(callbacks: {
   }
 
   function setAgeLocked(types: BuildingType[]): void {
+    if (sameTypes(ageLockedTypes, types)) return;
     ageLockedTypes = [...types];
     applyPaletteVisibility();
     refreshPalette();

@@ -150,4 +150,12 @@ describe("alerts (states, not instructions)", () => {
       expect(alert.message.toLowerCase()).not.toContain("add ");
     }
   });
+
+  it("reuses precomputed summaries (Tier2 boot shares one projection per tick)", () => {
+    const state = fedColony();
+    state.population = 2;
+    state.resources.water = 1;
+    const summaries = getResourceSummaries(state);
+    expect(getAlerts(state, summaries)).toEqual(getAlerts(state));
+  });
 });

@@ -19,6 +19,12 @@ export const POLLUTION_MIN = 0;
 export const POLLUTION_MAX = 100;
 /** Below this quality, new colonists are not admitted (pop > 0). */
 export const MIN_QUALITY_FOR_ADMISSION = 25;
+/**
+ * Quality below which the environment becomes worth reporting (the
+ * "Environment" alert in application/queries/analysis.ts) — single
+ * source for the alert and the pollution overlay tint.
+ */
+export const ENV_QUALITY_ALERT_THRESHOLD = 50;
 
 export function environmentalQuality(state: GameState): number {
   return POLLUTION_MAX - state.pollution;

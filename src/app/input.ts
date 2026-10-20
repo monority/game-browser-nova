@@ -100,6 +100,8 @@ export function attachInput(ctx: InputContext): {
     const target = event.target as HTMLElement | null;
     if (target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA")) return;
     if (event.code === "Space") {
+      // native button activation wins — no double-fire with the click handler
+      if (target?.tagName === "BUTTON") return;
       event.preventDefault();
       clickSpeed(ctx.isPaused() ? ctx.lastSpeedId() : "pause");
       return;
@@ -133,7 +135,8 @@ export function attachInput(ctx: InputContext): {
     ui.showTooltip(null);
     const validation = validatePlacement(state, buildType ?? "residence", cell.x, cell.y);
     renderer.setHover(cell, validation.ok);
-    ui.setStatus(validation.ok ? "" : `Cannot place here: ${validation.reason}`);
+    // hover messages are transient pointer context — never announced
+    ui.setStatus(validation.ok ? "" : `Cannot place here: ${validation.reason}`, false);
   }
 
   function onPointerDown(event: PointerEvent): void {

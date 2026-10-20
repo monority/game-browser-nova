@@ -121,8 +121,10 @@ const D2_RESIDENCES = 10;
 const D2_FARMS = 5;
 const D2_WELLS = 5;
 const D2_WORKSHOPS = 2;
-const D2_FOOD = 60;
-const D2_WATER = 40;
+// Tier1: exported as the single source of truth — storage derives its
+// base capacities from these (storage.ts), so the two can no longer drift.
+export const D2_FOOD = 60;
+export const D2_WATER = 40;
 
 function composeD2Colony(state: GameState): void {
   const taken = new Set<string>();

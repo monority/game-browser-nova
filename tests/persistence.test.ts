@@ -88,6 +88,26 @@ describe("save format", () => {
     stepTicks(restored, 12);
     expect(restored).toEqual(state);
   });
+
+  // Tier1: inclusive bounds stay loadable — regression for the new guards.
+  it("accepts a deposit at exactly remaining == capacity", () => {
+    const state = richState();
+    const key = cellKey(3, 3);
+    const doc = serialize(state);
+    const cell = doc.deposits.wood[key];
+    if (!cell) throw new Error("missing deposit cell in save doc");
+    cell.remaining = cell.capacity;
+    const restored = parseSave(doc);
+    expect(restored.woodDeposits[key]?.remaining).toBe(cell.capacity);
+  });
+
+  it("accepts pollution at both documented bounds (0 and 100)", () => {
+    const state = richState();
+    for (const pollution of [0, 100]) {
+      const restored = parseSave({ ...serialize(state), pollution });
+      expect(restored.pollution).toBe(pollution);
+    }
+  });
 });
 
 describe("save rejection (corrupt data never loads as valid)", () => {
@@ -141,5 +161,28 @@ describe("save rejection (corrupt data never loads as valid)", () => {
   it("rejects non-integer tick", () => {
     const doc = serialize(richState());
     expect(() => parseSave({ ...doc, tick: 1.5 })).toThrow(/tick/);
+  });
+
+  // Tier1: deposit ceiling + pollution range are corrupt, not plausible state.
+  it("rejects a deposit whose remaining exceeds its capacity", () => {
+    const doc = serialize(richState());
+    const key = cellKey(3, 3);
+    const cell = doc.deposits.wood[key];
+    if (!cell) throw new Error("missing deposit cell in save doc");
+    const deposits = {
+      ...doc.deposits,
+      wood: { ...doc.deposits.wood, [key]: { ...cell, remaining: cell.capacity + 1 } },
+    };
+    expect(() => parseSave({ ...doc, deposits })).toThrow(/remaining exceeds capacity/);
+  });
+
+  it("rejects pollution above the documented maximum (100)", () => {
+    const doc = serialize(richState());
+    expect(() => parseSave({ ...doc, pollution: 101 })).toThrow(/pollution must be <= 100/);
+  });
+
+  it("rejects negative pollution (range floor is 0)", () => {
+    const doc = serialize(richState());
+    expect(() => parseSave({ ...doc, pollution: -1 })).toThrow(/pollution/);
   });
 });
