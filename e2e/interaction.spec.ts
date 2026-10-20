@@ -38,6 +38,40 @@ test.describe("NOVA interaction flows", () => {
     expect(loaded.money).toBe(savedMoney);
     expect(loaded.farms).toBe(savedFarms);
   });
+
+  test("load keeps the active overlay coherent (Step039)", async ({ page }) => {
+    // The UI keeps its overlay selection across a load while the fresh
+    // renderer boots with "none" — scene and UI must not diverge.
+    await page.goto("/");
+    await pause(page);
+    await page.locator("button[data-action='overlay-staffing']").click();
+    await expect(page.locator("button[data-action='overlay-staffing']")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    expect(await page.evaluate(() => window.__nova!.overlay())).toBe("staffing");
+
+    // save -> load: a brand-new renderer replaces the scene
+    await page.locator("button[data-action='save']").click();
+    await expect(page.locator(".nova-status")).toHaveText("Colony saved.");
+    await page.locator("button[data-action='load']").click();
+    await expect(page.locator(".nova-status")).toHaveText("Colony loaded.");
+
+    // UI marker survived AND the scene kept the overlay (the Step039 fix)
+    await expect(page.locator("button[data-action='overlay-staffing']")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    expect(await page.evaluate(() => window.__nova!.overlay())).toBe("staffing");
+
+    // the toggle still works after load (no stale mirror)
+    await page.locator("button[data-action='overlay-none']").click();
+    expect(await page.evaluate(() => window.__nova!.overlay())).toBe("none");
+    await expect(page.locator("button[data-action='overlay-staffing']")).not.toHaveAttribute(
+      "data-active",
+      "true",
+    );
+  });
   test("removal flow: place ? inspect ? remove ? cell and stats restored", async ({ page }) => {
     await page.goto("/");
     await pause(page);

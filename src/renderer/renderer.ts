@@ -34,6 +34,8 @@ export interface Renderer {
   update(state: GameState): void;
   /** Active analysis overlay (recolors buildings on the next update). */
   setOverlay(mode: OverlayMode): void;
+  /** Currently applied overlay (diagnostics + post-load consistency). */
+  currentOverlay(): OverlayMode;
   /** Screen point → terrain cell (or null when off-grid). */
   pickCell(clientX: number, clientY: number): { x: number; y: number } | null;
   /** Hover feedback: highlight a cell green/red per placement validity. */
@@ -208,7 +210,7 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   update(state);
 
-  return { update, setOverlay, pickCell, setHover, dispose, perfStats };
+  return { update, setOverlay, currentOverlay: () => overlayMode, pickCell, setHover, dispose, perfStats };
 }
 
 // --- orbit camera (drag rotate, wheel zoom, right-drag pan) ---------------

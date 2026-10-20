@@ -2,6 +2,7 @@ import type { GameState } from "@/domain/simulation/state.js";
 import type { ColonyStats } from "@/application/queries/stats.js";
 import type { MilestoneStatus } from "@/domain/progression/progression.js";
 import type { PerfStats } from "@/renderer/renderer.js";
+import type { OverlayMode } from "@/renderer/overlay.js";
 import type { applyCommand } from "@/domain/simulation/commands.js";
 
 /**
@@ -18,6 +19,8 @@ export interface NovaHandle {
   milestones(): MilestoneStatus[];
   canAdvanceAge(): boolean;
   perf(): PerfStats;
+  /** Overlay currently applied to the scene (Step039: load must keep it). */
+  overlay(): OverlayMode;
 }
 
 declare global {

@@ -63,6 +63,10 @@ export function boot(root: HTMLElement): { stop(): void } {
     state = next;
     renderer.dispose();
     renderer = createRenderer(root, state);
+    // Keep the scene and the UI consistent: a fresh renderer starts with no
+    // overlay, while the UI still shows the active one (Step039 fix — the
+    // overlay used to silently reset on load).
+    renderer.setOverlay(overlayMode);
   }
 
   function refreshStats(): void {
@@ -264,6 +268,7 @@ export function boot(root: HTMLElement): { stop(): void } {
     milestones: () => evaluateMilestones(state, state.age),
     canAdvanceAge: () => canAdvanceAge(state),
     perf: () => renderer.perfStats(),
+    overlay: () => renderer.currentOverlay(),
   });
 
   const uiRoot = ui.root;

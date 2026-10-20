@@ -102,6 +102,31 @@ describe("transformation invariants (Step006)", () => {
     expect(state.resources.planks).toBe(0);
   });
 
+  it("a wood shortfall stops only the workshops it cannot feed (Step039)", () => {
+    // Documented contract is per workshop: a workshop with no full batch
+    // produces nothing, but a shortfall must not zero the whole chain.
+    // 3 staffed workshops, 4 wood -> 2 workshops transform (2 batches).
+    const state = freshState();
+    placeStaffedWorkshop(state);
+    for (let i = 0; i < 2; i++) {
+      const road = freeCell(state);
+      mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+      const adj = adjacentFree(state, road.x, road.y);
+      state.resources.water = Math.max(state.resources.water, 1);
+      mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
+    }
+    stepTicks(state, 2);
+    state.population = 3;
+    stepTicks(state, 1); // all three staffed
+    const staffed = Object.values(state.buildings).filter((b) => b.type === "workshop" && b.staffed).length;
+    expect(staffed).toBe(3);
+    state.resources.wood = 4;
+    const beforePlanks = state.resources.planks;
+    stepTicks(state, 1);
+    expect(state.resources.wood).toBe(0); // two batches consumed
+    expect(state.resources.planks).toBe(beforePlanks + 2); // not 0, not 3
+  });
+
   it("zero input ? nothing", () => {
     const state = freshState();
     placeStaffedWorkshop(state);

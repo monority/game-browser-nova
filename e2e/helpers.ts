@@ -46,6 +46,8 @@ export interface NovaHandle {
     lastUpdateMs: number;
     avgUpdateMs: number;
   };
+  /** Overlay applied to the scene (Step039: load must keep it). */
+  overlay(): string;
 }
 
 export async function nova(page: Page): Promise<NovaHandle> {

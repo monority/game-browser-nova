@@ -25,16 +25,16 @@ Never mark a feature complete without implementation and validation evidence.
 
 | Field | Value |
 |---|---|
-| Branch | `master` (local only; no remote configured) |
-| HEAD | Step038 CI (GitHub Actions: typecheck→lint→unit→build→e2e) + toolchain pins |
+| Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
+| HEAD | Step039 defect fixes (per-workshop plank batches, load overlay coherence, stale claims) |
 | Working tree | CLEAN after CI commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-20, Step037) |
-| Lint | PASS — `npx eslint .`, no findings (2026-10-20, Step037) |
-| Unit tests | PASS — `npx vitest run`: 20 files / 271 tests, all green (2026-10-20, Step037; +17 Tier) |
-| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 30/30 scenarios, executed 2026-10-20 on local Chromium (Step037; +10 Tier) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step037) |
+| Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-20, Step039) |
+| Lint | PASS — `npx eslint .`, no findings (2026-10-20, Step039) |
+| Unit tests | PASS — `npx vitest run`: 20 files / 272 tests, all green (2026-10-20, Step039; +1 transformation shortfall) |
+| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 31/31 scenarios, executed 2026-10-20 on local Chromium (Step039; +1 overlay-load coherence) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step039) |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract
@@ -108,7 +108,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step038 continuous integration, complete (see `docs/roadmap/Step038-ci.md`): GitHub Actions workflow (install→typecheck→lint→unit→build→e2e, artifacts on failure) + toolchain pins (packageManager/engines/.nvmrc); fixed a flaky adopted a11y test (transient-alert scenario); 271 unit, 30/30 E2E.
+Step039 defect fixes, complete (see `docs/roadmap/Step039-defect-fixes.md`): per-workshop plank batches (shortfall no longer zeroes the chain; canonical-order allocation), overlay coherence on load (`__nova.overlay()` + swapState re-apply), stale STATE branch row + `check` script now pnpm; 272 unit, 31/31 E2E.
 
 ---
 
