@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { pause, stripToAnchor } from "./helpers.js";
+import { pause } from "./helpers.js";
 
 /**
  * Tier2 accessibility regressions: visible keyboard focus, polite live
@@ -29,15 +29,39 @@ test.describe("accessibility (Tier2)", () => {
 
   test("alert announcements fire on kind changes, not every tick", async ({ page }) => {
     await page.goto("/");
-    await stripToAnchor(page); // food deficit: alert with per-tick stock numbers
+    // Scenario: a persistent alert whose NUMBERS change while its kind AND
+    // severity stay stable — the environment alert (pollution rises, quality
+    // falls but stays above the warning band at 25). The game's own emitters
+    // are mothballed so the rise is controlled and deterministic; a
+    // food-deficit alert would instead vanish (the colony starves).
+    await page.evaluate(() => {
+      const h = window.__nova!;
+      const s = h.getState();
+      s.pollution = 52; // quality 48 -> alert fires, still "info" severity
+      for (const b of Object.values(s.buildings)) {
+        if (b.type === "workshop") {
+          h.command({ kind: "setBuildingActive", id: b.id, active: false });
+        }
+      }
+      // controlled rise: +1 per 100ms (the colony's own emitters are off)
+      window.setInterval(() => {
+        h.getState().pollution += 1;
+      }, 100);
+    });
     await page.getByRole("button", { name: "8x", exact: true }).click();
     const announcer = page.locator("[data-announcer='alerts']");
-    await expect(announcer).toContainText("Alerts: Food");
+    await expect(announcer).toContainText("Alerts: Environment");
     const first = await announcer.textContent();
-    await page.waitForTimeout(1200); // several ticks — numbers change, kind stays
+    const firstPollution = Number(first?.match(/pollution (\d+)/)?.[1] ?? -1);
+    await page.waitForTimeout(600); // several ticks — numbers change, kind stays
+    // the live region stayed silent: same kinds, same severity -> no re-announce
     expect(await announcer.textContent()).toBe(first);
-    // the visual panel still refreshes with live alert lines
-    await expect(page.locator("#stats [data-section='alerts']")).toContainText("Food");
+    expect(await announcer.textContent()).not.toContain("Alerts cleared");
+    // the world moved on: the visual panel shows a newer pollution value
+    const visual = page.locator("#stats [data-section='alerts']");
+    await expect(visual).toContainText("Environment");
+    const visualPollution = Number((await visual.textContent())?.match(/pollution (\d+)/)?.[1] ?? -1);
+    expect(visualPollution).toBeGreaterThan(firstPollution);
   });
 
   test("Space on a focused button activates the button, not pause", async ({ page }) => {

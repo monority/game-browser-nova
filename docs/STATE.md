@@ -26,8 +26,8 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (local only; no remote configured) |
-| HEAD | Step037 Tier1+Tier2 batch adoption (ChatGPT-session work, reviewed + re-validated) |
-| Working tree | CLEAN after adoption commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
+| HEAD | Step038 CI (GitHub Actions: typecheck→lint→unit→build→e2e) + toolchain pins |
+| Working tree | CLEAN after CI commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-20, Step037) |
@@ -108,7 +108,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step037 Tier1+Tier2 batch adoption, complete (see `docs/roadmap/Step037-tier-adoption.md`): ChatGPT/Codex-session work adopted after review + fresh gates — resize/hover-leak/atomic-deduction/save-guards (Tier1), a11y live regions + in-place panels + food/water/pollution overlays + material cache (Tier2); 271 unit, 30/30 E2E.
+Step038 continuous integration, complete (see `docs/roadmap/Step038-ci.md`): GitHub Actions workflow (install→typecheck→lint→unit→build→e2e, artifacts on failure) + toolchain pins (packageManager/engines/.nvmrc); fixed a flaky adopted a11y test (transient-alert scenario); 271 unit, 30/30 E2E.
 
 ---
 

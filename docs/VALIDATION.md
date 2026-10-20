@@ -112,3 +112,16 @@ A validation report should contain:
 | Visual | actual method | PASS/FAIL |
 | Performance | actual measurement | PASS/FAIL/N/A |
 | Diff review | actual review | PASS/FAIL |
+
+---
+
+## Continuous integration
+
+The same chain runs automatically on every push and pull request
+(`.github/workflows/ci.yml`): install → typecheck → lint → unit →
+build → E2E. A green local run is the same evidence a CI run produces —
+`pnpm check` plus `pnpm test:e2e` mirror it exactly.
+
+CI is the shared floor, not a replacement for local validation: use the
+cheapest sufficient check while iterating (see Escalation), and let CI
+confirm the full chain before merging.
