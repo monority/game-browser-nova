@@ -26,13 +26,13 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step040 CI race fix (MVP acceptance loop cold drain; first green GitHub runs) |
+| HEAD | Step041 Age-3 atmosphere (Prosperity chapter; pure palette mapping + 6 unit tests) |
 | Working tree | CLEAN after CI commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-20, Step039) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-20, Step039) |
-| Unit tests | PASS — `npx vitest run`: 20 files / 272 tests, all green (2026-10-20, Step039; +1 transformation shortfall) |
+| Unit tests | PASS — `npx vitest run`: 21 files / 278 tests, all green (2026-10-20, Step041; +6 atmosphere) |
 | E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 31/31 scenarios, executed 2026-10-20 on local Chromium (Step039; +1 overlay-load coherence) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step040) |
 | CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step039 defect fixes, complete (see `docs/roadmap/Step039-defect-fixes.md`): per-workshop plank batches (shortfall no longer zeroes the chain; canonical-order allocation), overlay coherence on load (`__nova.overlay()` + swapState re-apply), stale STATE branch row + `check` script now pnpm; 272 unit, 31/31 E2E.
+Step041 Age-3 atmosphere, complete (see `docs/roadmap/Step041-age3-atmosphere.md`): "Age of Prosperity" now renders its own radiant-gold chapter (pure `atmosphere.ts` mapping, unit-pinned; Step016 values preserved), closing the visual gap left by Step035/036; 278 unit, 31/31 E2E. (Also fixed this section: the Step040 pointer update had failed in a batch edit and was never re-applied.)
 
 ---
 

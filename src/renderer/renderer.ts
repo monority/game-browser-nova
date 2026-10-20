@@ -2,6 +2,7 @@ import * as THREE from "three";
 import type { GameState } from "@/domain/simulation/state.js";
 import { parseCellKey } from "@/domain/shared/cells.js";
 import { computeOverlay, type OverlayMode, type OverlayTint } from "./overlay.js";
+import { ageAtmosphere } from "./atmosphere.js";
 import {
   createBuildingMeshes,
   BUILDING_PALETTE,
@@ -161,11 +162,12 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   function update(current: GameState): void {
     const started = performance.now();
-    // age atmosphere (docs/game/07-PROGRESSION.md: an age is visibly a chapter)
-    const ageTwoPlus = current.age >= 2;
-    (scene.fog as THREE.Fog).color.setHex(ageTwoPlus ? 0x181109 : 0x0b0e14);
-    (scene.background as THREE.Color).setHex(ageTwoPlus ? 0x151009 : 0x0b0e14);
-    directional.color.setHex(ageTwoPlus ? 0xffdfb0 : 0xfff2df);
+    // age atmosphere (Step041): each age is a visible chapter; palettes
+    // live in the pure, unit-tested atmosphere.ts mapping.
+    const atmosphere = ageAtmosphere(current.age);
+    (scene.fog as THREE.Fog).color.setHex(atmosphere.fog);
+    (scene.background as THREE.Color).setHex(atmosphere.background);
+    directional.color.setHex(atmosphere.directional);
 
     rebuildGroup(roadGroup, current, (s) => buildRoads(s));
     rebuildGroup(depositGroup, current, (s) => buildDeposits(s));
