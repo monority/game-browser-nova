@@ -24,12 +24,14 @@ export interface ControlsPanel {
 /** Overlay legend tooltips (states only). */
 const OVERLAY_LEGENDS: Record<OverlayMode, string> = {
   none: "No overlay tinting",
-  staffing: "Staffing: green staffed · amber idle (no workers) · gray mothballed",
+  staffing: "Employment: green staffed · amber idle (no workers or no road) · gray mothballed",
   deposits: "Deposits: markers show remaining wood/stone",
   food: "Food: farms show the colony food balance — green ok · amber deficit · gray not producing",
   water: "Water: wells show the colony water balance — green ok · amber deficit · gray not producing",
   pollution:
     "Pollution: emitters green clean (quality ≥ 50) · amber dirty (quality < 50) · gray inactive · parks green active",
+  population:
+    "Population: residences green while growth is possible · amber when housing is full (growth capped) · gray mothballed",
 };
 
 /** Button label without the age suffix (base palette labels). */
@@ -134,11 +136,12 @@ export function createControlsPanel(callbacks: {
   const overlayRow = row("nova-row--gap nova-row--mt");
   const overlayModes: Array<[OverlayMode, string]> = [
     ["none", "No overlay"],
-    ["staffing", "Staffing"],
+    ["staffing", "Employment"],
     ["deposits", "Deposits"],
     ["food", "Food"],
     ["water", "Water"],
     ["pollution", "Pollution"],
+    ["population", "Population"],
   ];
   for (const [mode, label] of overlayModes) {
     const button = textButton(label, `overlay-${mode}`, () => {

@@ -351,6 +351,83 @@ test.describe("NOVA interaction flows", () => {
     await page.locator("button[data-action='overlay-none']").click();
     await expect(page.locator("button[data-action='overlay-staffing']")).toBeVisible();
   });
+
+  test("population overlay: growth-gate toggle persists and stays error-free (Step043)", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+
+    await page.goto("/");
+    await pause(page);
+
+    // D2 baseline: 10 colonists across 10 residences — the housing stock is
+    // exactly at capacity, the amber capped state the overlay exposes.
+    expect(await page.evaluate(() => window.__nova!.stats().housingCapacity)).toBe(10);
+
+    const button = page.locator("button[data-action='overlay-population']");
+    await expect(button).toBeVisible();
+    await expect(button).toHaveText("Population");
+    await expect(button).toHaveAttribute(
+      "title",
+      "Population: residences green while growth is possible · amber when housing is full (growth capped) · gray mothballed",
+    );
+    await button.click();
+    await expect(button).toHaveAttribute("data-active", "true");
+    expect(await page.evaluate(() => window.__nova!.overlay())).toBe("population");
+
+    // the new id round-trips through preferences (OVERLAY_IDS wire extension)
+    expect(await page.evaluate(() => localStorage.getItem("nova-prefs"))).toContain(
+      '"population"',
+    );
+    await page.reload();
+    await expect(page.locator("button[data-action='overlay-population']")).toHaveAttribute(
+      "data-active",
+      "true",
+    );
+    expect(await page.evaluate(() => window.__nova!.overlay())).toBe("population");
+
+    // back to none clears the tint layer
+    await page.locator("button[data-action='overlay-none']").click();
+    expect(await page.evaluate(() => window.__nova!.overlay())).toBe("none");
+    expect(errors).toEqual([]);
+  });
+
+  test("employment overlay: renamed control, road-aware legend, every mode reachable (Step043)", async ({
+    page,
+  }) => {
+    const errors: string[] = [];
+    page.on("pageerror", (error) => errors.push(String(error)));
+    page.on("console", (message) => {
+      if (message.type() === "error") errors.push(message.text());
+    });
+
+    await page.goto("/");
+    await pause(page);
+
+    // the staffing overlay reads as Employment; the legend covers road-loss idles
+    const employment = page.locator("button[data-action='overlay-staffing']");
+    await expect(employment).toHaveText("Employment");
+    await expect(employment).toHaveAttribute(
+      "title",
+      "Employment: green staffed · amber idle (no workers or no road) · gray mothballed",
+    );
+
+    // the full mode list is reachable and drives the scene — each click
+    // rebuilds the tinted meshes, so any renderer error surfaces here
+    const modes = ["none", "staffing", "deposits", "food", "water", "pollution", "population"];
+    for (const mode of modes) {
+      const modeButton = page.locator(`button[data-action='overlay-${mode}']`);
+      await modeButton.click();
+      await expect(modeButton).toHaveAttribute("data-active", "true");
+      expect(await page.evaluate(() => window.__nova!.overlay())).toBe(mode);
+    }
+    expect(errors).toEqual([]);
+  });
+
   test("staffing visibility: age-locked market, workforce alert, mothball lever", async ({ page }) => {
     await page.goto("/");
     await pause(page);

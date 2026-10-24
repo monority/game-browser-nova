@@ -13,13 +13,21 @@ import {
   ENV_QUALITY_ALERT_THRESHOLD,
   environmentalQuality,
 } from "@/domain/environment/environment.js";
+import { housingCapacity } from "@/domain/population/population.js";
 
 /**
  * Overlay state mapping (presentation logic, no Three.js here — pure and
  * unit-testable). Overlays tint buildings to expose a bottleneck.
  */
 
-export type OverlayMode = "none" | "staffing" | "deposits" | "food" | "water" | "pollution";
+export type OverlayMode =
+  | "none"
+  | "staffing"
+  | "deposits"
+  | "food"
+  | "water"
+  | "pollution"
+  | "population";
 
 export type OverlayTint = "ok" | "warn" | "off";
 
@@ -59,6 +67,8 @@ function tintOf(building: Building): string {
  * - pollution: emitters (workshop/quarry) show the environmental quality
  *   (ok clean ≥ threshold · warn dirty < threshold · off inactive);
  *   parks are ok while active, off when mothballed. Nothing else tints.
+ * - population: residences show the housing growth gate
+ *   (ok room to grow · warn housing full · off mothballed)
  */
 export function computeOverlay(state: GameState, mode: OverlayMode): OverlayCell[] {
   if (mode === "none") return [];
@@ -99,6 +109,20 @@ export function computeOverlay(state: GameState, mode: OverlayMode): OverlayCell
       } else if (building.type === "park") {
         cells.push({ key: tintOf(building), tint: isActive(building) ? "ok" : "off" });
       }
+    }
+    return cells;
+  }
+  if (mode === "population") {
+    // Step043: growth state of the housing stock. Residences report the
+    // admission gate (09-UI-UX §6 "population"): amber when housing is
+    // full — growth is capped by construction, a pure state.
+    const capped = state.population >= housingCapacity(state);
+    for (const building of Object.values(state.buildings)) {
+      if (building.type !== "residence" || building.status !== "operational") continue;
+      cells.push({
+        key: tintOf(building),
+        tint: !isActive(building) ? "off" : capped ? "warn" : "ok",
+      });
     }
     return cells;
   }

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import type { GameState } from "@/domain/simulation/state.js";
 import { parseCellKey } from "@/domain/shared/cells.js";
 import { computeOverlay, type OverlayMode, type OverlayTint } from "./overlay.js";
-import { ageAtmosphere } from "./atmosphere.js";
+import { ageAtmosphere, type AgeAtmosphere } from "./atmosphere.js";
 import {
   createBuildingMeshes,
   BUILDING_PALETTE,
@@ -169,7 +169,7 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
     (scene.background as THREE.Color).setHex(atmosphere.background);
     directional.color.setHex(atmosphere.directional);
 
-    rebuildGroup(roadGroup, current, (s) => buildRoads(s));
+    rebuildGroup(roadGroup, current, (s) => buildRoads(s, atmosphere));
     rebuildGroup(depositGroup, current, (s) => buildDeposits(s));
     rebuildGroup(buildingGroup, current, (s) => buildBuildings(s, overlayMode, buildingMaterialCache));
 
@@ -372,18 +372,29 @@ function buildDeposits(state: GameState): THREE.Group {
   return group;
 }
 
-function buildRoads(state: GameState): THREE.Group {
+/**
+ * Road network rendering (Step043): full-tile plates read as one
+ * connected network (no inter-cell gaps), a raised lane stripe adds
+ * hierarchy, and colors derive from the age atmosphere — roads join the
+ * age's visual chapter (10-VISUAL-DIRECTION §2/§4 readable roads).
+ * Two geometries are shared across the whole network per rebuild;
+ * disposeGroup's per-mesh dispose is idempotent, so sharing is safe.
+ */
+function buildRoads(state: GameState, atmosphere: AgeAtmosphere): THREE.Group {
   const group = new THREE.Group();
-  const material = new THREE.MeshLambertMaterial({ color: 0x555f6b });
+  const plateMaterial = new THREE.MeshLambertMaterial({ color: atmosphere.road });
+  const laneMaterial = new THREE.MeshLambertMaterial({ color: atmosphere.roadLane });
+  const plateGeometry = new THREE.BoxGeometry(TILE, 0.08, TILE);
+  const laneGeometry = new THREE.BoxGeometry(TILE * 0.9, 0.02, 0.18);
   for (const road of Object.values(state.roads)) {
     for (const key of road.cells) {
       const { x, y } = parseCellKey(key);
-      const plate = new THREE.Mesh(
-        new THREE.BoxGeometry(TILE * 0.9, 0.06, TILE * 0.9),
-        material,
-      );
-      plate.position.set((x + 0.5) * TILE, 0.03, (y + 0.5) * TILE);
+      const plate = new THREE.Mesh(plateGeometry, plateMaterial);
+      plate.position.set((x + 0.5) * TILE, 0.04, (y + 0.5) * TILE);
       group.add(plate);
+      const lane = new THREE.Mesh(laneGeometry, laneMaterial);
+      lane.position.set((x + 0.5) * TILE, 0.09, (y + 0.5) * TILE);
+      group.add(lane);
     }
   }
   return group;

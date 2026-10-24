@@ -4,8 +4,9 @@ import { ageAtmosphere, MAX_DEFINED_AGE } from "@/renderer/atmosphere.js";
 /**
  * Age atmosphere (Step041): each age is a visible chapter. The mapping
  * is pure — the renderer applies it per tick; these tests pin the
- * contract: distinct palettes per age, Step016 regression values, and
- * clamping for unknown ages.
+ * contract: distinct palettes per age, Step016 regression values, per-age
+ * road plates (Step043: roads join the chapter, lane brighter than plate),
+ * and clamping for unknown ages.
  */
 
 describe("age atmosphere (Step041)", () => {
@@ -14,6 +15,8 @@ describe("age atmosphere (Step041)", () => {
       fog: 0x0b0e14,
       background: 0x0b0e14,
       directional: 0xfff2df,
+      road: 0x4a5462,
+      roadLane: 0x6e7a8a,
     });
   });
 
@@ -22,6 +25,8 @@ describe("age atmosphere (Step041)", () => {
       fog: 0x181109,
       background: 0x151009,
       directional: 0xffdfb0,
+      road: 0x5c4c3c,
+      roadLane: 0x8a7458,
     });
   });
 
@@ -30,6 +35,8 @@ describe("age atmosphere (Step041)", () => {
       fog: 0x1e1708,
       background: 0x1a1408,
       directional: 0xffe9b4,
+      road: 0x6b5a34,
+      roadLane: 0x9a8448,
     });
   });
 
@@ -42,6 +49,14 @@ describe("age atmosphere (Step041)", () => {
     // prosperity is brighter than expansion in every channel
     expect(a3.fog).toBeGreaterThan(a2.fog);
     expect(a3.background).toBeGreaterThan(a2.background);
+    expect(a3.road).toBeGreaterThan(a2.road); // roads join the chapter
+  });
+
+  it("road lanes stay brighter than their plates in every age (readable network)", () => {
+    for (let age = 1; age <= MAX_DEFINED_AGE; age++) {
+      const a = ageAtmosphere(age);
+      expect(a.roadLane).toBeGreaterThan(a.road);
+    }
   });
 
   it("clamps out-of-range ages to the nearest defined chapter", () => {

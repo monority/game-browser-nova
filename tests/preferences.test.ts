@@ -47,6 +47,10 @@ describe("parsePreferences", () => {
       speedId: "4x",
       overlay: "staffing",
     });
+    expect(parsePreferences({ overlay: "population" })).toEqual({
+      speedId: "1x",
+      overlay: "population",
+    });
   });
 
   it("falls back per-field on missing values", () => {
@@ -92,7 +96,15 @@ describe("parsePreferences", () => {
     for (const setting of SPEED_SETTINGS) {
       expect(storedSpeedIds()).toContain(setting.id);
     }
-    expect(storedOverlayModes()).toEqual(["none", "staffing", "deposits", "food", "water", "pollution"]);
+    expect(storedOverlayModes()).toEqual([
+      "none",
+      "staffing",
+      "deposits",
+      "food",
+      "water",
+      "pollution",
+      "population",
+    ]);
   });
 });
 
@@ -135,6 +147,7 @@ describe("coerce helpers", () => {
     expect(coerceSpeedId("")).toBe("1x");
     expect(coerceOverlayMode("deposits")).toBe("deposits");
     expect(coerceOverlayMode("food")).toBe("food");
+    expect(coerceOverlayMode("population")).toBe("population");
     expect(coerceOverlayMode("satellite")).toBe("none");
   });
 });

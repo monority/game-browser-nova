@@ -26,14 +26,14 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step041 Age-3 atmosphere (Prosperity chapter; pure palette mapping + 6 unit tests) |
+| HEAD | Step043 visual polish (readable age-tinted roads + population overlay; employment rename) |
 | Working tree | CLEAN after CI commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-20, Step039) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-20, Step039) |
-| Unit tests | PASS — `npx vitest run`: 21 files / 278 tests, all green (2026-10-20, Step041; +6 atmosphere) |
-| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 31/31 scenarios, executed 2026-10-20 on local Chromium (Step039; +1 overlay-load coherence) |
+| Unit tests | PASS — `npx vitest run`: 21 files / 283 tests, all green (2026-10-24, Step043; +5 population overlay / road lanes) |
+| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 33/33 scenarios, executed 2026-10-24 on local Chromium (Step043; +population overlay persistence, +employment rename / full mode cycle) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step040) |
 | CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
 
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step041 Age-3 atmosphere, complete (see `docs/roadmap/Step041-age3-atmosphere.md`): "Age of Prosperity" now renders its own radiant-gold chapter (pure `atmosphere.ts` mapping, unit-pinned; Step016 values preserved), closing the visual gap left by Step035/036; 278 unit, 31/31 E2E. (Also fixed this section: the Step040 pointer update had failed in a batch edit and was never re-applied.)
+Step043 visual polish, complete (see `docs/roadmap/Step043-visual-polish.md`, decision `Step042-visual-polish-events-decision.md` Option A): roads render as full-tile plates with a raised lane stripe, tinted per age through the atmosphere chapter (`atmosphere.ts` road/roadLane, unit-pinned); new `population` overlay exposes the housing growth gate (ok room · warn capped · off mothballed, pure mapping in `overlay.ts`); the staffing overlay is renamed "Employment" with a road-aware legend; `population` joins the persisted overlay preference ids. Presentation only — no mechanics, no save migration. 283 unit, 33/33 E2E; BEFORE/AFTER captures under `docs/roadmap/assets/`. Events remain parked pending D1–D5.
 
 ---
 

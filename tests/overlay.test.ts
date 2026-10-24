@@ -5,6 +5,7 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { computeOverlay, type OverlayCell, type OverlayMode } from "@/renderer/overlay.js";
 import { getResourceContributors } from "@/application/queries/analysis.js";
+import { housingCapacity } from "@/domain/population/population.js";
 import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "overlay-test", width: 16, height: 16 };
@@ -181,6 +182,45 @@ describe("pollution overlay mapping", () => {
     if (!parkId) throw new Error("park missing");
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: parkId, active: false }));
     expect(tints(state, "pollution").get(cellKey(spot.x, spot.y))).toBe("off");
+  });
+});
+
+describe("population overlay mapping", () => {
+  it("operational residences are ok while housing has room; only residences tint", () => {
+    const state = staffedColony();
+    state.population = 1; // capacity 2 — one bed free, growth possible
+    const t = tints(state, "population");
+    for (const b of Object.values(state.buildings)) {
+      if (b.type === "residence") {
+        expect(t.get(cellKey(b.x, b.y))).toBe("ok");
+      } else {
+        expect(t.has(cellKey(b.x, b.y))).toBe(false);
+      }
+    }
+  });
+
+  it("residences warn when the population reaches housing capacity (growth capped)", () => {
+    const state = staffedColony();
+    state.population = housingCapacity(state);
+    const t = tints(state, "population");
+    for (const b of Object.values(state.buildings)) {
+      if (b.type === "residence") expect(t.get(cellKey(b.x, b.y))).toBe("warn");
+    }
+  });
+
+  it("mothballed residences are off", () => {
+    const state = staffedColony();
+    const home = Object.values(state.buildings).find((b) => b.type === "residence");
+    if (!home) throw new Error("residence missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: home.id, active: false }));
+    expect(tints(state, "population").get(cellKey(home.x, home.y))).toBe("off");
+  });
+
+  it("under-construction residences are untinted", () => {
+    const state = staffedColony();
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
+    expect(tints(state, "population").has(cellKey(spot.x, spot.y))).toBe(false);
   });
 });
 

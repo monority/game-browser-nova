@@ -18,7 +18,7 @@
 const SPEED_IDS = ["pause", "1x", "2x", "4x", "8x"] as const;
 export type StoredSpeedId = (typeof SPEED_IDS)[number];
 
-const OVERLAY_IDS = ["none", "staffing", "deposits", "food", "water", "pollution"] as const;
+const OVERLAY_IDS = ["none", "staffing", "deposits", "food", "water", "pollution", "population"] as const;
 export type StoredOverlayMode = (typeof OVERLAY_IDS)[number];
 
 export interface UiPreferences {
