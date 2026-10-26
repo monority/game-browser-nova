@@ -1,0 +1,19 @@
+{
+  "migrated_version": "3.0.0",
+  "finalized": false,
+  "appliedAt": "2026-10-26T11:01:01.076Z",
+  "log": [
+    {
+      "action": "skipped:missing",
+      "from": "C:\\Dev\\Projects\\Nova-updated\\.unipi\\config\\compactor.json"
+    },
+    {
+      "action": "skipped:missing",
+      "from": "C:\\Dev\\Projects\\Nova-updated\\.unipi\\fusion-preset.json"
+    },
+    {
+      "action": "skipped:missing",
+      "from": "C:\\Dev\\Projects\\Nova-updated\\.unipi\\config\\background-tasks.json"
+    }
+  ]
+}

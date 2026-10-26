@@ -26,13 +26,13 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step043 visual polish (readable age-tinted roads + population overlay; employment rename) |
+| HEAD | Step044 overlay refactor — computeOverlay CC 78→~10 (extracted per-mode helpers) |
 | Working tree | CLEAN after CI commit (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `npx tsc --noEmit`, no errors (2026-10-20, Step039) |
 | Lint | PASS — `npx eslint .`, no findings (2026-10-20, Step039) |
-| Unit tests | PASS — `npx vitest run`: 21 files / 283 tests, all green (2026-10-24, Step043; +5 population overlay / road lanes) |
+| Unit tests | PASS — `npx vitest run`: 21 files / 283 tests, all green (2026-10-26, Step044; overlay refactor, zero behavioral change) |
 | E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 33/33 scenarios, executed 2026-10-24 on local Chromium (Step043; +population overlay persistence, +employment rename / full mode cycle) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59kB + three 471kB vendor chunk) (2026-10-20, Step040) |
 | CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
@@ -109,7 +109,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step043 visual polish, complete (see `docs/roadmap/Step043-visual-polish.md`, decision `Step042-visual-polish-events-decision.md` Option A): roads render as full-tile plates with a raised lane stripe, tinted per age through the atmosphere chapter (`atmosphere.ts` road/roadLane, unit-pinned); new `population` overlay exposes the housing growth gate (ok room · warn capped · off mothballed, pure mapping in `overlay.ts`); the staffing overlay is renamed "Employment" with a road-aware legend; `population` joins the persisted overlay preference ids. Presentation only — no mechanics, no save migration. 283 unit, 33/33 E2E; BEFORE/AFTER captures under `docs/roadmap/assets/`. Events remain parked pending D1–D5.
+Step044 overlay refactor, complete: extracted `computeOverlay` (CC 78) into 5 focused helpers (`computeFoodOverlay`, `computeWaterOverlay`, `computePollutionOverlay`, `computePopulationOverlay`, `computeStaffingOverlay`), each under CC 10. Zero behavioral change — all 283 unit tests pass, build green. Closes the reliability M1 gate issue (SonarQube `typescript:S3776` on overlay.ts). Events remain parked pending D1–D5.
 
 ---
 

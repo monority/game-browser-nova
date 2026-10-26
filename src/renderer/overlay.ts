@@ -74,73 +74,83 @@ export function computeOverlay(state: GameState, mode: OverlayMode): OverlayCell
   if (mode === "none") return [];
 
   const cells: OverlayCell[] = [];
-  if (mode === "food") {
-    const balance = foodBalance(state);
-    for (const building of Object.values(state.buildings)) {
-      if (building.type !== "farm" || building.status !== "operational") continue;
-      if (!isActive(building) || !building.staffed) {
-        cells.push({ key: tintOf(building), tint: "off" });
-      } else {
-        cells.push({ key: tintOf(building), tint: balance < 0 ? "warn" : "ok" });
-      }
-    }
-    return cells;
+  switch (mode) {
+    case "food": return computeFoodOverlay(state);
+    case "water": return computeWaterOverlay(state);
+    case "pollution": return computePollutionOverlay(state);
+    case "population": return computePopulationOverlay(state);
+    case "staffing": return computeStaffingOverlay(state);
+    case "deposits": return cells; // deposit markers carry the data, not buildings
   }
-  if (mode === "water") {
-    const balance = waterBalance(state);
-    for (const building of Object.values(state.buildings)) {
-      if (building.type !== "well" || building.status !== "operational") continue;
-      if (!isActive(building) || !building.staffed) {
-        cells.push({ key: tintOf(building), tint: "off" });
-      } else {
-        cells.push({ key: tintOf(building), tint: balance < 0 ? "warn" : "ok" });
-      }
-    }
-    return cells;
-  }
-  if (mode === "pollution") {
-    // mirrors the getAlerts "Environment" threshold (single domain source)
-    const dirty = environmentalQuality(state) < ENV_QUALITY_ALERT_THRESHOLD;
-    for (const building of Object.values(state.buildings)) {
-      if (building.status !== "operational") continue;
-      if (building.type === "workshop" || building.type === "quarry") {
-        // emission logic keys on active only (environment.ts updateEnvironment)
-        cells.push({ key: tintOf(building), tint: isActive(building) ? (dirty ? "warn" : "ok") : "off" });
-      } else if (building.type === "park") {
-        cells.push({ key: tintOf(building), tint: isActive(building) ? "ok" : "off" });
-      }
-    }
-    return cells;
-  }
-  if (mode === "population") {
-    // Step043: growth state of the housing stock. Residences report the
-    // admission gate (09-UI-UX §6 "population"): amber when housing is
-    // full — growth is capped by construction, a pure state.
-    const capped = state.population >= housingCapacity(state);
-    for (const building of Object.values(state.buildings)) {
-      if (building.type !== "residence" || building.status !== "operational") continue;
-      cells.push({
-        key: tintOf(building),
-        tint: !isActive(building) ? "off" : capped ? "warn" : "ok",
-      });
-    }
-    return cells;
-  }
+}
 
+function computeFoodOverlay(state: GameState): OverlayCell[] {
+  const cells: OverlayCell[] = [];
+  const balance = foodBalance(state);
   for (const building of Object.values(state.buildings)) {
-    if (mode === "staffing") {
-      const isWorkplace = building.type !== "residence" && building.type !== "colonyCenter";
-      if (!isWorkplace) continue;
-      if (!building.active) {
-        cells.push({ key: tintOf(building), tint: "off" });
-      } else if (building.status === "operational" && building.staffed) {
-        cells.push({ key: tintOf(building), tint: "ok" });
-      } else if (building.status === "operational") {
-        cells.push({ key: tintOf(building), tint: "warn" });
-      }
-      // under-construction workplaces are not tinted yet
+    if (building.type !== "farm" || building.status !== "operational") continue;
+    if (!isActive(building) || !building.staffed) {
+      cells.push({ key: tintOf(building), tint: "off" });
+    } else {
+      cells.push({ key: tintOf(building), tint: balance < 0 ? "warn" : "ok" });
     }
-    // "deposits" mode has no building tints (deposit markers carry the data)
+  }
+  return cells;
+}
+
+function computeWaterOverlay(state: GameState): OverlayCell[] {
+  const cells: OverlayCell[] = [];
+  const balance = waterBalance(state);
+  for (const building of Object.values(state.buildings)) {
+    if (building.type !== "well" || building.status !== "operational") continue;
+    if (!isActive(building) || !building.staffed) {
+      cells.push({ key: tintOf(building), tint: "off" });
+    } else {
+      cells.push({ key: tintOf(building), tint: balance < 0 ? "warn" : "ok" });
+    }
+  }
+  return cells;
+}
+
+function computePollutionOverlay(state: GameState): OverlayCell[] {
+  const cells: OverlayCell[] = [];
+  const dirty = environmentalQuality(state) < ENV_QUALITY_ALERT_THRESHOLD;
+  for (const building of Object.values(state.buildings)) {
+    if (building.status !== "operational") continue;
+    if (building.type === "workshop" || building.type === "quarry") {
+      cells.push({ key: tintOf(building), tint: isActive(building) ? (dirty ? "warn" : "ok") : "off" });
+    } else if (building.type === "park") {
+      cells.push({ key: tintOf(building), tint: isActive(building) ? "ok" : "off" });
+    }
+  }
+  return cells;
+}
+
+function computePopulationOverlay(state: GameState): OverlayCell[] {
+  const cells: OverlayCell[] = [];
+  const capped = state.population >= housingCapacity(state);
+  for (const building of Object.values(state.buildings)) {
+    if (building.type !== "residence" || building.status !== "operational") continue;
+    cells.push({
+      key: tintOf(building),
+      tint: !isActive(building) ? "off" : capped ? "warn" : "ok",
+    });
+  }
+  return cells;
+}
+
+function computeStaffingOverlay(state: GameState): OverlayCell[] {
+  const cells: OverlayCell[] = [];
+  for (const building of Object.values(state.buildings)) {
+    const isWorkplace = building.type !== "residence" && building.type !== "colonyCenter";
+    if (!isWorkplace) continue;
+    if (!building.active) {
+      cells.push({ key: tintOf(building), tint: "off" });
+    } else if (building.status === "operational" && building.staffed) {
+      cells.push({ key: tintOf(building), tint: "ok" });
+    } else if (building.status === "operational") {
+      cells.push({ key: tintOf(building), tint: "warn" });
+    }
   }
   return cells;
 }
