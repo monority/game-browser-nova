@@ -88,8 +88,8 @@ The goal is meaningful composability, not component count.
 
 Preferred dependency direction:
 
-    Domain / Simulation
-            ↓
+    Domain / Simulation   Content (game data definitions)
+            ↓                  ↓
        Application
         ↙       ↘
       UI       Rendering
