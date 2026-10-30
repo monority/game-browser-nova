@@ -3,7 +3,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepSimulation, stepTicks } from "@/domain/simulation/tick.js";
-import { housingCapacity, availableJobs } from "@/domain/population/population.js";
+import { housingCapacity } from "@/domain/population/population.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 import {
   FOOD_PER_FARM_PER_TICK,
@@ -80,7 +80,6 @@ describe("staffing", () => {
     stepTicks(state, 1);
     expect(buildingOf(state, firstIdOf(state, "farm")).staffed).toBe(true);
     expect(buildingOf(state, firstIdOf(state, "well")).staffed).toBe(false);
-    expect(availableJobs(state)).toBe(2);
   });
 
   it("unstaffed farms contribute nothing (only the Center trickle feeds)", () => {

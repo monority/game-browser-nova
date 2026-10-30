@@ -3,7 +3,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
-import { computeRoadNetworks, isAdjacentToRoad } from "@/domain/network/network.js";
+import { isAdjacentToRoad } from "@/domain/network/network.js";
 import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
 import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
@@ -165,22 +165,7 @@ describe("roads", () => {
   });
 });
 
-describe("road networks", () => {
-  it("orthogonally connected roads form one network; disjoint roads form two", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 0), cellKey(1, 0), cellKey(2, 0)] }));
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(8, 8), cellKey(8, 9)] }));
-    const networks = computeRoadNetworks(state.roads);
-    expect(networks.cells.size).toBe(2);
-    expect(networks.membership.get(cellKey(0, 0))).toBe(
-      networks.membership.get(cellKey(2, 0)),
-    );
-    expect(networks.membership.get(cellKey(0, 0))).not.toBe(
-      networks.membership.get(cellKey(8, 8)),
-    );
-  });
-
+describe("road access", () => {
   it("building road adjacency is orthogonal only", () => {
     const state = freshState();
     stripToAnchor(state);

@@ -3,7 +3,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
-import { housingCapacity, availableJobs } from "@/domain/population/population.js";
+import { housingCapacity } from "@/domain/population/population.js";
 import {
   parseSave,
   serialize,
@@ -195,13 +195,6 @@ describe("deactivation effects", () => {
     stepTicks(state, 1);
     // +1 tax +2 commerce −4 maintenance (as if never deactivated)
     expect(state.resources.money).toBe(m0 - 2);
-  });
-
-  it("availableJobs excludes mothballed workplaces", () => {
-    const { state, ids } = settledState();
-    expect(availableJobs(state)).toBe(3); // farm + well + workshop
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.well, active: false }));
-    expect(availableJobs(state)).toBe(2);
   });
 
   it("staffing redistributes deterministically when a workplace is mothballed", () => {

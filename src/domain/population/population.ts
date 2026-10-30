@@ -1,5 +1,4 @@
 import type { GameState } from "@/domain/simulation/state.js";
-import { isAdjacentToRoad } from "@/domain/network/network.js";
 import { isActive } from "@/domain/building/building.js";
 import {
   environmentalQuality,
@@ -15,18 +14,6 @@ export function housingCapacity(state: GameState): number {
     capacity += BUILDING_DEFINITIONS[building.type].housingCapacity;
   }
   return capacity;
-}
-
-/** Total staffable jobs among operational, road-adjacent workplaces. */
-export function availableJobs(state: GameState): number {
-  let jobs = 0;
-  for (const building of Object.values(state.buildings)) {
-    if (!isActive(building)) continue;
-    if (BUILDING_DEFINITIONS[building.type].jobCapacity === 0) continue;
-    if (!isAdjacentToRoad(state.roads, building.x, building.y)) continue;
-    jobs += BUILDING_DEFINITIONS[building.type].jobCapacity;
-  }
-  return jobs;
 }
 
 /**
