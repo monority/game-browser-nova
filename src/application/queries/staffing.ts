@@ -18,11 +18,11 @@ import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
  *   never instructions (design rule §7).
  */
 
-export type StaffingState = "staffed" | "idle" | "mothballed" | "no-road" | "under-construction";
+type StaffingState = "staffed" | "idle" | "mothballed" | "no-road" | "under-construction";
 
-export type IdleReason = "no-workers" | "no-road" | "mothballed" | "under-construction" | null;
+type IdleReason = "no-workers" | "no-road" | "mothballed" | "under-construction" | null;
 
-export interface StaffingEntry {
+interface StaffingEntry {
   id: string;
   type: BuildingType;
   x: number;
@@ -35,7 +35,7 @@ export interface StaffingEntry {
   staffingLine: string;
 }
 
-export interface StaffingOverview {
+interface StaffingOverview {
   /** Colonists available to work (population). */
   workers: number;
   /** Workplaces competing for workers (matches assignJobs eligibility). */

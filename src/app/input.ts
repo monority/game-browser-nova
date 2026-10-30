@@ -15,7 +15,7 @@ import type { Ui } from "./ui.js";
  * only dispatches commands and reads derived state.
  */
 
-export interface InputContext {
+interface InputContext {
   root: HTMLElement;
   getState(): GameState;
   getRenderer(): Renderer;

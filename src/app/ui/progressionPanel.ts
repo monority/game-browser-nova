@@ -17,7 +17,7 @@ export interface ProgressionInfo {
   researchedTechs: string[];
 }
 
-export interface ProgressionPanel {
+interface ProgressionPanel {
   element: HTMLDivElement;
   update(info: ProgressionInfo): void;
 }

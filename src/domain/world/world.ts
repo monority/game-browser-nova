@@ -23,7 +23,7 @@ export interface World {
   blockedCells: Record<string, true>;
 }
 
-export interface NormalizedWorldConfig {
+interface NormalizedWorldConfig {
   seed: string;
   width: number;
   height: number;

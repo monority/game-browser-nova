@@ -3,7 +3,7 @@
  * mulberry32 — small, fast, fully reproducible from a 32-bit seed.
  */
 
-export type Rng = () => number;
+type Rng = () => number;
 
 export function createRng(seed: number): Rng {
   let a = seed >>> 0;

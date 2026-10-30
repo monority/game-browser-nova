@@ -24,7 +24,7 @@ export type Command =
   | { kind: "researchTech"; techId: string }
   | { kind: "advanceAge" };
 
-export type CommandResult =
+type CommandResult =
   | { ok: true }
   | { ok: false; reason: string };
 

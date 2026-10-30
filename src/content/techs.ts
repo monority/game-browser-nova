@@ -6,7 +6,7 @@
 
 export type TechEffect = "farmFood" | "quarryStone" | "workshopCommerce";
 
-export interface TechDefinition {
+interface TechDefinition {
   id: string;
   displayName: string;
   cost: number;

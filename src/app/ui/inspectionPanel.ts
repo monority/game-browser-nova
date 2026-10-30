@@ -25,7 +25,7 @@ export interface RemoveRoadInfo {
 
 export type InspectionInfo = RemoveBuildingInfo | RemoveRoadInfo | null;
 
-export interface InspectionPanel {
+interface InspectionPanel {
   element: HTMLDivElement;
   showInspection(info: InspectionInfo): void;
   showDrillDown(info: ResourceContributors | null): void;

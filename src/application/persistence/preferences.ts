@@ -21,7 +21,7 @@ export type StoredSpeedId = (typeof SPEED_IDS)[number];
 const OVERLAY_IDS = ["none", "staffing", "deposits", "food", "water", "pollution", "population"] as const;
 export type StoredOverlayMode = (typeof OVERLAY_IDS)[number];
 
-export interface UiPreferences {
+interface UiPreferences {
   speedId: StoredSpeedId;
   overlay: StoredOverlayMode;
 }
@@ -84,7 +84,7 @@ export function savePreferences(storage: PrefsStorage, prefs: UiPreferences): bo
   }
 }
 
-export type ClearSaveResult = "cleared" | "empty" | "failed";
+type ClearSaveResult = "cleared" | "empty" | "failed";
 
 /**
  * Delete one save slot, leaving every other key untouched.

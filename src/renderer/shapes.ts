@@ -7,7 +7,7 @@ import type { BuildingType } from "@/content/buildings.js";
  * geometry assembly — no simulation logic, no canonical state.
  */
 
-export interface BuildingPalette {
+interface BuildingPalette {
   /** Primary body color. */
   body: number;
   /** Accent color (roofs, details). */

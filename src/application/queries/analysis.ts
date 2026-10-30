@@ -98,10 +98,10 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
   };
 }
 
-export type AlertSeverity = "info" | "warning";
+type AlertSeverity = "info" | "warning";
 
 /** Drill-down: the buildings contributing to a survival resource. */
-export interface ResourceContributor {
+interface ResourceContributor {
   id: string;
   type: string;
   x: number;

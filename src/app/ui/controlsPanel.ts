@@ -12,7 +12,7 @@ import { PALETTE_TYPES, SPEED_SETTINGS, panel, row, textButton } from "./kit.js"
  * active, disabled, hidden); nova.css paints them.
  */
 
-export interface ControlsPanel {
+interface ControlsPanel {
   element: HTMLDivElement;
   activeBuildType(): BuildingType | null;
   roadMode(): boolean;

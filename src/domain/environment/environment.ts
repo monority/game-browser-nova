@@ -15,7 +15,7 @@ export const POLLUTION_PER_QUARRY_PER_TICK = 1;
 export const ABSORPTION_PER_PARK_PER_TICK = 2;
 /** Wood regrown per active park per tick into adjacent deposits (Step018). */
 export const WOOD_REGROWTH_PER_PARK_PER_TICK = 1;
-export const POLLUTION_MIN = 0;
+const POLLUTION_MIN = 0;
 export const POLLUTION_MAX = 100;
 /** Below this quality, new colonists are not admitted (pop > 0). */
 export const MIN_QUALITY_FOR_ADMISSION = 25;

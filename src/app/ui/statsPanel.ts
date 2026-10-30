@@ -11,7 +11,7 @@ import { panel, sectionHeader, liveStatRow, type LiveStatRow } from "./kit.js";
  * setAlerts (order contract: rows, then forecast, then alerts).
  */
 
-export interface StatsPanel {
+interface StatsPanel {
   element: HTMLDivElement;
   updateStats(stats: ColonyStats): void;
   updateForecast(forecasts: ResourceForecast[]): void;

@@ -29,7 +29,7 @@ export const MIGRATABLE_SAVE_VERSION = 13;
 /** The single localStorage slot this game reads and writes. */
 export const SAVE_STORAGE_KEY = "nova-save";
 
-export interface SaveDocument {
+interface SaveDocument {
   formatVersion: number;
   world: {
     seed: string;
