@@ -1,9 +1,9 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import {
-  WATER_PER_WELL_PER_TICK,
   FOOD_PER_COLONIST_PER_TICK,
   WATER_PER_SERVED_COLONIST_PER_TICK,
   foodProductionPerTick,
+  waterProductionPerTick,
 } from "@/domain/production/production.js";
 import {
   commercePerTick,
@@ -11,11 +11,11 @@ import {
   maintenancePerTick,
   taxesPerTick,
 } from "@/domain/economy/economy.js";
-import { isActive } from "@/domain/building/building.js";
 import { compareCellCoords } from "@/domain/shared/cells.js";
 import { ENV_QUALITY_ALERT_THRESHOLD, environmentalQuality } from "@/domain/environment/environment.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
+import type { ActiveEvent } from "@/domain/events/events.js";
 import { getStaffingOverview } from "./staffing.js";
 
 /**
@@ -35,27 +35,13 @@ export interface ResourceForecast {
   ticksRemaining: number | null;
 }
 
-function staffedProducers(state: GameState, type: "farm" | "well"): number {
-  let count = 0;
-  for (const building of Object.values(state.buildings)) {
-    if (
-      building.type === type &&
-      isActive(building) &&
-      building.staffed
-    ) {
-      count += 1;
-    }
-  }
-  return count;
-}
-
 export function getResourceSummaries(state: GameState): Record<SurvivalResource, ResourceForecast> {
   const pop = state.population;
   const foodProduction = foodProductionPerTick(state);
   // Markets liquidate post-consumption surplus (Phase 9): the forecast balance
   // must show the drain, or ticks-remaining would lie while markets sell.
   const marketDrain = expectedMarketSales(state);
-  const waterProduction = staffedProducers(state, "well") * WATER_PER_WELL_PER_TICK;
+  const waterProduction = waterProductionPerTick(state);
   const foodConsumption = pop * FOOD_PER_COLONIST_PER_TICK;
   // served colonists: consumption is capped by availability, but the *rate*
   // the colony needs is pop; the served amount is a shortage signal.
@@ -147,6 +133,22 @@ export interface Alert {
   message: string;
 }
 
+/** Event alert copy (Step047): the modified rate and the remaining span. */
+function eventAlertLine(event: ActiveEvent): string {
+  switch (event.kind) {
+    case "drought":
+      return `Drought: wells at half output · ${event.ticksLeft} ticks left`;
+    case "tradeClosure":
+      return `Trade routes closed: workshop floor suspended · ${event.ticksLeft} ticks left`;
+    case "bountifulHarvest":
+      return `Bountiful harvest: farms +1/tick · ${event.ticksLeft} ticks left`;
+  }
+}
+
+function eventAlertSeverity(kind: ActiveEvent["kind"]): AlertSeverity {
+  return kind === "bountifulHarvest" ? "info" : "warning";
+}
+
 /**
  * `summaries` is optional: refreshStats (boot) already computes
  * getResourceSummaries once per tick and passes it in — avoiding a
@@ -157,6 +159,12 @@ export function getAlerts(
   summaries: Record<SurvivalResource, ResourceForecast> = getResourceSummaries(state),
 ): Alert[] {
   const alerts: Alert[] = [];
+
+  // Active controlled events first (Step047): states with their remaining
+  // duration, never instructions (design rule §7).
+  for (const event of state.events) {
+    alerts.push({ severity: eventAlertSeverity(event.kind), message: eventAlertLine(event) });
+  }
 
   if (summaries.food.balancePerTick < 0) {
     const ticks = summaries.food.ticksRemaining ?? 0;

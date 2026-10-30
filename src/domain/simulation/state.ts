@@ -5,6 +5,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { STARTING_AGE } from "@/content/progression.js";
 import { createBuilding, type Building } from "@/domain/building/building.js";
 import { createRoad, type Road } from "@/domain/road/road.js";
+import type { ActiveEvent, EventFrequency } from "@/domain/events/events.js";
 
 /**
  * Canonical simulation state: facts only, no derived values, no
@@ -32,6 +33,16 @@ export interface GameState {
   /** Next deterministic entity id counters ("building-N" / "road-N"). */
   buildingCounter: number;
   roadCounter: number;
+  /** Active controlled events (Step047): rate modifiers, bounded duration. */
+  events: ActiveEvent[];
+  /** Events master switch — sandbox default is OFF (design rule §24). */
+  eventsEnabled: boolean;
+  /** Recurrence cursor of the seeded draws (D4). */
+  eventFrequency: EventFrequency;
+  /** Seeded draw sequence index (ADR-007): f(seed, occurrence) is pure. */
+  eventsDrawn: number;
+  /** Tick at which the next draw fires; 0 = fires on the next resolution. */
+  nextEventTick: number;
 }
 
 export function createInitialState(config: WorldConfig): GameState {
@@ -52,6 +63,11 @@ export function createInitialState(config: WorldConfig): GameState {
     researchedTechs: [],
     buildingCounter: 1,
     roadCounter: 1,
+    events: [],
+    eventsEnabled: false,
+    eventFrequency: "normal",
+    eventsDrawn: 0,
+    nextEventTick: 0,
   };
 
   prePlaceColonyCenter(state);

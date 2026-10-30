@@ -6,6 +6,12 @@ import type { Road } from "@/domain/road/road.js";
 import { depositCapacities, type Deposits } from "@/domain/world/deposits.js";
 import { createWorld } from "@/domain/world/world.js";
 import { POLLUTION_MAX } from "@/domain/environment/environment.js";
+import {
+  EVENT_FREQUENCIES,
+  EVENT_KINDS,
+  type ActiveEvent,
+  type EventFrequency,
+} from "@/domain/events/events.js";
 import type { GameState } from "@/domain/simulation/state.js";
 import type { ResourceStock } from "@/domain/resource/resource.js";
 import type { WorldConfig } from "@/domain/world/world.js";
@@ -23,7 +29,7 @@ import type { WorldConfig } from "@/domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 17;
+export const SAVE_VERSION = 18;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 /** The single localStorage slot this game reads and writes. */
@@ -50,6 +56,11 @@ interface SaveDocument {
   roads: Road[];
   buildingCounter: number;
   roadCounter: number;
+  events: ActiveEvent[];
+  eventsEnabled: boolean;
+  eventFrequency: EventFrequency;
+  eventsDrawn: number;
+  nextEventTick: number;
 }
 
 export class SaveValidationError extends Error {}
@@ -83,6 +94,11 @@ export function serialize(state: GameState): SaveDocument {
     roads: Object.values(state.roads).map((r) => ({ id: r.id, cells: [...r.cells] })),
     buildingCounter: state.buildingCounter,
     roadCounter: state.roadCounter,
+    events: state.events.map((event) => ({ ...event })),
+    eventsEnabled: state.eventsEnabled,
+    eventFrequency: state.eventFrequency,
+    eventsDrawn: state.eventsDrawn,
+    nextEventTick: state.nextEventTick,
   };
 }
 
@@ -97,12 +113,13 @@ export function parseSave(input: unknown): GameState {
       `unsupported save version: ${String(version)} (expected ${SAVE_VERSION}, migratable from ${MIGRATABLE_SAVE_VERSION})`,
     );
   }
-  // sequential migration chain: v13 -> v14 -> v15 -> v16 -> v17
+  // sequential migration chain: v13 -> v14 -> v15 -> v16 -> v17 -> v18
   let doc: Record<string, unknown> = input;
   if (Number(doc.formatVersion) === 13) doc = migrateV13ToV14(doc);
   if (Number(doc.formatVersion) === 14) doc = migrateV14ToV15(doc);
   if (Number(doc.formatVersion) === 15) doc = migrateV15ToV16(doc);
   if (Number(doc.formatVersion) === 16) doc = migrateV16ToV17(doc);
+  if (Number(doc.formatVersion) === 17) doc = migrateV17ToV18(doc);
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
@@ -204,6 +221,28 @@ export function parseSave(input: unknown): GameState {
     researchedTechs.push(techId);
   }
 
+  // Controlled events (Step047): strict shape — unknown kinds/frequencies
+  // are corrupt data, never plausible state.
+  if (!Array.isArray(doc.events)) throw new SaveValidationError("save.events must be an array");
+  const events: ActiveEvent[] = [];
+  for (const raw of doc.events) {
+    if (!isRecord(raw)) throw new SaveValidationError("event must be an object");
+    const kind = expectString(raw.kind, "event.kind");
+    if (!EVENT_KINDS.includes(kind as never)) {
+      throw new SaveValidationError(`unknown event kind: ${kind}`);
+    }
+    const ticksLeft = expectNonNegativeInt(raw.ticksLeft, "event.ticksLeft");
+    if (ticksLeft < 1) throw new SaveValidationError("event.ticksLeft must be >= 1");
+    events.push({ kind: kind as ActiveEvent["kind"], ticksLeft });
+  }
+  const eventsEnabled = expectBoolean(doc.eventsEnabled, "save.eventsEnabled");
+  const eventFrequency = expectString(doc.eventFrequency, "save.eventFrequency");
+  if (!EVENT_FREQUENCIES.includes(eventFrequency as never)) {
+    throw new SaveValidationError(`unknown event frequency: ${eventFrequency}`);
+  }
+  const eventsDrawn = expectNonNegativeInt(doc.eventsDrawn, "save.eventsDrawn");
+  const nextEventTick = expectNonNegativeInt(doc.nextEventTick, "save.nextEventTick");
+
   return {
     world: generated,
     worldConfig: config,
@@ -219,11 +258,33 @@ export function parseSave(input: unknown): GameState {
     researchedTechs,
     buildingCounter,
     roadCounter,
+    events,
+    eventsEnabled,
+    eventFrequency: eventFrequency as EventFrequency,
+    eventsDrawn,
+    nextEventTick,
   };
 }
 
 export function saveToString(state: GameState): string {
   return JSON.stringify(serialize(state));
+}
+
+/**
+ * v17 -> v18 (Step047): add controlled events, defaulting to off/none.
+ * No active event can exist in a v17 save (the system did not exist) —
+ * value-preserving defaults only.
+ */
+function migrateV17ToV18(document: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...document,
+    formatVersion: 18,
+    events: [],
+    eventsEnabled: false,
+    eventFrequency: "normal",
+    eventsDrawn: 0,
+    nextEventTick: 0,
+  };
 }
 
 /**

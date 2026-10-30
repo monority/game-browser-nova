@@ -4,6 +4,7 @@ import { updatePopulation } from "@/domain/population/population.js";
 import { assignJobs } from "@/domain/jobs/jobs.js";
 import { collectRevenue, payMaintenance } from "@/domain/economy/economy.js";
 import { updateEnvironment } from "@/domain/environment/environment.js";
+import { resolveEvents } from "@/domain/events/events.js";
 import { produceStone, produceWood } from "@/domain/production/extraction.js";
 import { producePlanks } from "@/domain/production/transformation.js";
 import { clampStorage } from "@/domain/storage/storage.js";
@@ -26,6 +27,9 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *   8. assignJobs (next tick's staffing)
  *   9. collectRevenue → payMaintenance (money model, same-tick inflow)
  *   10. updateEnvironment (pollution flows + park wood regrowth)
+ *   11. resolveEvents (Step047: expire + seeded draws; canonical phase 12
+ *       of 05-SIMULATION §3 — active events feed the NEXT tick's
+ *       production/commerce phases, same timing contract as staffing)
  */
 export function stepSimulation(state: GameState): GameState {
   state.tick += 1;
@@ -50,6 +54,7 @@ export function stepSimulation(state: GameState): GameState {
   collectRevenue(state, planksProduced);
   payMaintenance(state);
   updateEnvironment(state);
+  resolveEvents(state);
 
   return state;
 }

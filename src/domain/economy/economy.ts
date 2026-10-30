@@ -5,6 +5,7 @@ import { addMoney, deductFood } from "@/domain/resource/resource.js";
 import { foodProductionPerTick, FOOD_PER_COLONIST_PER_TICK } from "@/domain/production/production.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
 import { techLevel } from "@/domain/progression/progression.js";
+import { isEventActive } from "@/domain/events/events.js";
 
 /**
  * Step001 money model (validated baseline):
@@ -118,10 +119,14 @@ export function taxesPerTick(state: GameState): number {
 export function commercePerTick(state: GameState, planksProducedThisTick = 0): number {
   const perWorkshop =
     COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce");
-  return (
-    (commerceUnlocked(state) ? connectedWorkshops(state) * perWorkshop : 0) +
-    planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK
-  );
+  // Closed trade routes (Step047): the connection floor is suspended, the
+  // plank throughput bonus stays — real transformation work still pays, so
+  // the event perturbs without removing the player's lever.
+  const floor =
+    commerceUnlocked(state) && !isEventActive(state, "tradeClosure")
+      ? connectedWorkshops(state) * perWorkshop
+      : 0;
+  return floor + planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
 }
 
 /** Maintenance owed per tick: non-exempt operational buildings (Step028 shared). */

@@ -226,7 +226,7 @@ describe("market1 milestone (Step024)", () => {
     });
 
     it("market1 round-trips through save/load with no migration", () => {
-      expect(SAVE_VERSION).toBe(17);
+      expect(SAVE_VERSION).toBe(18);
       const state = marketState();
       placeMarket(state);
       const before = evaluateMilestones(state, 2);
@@ -304,7 +304,7 @@ describe("age-3 prosperity set (Step035)", () => {
     });
 
     it("age-3 set round-trips through save/load with no migration", () => {
-      expect(SAVE_VERSION).toBe(17);
+      expect(SAVE_VERSION).toBe(18);
       const state = age3State();
       completeColony(state);
       state.population = 20;
@@ -317,8 +317,8 @@ describe("age-3 prosperity set (Step035)", () => {
   });
 
 describe("progression persistence", () => {
-  it("exposes SAVE_VERSION 17 with the v13 migratable chain", () => {
-    expect(SAVE_VERSION).toBe(17);
+  it("exposes SAVE_VERSION 18 with the v13 migratable chain", () => {
+    expect(SAVE_VERSION).toBe(18);
     expect(MIGRATABLE_SAVE_VERSION).toBe(13);
   });
 

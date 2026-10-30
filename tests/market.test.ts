@@ -200,7 +200,7 @@ describe("market forecast precision", () => {
 
 describe("market persistence and rendering", () => {
   it("round-trips markets without a save version bump", () => {
-    expect(SAVE_VERSION).toBe(17);
+    expect(SAVE_VERSION).toBe(18);
     const state = freshState();
     placeConnectedMarket(state);
     const restored = parseSave(serialize(state));

@@ -5,8 +5,8 @@ import { isActive } from "@/domain/building/building.js";
 import {
   FOOD_PER_COLONIST_PER_TICK,
   WATER_PER_SERVED_COLONIST_PER_TICK,
-  WATER_PER_WELL_PER_TICK,
   foodProductionPerTick,
+  waterProductionPerTick,
 } from "@/domain/production/production.js";
 import { expectedMarketSales } from "@/domain/economy/economy.js";
 import {
@@ -42,15 +42,9 @@ function foodBalance(state: GameState): number {
   return foodProductionPerTick(state) - consumption - expectedMarketSales(state);
 }
 
-/** Water balance: staffed active wells vs. the whole population's need. */
+/** Water balance: staffed active wells (drought-aware, Step047) vs. the whole population's need. */
 function waterBalance(state: GameState): number {
-  let production = 0;
-  for (const building of Object.values(state.buildings)) {
-    if (building.type === "well" && isActive(building) && building.staffed) {
-      production += WATER_PER_WELL_PER_TICK;
-    }
-  }
-  return production - state.population * WATER_PER_SERVED_COLONIST_PER_TICK;
+  return waterProductionPerTick(state) - state.population * WATER_PER_SERVED_COLONIST_PER_TICK;
 }
 
 function tintOf(building: Building): string {

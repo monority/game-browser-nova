@@ -6,6 +6,7 @@ import { parseCellKey } from "@/domain/shared/cells.js";
 import { deductMoney, deductPlanks, deductWater } from "@/domain/resource/resource.js";
 import { canAdvanceAge, hasTech } from "@/domain/progression/progression.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
+import type { EventFrequency } from "@/domain/events/events.js";
 import type { GameState } from "./state.js";
 
 /**
@@ -22,7 +23,8 @@ export type Command =
   | { kind: "removeRoads"; cells: readonly string[] }
   | { kind: "setBuildingActive"; id: string; active: boolean }
   | { kind: "researchTech"; techId: string }
-  | { kind: "advanceAge" };
+  | { kind: "advanceAge" }
+  | { kind: "configureEvents"; enabled: boolean; frequency: EventFrequency };
 
 type CommandResult =
   | { ok: true }
@@ -44,6 +46,8 @@ export function applyCommand(state: GameState, command: Command): CommandResult 
       return applyResearchTech(state, command.techId);
     case "advanceAge":
       return applyAdvanceAge(state);
+    case "configureEvents":
+      return applyConfigureEvents(state, command.enabled, command.frequency);
   }
 }
 
@@ -145,5 +149,22 @@ function applyResearchTech(state: GameState, techId: string): CommandResult {
 function applyAdvanceAge(state: GameState): CommandResult {
   if (!canAdvanceAge(state)) return { ok: false, reason: "milestonesIncomplete" };
   state.age += 1;
+  return { ok: true };
+}
+
+/**
+ * Events configuration (Step047). Disabling also clears active events:
+ * config off means no events, deterministically. Enabling spawns the
+ * first event on the next resolution (nextEventTick 0), then the
+ * frequency cursor governs recurrence.
+ */
+function applyConfigureEvents(
+  state: GameState,
+  enabled: boolean,
+  frequency: EventFrequency,
+): CommandResult {
+  state.eventsEnabled = enabled;
+  state.eventFrequency = frequency;
+  if (!enabled) state.events = [];
   return { ok: true };
 }
