@@ -2,6 +2,7 @@ import type { GameState } from "@/domain/simulation/state.js";
 import type { Building } from "@/domain/building/building.js";
 import { isActive } from "@/domain/building/building.js";
 import { addPlanks, deductWood } from "@/domain/resource/resource.js";
+import { compareCellsWithId } from "@/domain/shared/cells.js";
 
 /**
  * First physical transformation (Step006 contract, corrected Step039).
@@ -31,7 +32,7 @@ export function staffedWorkshops(state: GameState): number {
 function transformingCandidates(state: GameState): Building[] {
   return Object.values(state.buildings)
     .filter((b) => b.type === "workshop" && isActive(b) && b.staffed)
-    .sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id));
+    .sort(compareCellsWithId);
 }
 
 /**

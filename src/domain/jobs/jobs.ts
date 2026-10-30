@@ -1,6 +1,8 @@
 import type { GameState } from "@/domain/simulation/state.js";
+import type { Building } from "@/domain/building/building.js";
 import { isAdjacentToRoad } from "@/domain/network/network.js";
 import { isActive } from "@/domain/building/building.js";
+import { compareCellsWithId } from "@/domain/shared/cells.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 
 
@@ -15,19 +17,22 @@ import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
  * newly operational workplace is staffed next tick — production phases
  * read the previous assignment.
  */
+export function isEligibleWorkplace(state: GameState, building: Building): boolean {
+  return (
+    isActive(building) &&
+    BUILDING_DEFINITIONS[building.type].jobCapacity > 0 &&
+    isAdjacentToRoad(state.roads, building.x, building.y)
+  );
+}
+
 export function assignJobs(state: GameState): void {
   for (const building of Object.values(state.buildings)) {
     building.staffed = false;
   }
 
   const eligible = Object.values(state.buildings)
-    .filter(
-      (b) =>
-        isActive(b) &&
-        BUILDING_DEFINITIONS[b.type].jobCapacity > 0 &&
-        isAdjacentToRoad(state.roads, b.x, b.y),
-    )
-    .sort((a, b) => a.y - b.y || a.x - b.x || a.id.localeCompare(b.id));
+    .filter((b) => isEligibleWorkplace(state, b))
+    .sort(compareCellsWithId);
 
   let remaining = state.population;
   for (const workplace of eligible) {

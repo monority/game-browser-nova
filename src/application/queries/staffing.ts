@@ -1,8 +1,8 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import type { Building } from "@/domain/building/building.js";
 import type { BuildingType } from "@/content/buildings.js";
-import { isActive } from "@/domain/building/building.js";
-import { isAdjacentToRoad } from "@/domain/network/network.js";
+import { isEligibleWorkplace } from "@/domain/jobs/jobs.js";
+import { compareCellsWithId } from "@/domain/shared/cells.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 
 /**
@@ -45,19 +45,12 @@ export interface StaffingOverview {
   entries: StaffingEntry[];
 }
 
-/** Canonical staffing order — the same comparator assignJobs sorts with. */
-function canonical(a: Building, b: Building): number {
-  return a.y - b.y || a.x - b.x || a.id.localeCompare(b.id);
-}
-
 export function getStaffingOverview(state: GameState): StaffingOverview {
   const workplaces = Object.values(state.buildings)
     .filter((b) => BUILDING_DEFINITIONS[b.type].jobCapacity > 0)
-    .sort(canonical);
+    .sort(compareCellsWithId);
 
-  const eligible = workplaces.filter(
-    (b) => isActive(b) && isAdjacentToRoad(state.roads, b.x, b.y),
-  );
+  const eligible = workplaces.filter((b) => isEligibleWorkplace(state, b));
 
   // Mirror the greedy assignment: workers fill eligible workplaces in rank
   // order until the workforce is exhausted.
@@ -102,7 +95,7 @@ export function getStaffingOverview(state: GameState): StaffingOverview {
   const ranked = entries
     .filter((e): e is StaffingEntry & { order: number } => e.order !== null)
     .sort((a, b) => a.order - b.order);
-  const unranked = entries.filter((e) => e.order === null).sort(canonicalOfEntry);
+  const unranked = entries.filter((e) => e.order === null).sort(compareCellsWithId);
 
   return {
     workers: state.population,
@@ -110,10 +103,6 @@ export function getStaffingOverview(state: GameState): StaffingOverview {
     staffed: staffedIds.size,
     entries: [...ranked, ...unranked],
   };
-}
-
-function canonicalOfEntry(a: StaffingEntry, b: StaffingEntry): number {
-  return a.y - b.y || a.x - b.x || a.id.localeCompare(b.id);
 }
 
 function ineligible(

@@ -18,13 +18,25 @@ export function parseCellKey(key: string): { x: number; y: number } {
   return { x, y };
 }
 
+/** Canonical coordinate order: y asc, x asc. */
+export function compareCellCoords(
+  a: { x: number; y: number },
+  b: { x: number; y: number },
+): number {
+  return a.y - b.y || a.x - b.x;
+}
+
+/** Canonical id-tiebroken order: y asc, x asc, id (staffing rank order). */
+export function compareCellsWithId(
+  a: { x: number; y: number; id: string },
+  b: { x: number; y: number; id: string },
+): number {
+  return compareCellCoords(a, b) || a.id.localeCompare(b.id);
+}
+
 /** Canonical iteration order for a cell-keyed record: y asc, x asc. */
 export function sortedCellKeys(keys: Iterable<string>): string[] {
-  return [...keys].sort((a, b) => {
-    const pa = parseCellKey(a);
-    const pb = parseCellKey(b);
-    return pa.y - pb.y || pa.x - pb.x;
-  });
+  return [...keys].sort((a, b) => compareCellCoords(parseCellKey(a), parseCellKey(b)));
 }
 
 export function orthogonalNeighbors(x: number, y: number): Array<{ x: number; y: number }> {

@@ -3,6 +3,7 @@ import { isActive } from "@/domain/building/building.js";
 import { techLevel } from "@/domain/progression/progression.js";
 import { extractAdjacent } from "@/domain/world/deposits.js";
 import { addStone, addWood } from "@/domain/resource/resource.js";
+import { compareCellCoords } from "@/domain/shared/cells.js";
 
 /**
  * Physical extraction (Steps 003/005 contract).
@@ -45,7 +46,7 @@ export function produceWood(state: GameState): void {
       sources.push({ x: building.x, y: building.y, share: WOOD_PER_COLONY_CENTER_PER_TICK });
     }
   }
-  sources.sort((a, b) => a.y - b.y || a.x - b.x);
+  sources.sort(compareCellCoords);
   const extracted = extractShares(state.woodDeposits, sources);
   addWood(state.resources, extracted);
 }
@@ -63,7 +64,7 @@ export function produceStone(state: GameState): void {
     }
   }
   if (sources.length === 0) return;
-  sources.sort((a, b) => a.y - b.y || a.x - b.x);
+  sources.sort(compareCellCoords);
   const extracted = extractShares(state.stoneDeposits, sources);
   addStone(state.resources, extracted);
 }

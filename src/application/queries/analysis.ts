@@ -12,6 +12,7 @@ import {
   taxesPerTick,
 } from "@/domain/economy/economy.js";
 import { isActive } from "@/domain/building/building.js";
+import { compareCellCoords } from "@/domain/shared/cells.js";
 import { ENV_QUALITY_ALERT_THRESHOLD, environmentalQuality } from "@/domain/environment/environment.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
@@ -131,7 +132,7 @@ export function getResourceContributors(
       staffed: b.staffed,
       active: b.active,
     }))
-    .sort((a, b) => a.y - b.y || a.x - b.x);
+    .sort(compareCellCoords);
   return {
     resource,
     producers,
