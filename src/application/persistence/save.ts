@@ -272,11 +272,14 @@ function migrateV16ToV17(document: Record<string, unknown>): Record<string, unkn
   const withCapacities = (
     deposits: unknown,
     seeds: Array<{ x: number; y: number; amount: number }> | undefined,
+    label: string,
   ): Record<string, unknown> => {
-    if (typeof deposits !== "object" || deposits === null) return {};
+    // A missing/corrupt deposits record is invalid input, not an empty
+    // colony: healing it as {} would load with zero deposits silently.
+    if (!isRecord(deposits)) throw new SaveValidationError(`${label} missing or corrupt (v16)`);
     const capacities = depositCapacities(seeds ?? []);
     const out: Record<string, unknown> = {};
-    for (const [key, raw] of Object.entries(deposits as Record<string, unknown>)) {
+    for (const [key, raw] of Object.entries(deposits)) {
       const entry = (raw ?? {}) as { remaining?: unknown };
       out[key] = { remaining: entry.remaining, capacity: capacities[key] ?? entry.remaining ?? 0 };
     }
@@ -289,8 +292,8 @@ function migrateV16ToV17(document: Record<string, unknown>): Record<string, unkn
     // referencing SAVE_VERSION here would silently mislabel if it ever moved.
     formatVersion: 17,
     deposits: {
-      wood: withCapacities(deposits.wood, world.woodDeposits),
-      stone: withCapacities(deposits.stone, world.stoneDeposits),
+      wood: withCapacities(deposits.wood, world.woodDeposits, "save.deposits.wood"),
+      stone: withCapacities(deposits.stone, world.stoneDeposits, "save.deposits.stone"),
     },
   };
 }

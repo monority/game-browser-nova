@@ -18,6 +18,7 @@ import {
   produceFood,
   produceWater,
 } from "@/domain/production/production.js";
+import { clampStorage, foodCapacity } from "@/domain/storage/storage.js";
 import { getResourceSummaries } from "@/application/queries/analysis.js";
 import { parseSave, serialize, SAVE_VERSION } from "@/application/persistence/save.js";
 import { BUILDING_PALETTE, createBuildingMeshes } from "@/renderer/shapes.js";
@@ -169,14 +170,32 @@ describe("market forecast precision", () => {
       stepTicks(state, 2); // farm staffed when present
       state.resources.food = c.food;
       expect(expectedMarketSales(state)).toBe(c.expected);
-      // mirror tick phases 2+5, then the market sale
+      // mirror tick phases 2+5+6 (production, consumption, Step031 clamp),
+      // then the market sale
       produceFood(state);
       produceWater(state);
       consumeFood(state);
       consumeWater(state);
+      clampStorage(state);
       expect(sellMarketSurplus(state)).toBe(c.expected);
     });
   }
+
+  it("forecast bounds the post-consumption surplus by the storage cap", () => {
+    const state = freshState();
+    placeConnectedMarket(state);
+    placeConnectedFarm(state); // +production pushes food past the cap
+    state.population = 0;
+    state.resources.food = foodCapacity(state); // saturated stock
+    expect(expectedMarketSales(state)).toBe(2);
+    // faithful mirror of the tick: overflow is destroyed before the sale
+    produceFood(state);
+    consumeFood(state);
+    consumeWater(state);
+    clampStorage(state);
+    expect(sellMarketSurplus(state)).toBe(2);
+    expect(state.resources.food).toBe(foodCapacity(state) - 2);
+  });
 });
 
 describe("market persistence and rendering", () => {

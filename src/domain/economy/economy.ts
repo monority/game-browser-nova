@@ -3,6 +3,7 @@ import { isAdjacentToRoad } from "@/domain/network/network.js";
 import { isActive } from "@/domain/building/building.js";
 import { addMoney, deductFood } from "@/domain/resource/resource.js";
 import { foodProductionPerTick, FOOD_PER_COLONIST_PER_TICK } from "@/domain/production/production.js";
+import { foodCapacity } from "@/domain/storage/storage.js";
 import { techLevel } from "@/domain/progression/progression.js";
 
 /**
@@ -72,14 +73,20 @@ export function connectedMarkets(state: GameState): number {
  * Read on pre-tick state it equals what the market will sell this tick;
  * read on post-tick state it projects next-tick sales. The UI calls it
  * post-tick, so the drain shown is next tick's.
+ *
+ * Mirrors the exact phase semantics (tick 2/5/6/9): the market sells from
+ * the stock LEFT AFTER consumption, and the Step031 clamp caps that stock —
+ * so the cap bounds the post-consumption surplus, not the gross stock.
  */
 export function expectedMarketSales(state: GameState): number {
   const markets = connectedMarkets(state);
   if (markets === 0) return 0;
   const requirement = state.population * FOOD_PER_COLONIST_PER_TICK;
-  const available = state.resources.food + foodProductionPerTick(state);
-  const leftover = available >= requirement ? available - requirement : 0;
-  return Math.min(leftover, markets * FOOD_SOLD_PER_MARKET_PER_TICK);
+  const surplus = Math.max(
+    0,
+    state.resources.food + foodProductionPerTick(state) - requirement,
+  );
+  return Math.min(surplus, foodCapacity(state), markets * FOOD_SOLD_PER_MARKET_PER_TICK);
 }
 
 /**

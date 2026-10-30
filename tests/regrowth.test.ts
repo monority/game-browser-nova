@@ -10,6 +10,7 @@ import {
   serialize,
   SAVE_VERSION,
   MIGRATABLE_SAVE_VERSION,
+  SaveValidationError,
 } from "@/application/persistence/save.js";
 import { mustOk } from "./helpers.js";
 
@@ -160,6 +161,17 @@ describe("regrowth persistence", () => {
     expect(migrated.woodDeposits[cellKey(5, 5)]).toEqual({ remaining: 6, capacity: 6 });
     expect(migrated.stoneDeposits[cellKey(10, 10)]).toEqual({ remaining: 8, capacity: 8 });
     expect(migrated.age).toBe(1);
+  });
+
+  it("rejects a v16 save with corrupt deposits instead of healing them as empty", () => {
+    const state = freshState();
+    const doc = serialize(state) as unknown as Record<string, unknown>;
+    const v16 = {
+      ...doc,
+      formatVersion: 16,
+      deposits: { wood: null, stone: {} },
+    } as Record<string, unknown>;
+    expect(() => parseSave(v16)).toThrow(SaveValidationError);
   });
 
   it("regrowth with extraction is deterministic", () => {
