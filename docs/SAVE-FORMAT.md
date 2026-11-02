@@ -30,6 +30,13 @@ Save
 
 Exact schema is an implementation decision.
 
+> **Current implementation (2026-11-02):** `SAVE_VERSION = 18`, sequential
+> migration chain v13 → v18 (mothball flag, pollution, age+techs, deposit
+> capacity, controlled events). Schema and validation live in
+> `src/application/persistence/save.ts`; test evidence in
+> `tests/persistence.test.ts` (round trip, migrations, rejection,
+> deterministic continuation).
+
 ## 3. Never serialize
 
 Do not serialize:

@@ -1,5 +1,12 @@
 # NOVA — Implementation Roadmap
 
+> **Status (2026-11-02): DELIVERED.** Every phase below (0-10) is
+> implemented and validated — the MVP is complete, including the last
+> Phase 10 deliverable (controlled events, Step046-049) and the first
+> logistics mechanic (Step050). This document is kept as the original
+> plan of record; **current repository facts live in `docs/STATE.md`**,
+> and step-by-step history in `docs/roadmap/`.
+
 ## Operating principle
 
 Build in large, coherent vertical slices. Every slice should produce a measurable increase in the playable product.

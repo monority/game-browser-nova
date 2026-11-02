@@ -93,6 +93,11 @@ Initial useful overlays:
 
 The system should eventually allow comparing multiple indicators without turning the screen into a permanent dashboard.
 
+> **Delivered (2026-11-02):** none, staffing (employment), deposits, food,
+> water, pollution, population, logistics — 8 modes, one active at a time
+> (`src/renderer/overlay.ts`). Energy and traffic are not MVP scope; the
+> environment indicator is served by the pollution overlay.
+
 ## 7. Alerts
 
 Alerts communicate states, not instructions.
