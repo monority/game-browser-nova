@@ -14,6 +14,7 @@ import {
   environmentalQuality,
 } from "@/domain/environment/environment.js";
 import { housingCapacity } from "@/domain/population/population.js";
+import { buildLogisticsMap, logisticsEfficiencyPercent } from "@/domain/logistics/logistics.js";
 
 /**
  * Overlay state mapping (presentation logic, no Three.js here — pure and
@@ -27,7 +28,8 @@ export type OverlayMode =
   | "food"
   | "water"
   | "pollution"
-  | "population";
+  | "population"
+  | "logistics";
 
 export type OverlayTint = "ok" | "warn" | "off";
 
@@ -74,6 +76,7 @@ export function computeOverlay(state: GameState, mode: OverlayMode): OverlayCell
     case "pollution": return computePollutionOverlay(state);
     case "population": return computePopulationOverlay(state);
     case "staffing": return computeStaffingOverlay(state);
+    case "logistics": return computeLogisticsOverlay(state);
     case "deposits": return cells; // deposit markers carry the data, not buildings
   }
 }
@@ -88,6 +91,27 @@ function computeFoodOverlay(state: GameState): OverlayCell[] {
     } else {
       cells.push({ key: tintOf(building), tint: balance < 0 ? "warn" : "ok" });
     }
+  }
+  return cells;
+}
+
+/**
+ * Logistics overlay (Step050): hubs (warehouses, Center) show ok; extraction
+ * worksites show ok at full rate, warn decayed by distance, off inactive.
+ */
+function computeLogisticsOverlay(state: GameState): OverlayCell[] {
+  const map = buildLogisticsMap(state);
+  const cells: OverlayCell[] = [];
+  for (const building of Object.values(state.buildings)) {
+    const isHub = building.type === "warehouse" || building.type === "colonyCenter";
+    const isWorksite = building.type === "lumberCamp" || building.type === "quarry";
+    if (!isHub && !isWorksite) continue;
+    if (building.status !== "operational" || !isActive(building)) {
+      cells.push({ key: tintOf(building), tint: "off" });
+      continue;
+    }
+    const eff = isHub ? 100 : logisticsEfficiencyPercent(state, building, map);
+    cells.push({ key: tintOf(building), tint: eff >= 100 ? "ok" : "warn" });
   }
   return cells;
 }

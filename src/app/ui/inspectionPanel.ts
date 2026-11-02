@@ -15,6 +15,8 @@ export interface RemoveBuildingInfo {
   active: boolean;
   /** Staffing state line for workplaces (states only, Step025). */
   staffing?: string;
+  /** Logistics line for extraction worksites (states only, Step050). */
+  logistics?: string;
 }
 
 export interface RemoveRoadInfo {
@@ -120,6 +122,9 @@ export function createInspectionPanel(callbacks: {
         const staffing = staticNote(info.staffing, "nova-note--mb");
         staffing.dataset.staffing = info.id;
         element.appendChild(staffing);
+      }
+      if (info.logistics) {
+        element.appendChild(staticNote(info.logistics, "nova-note--mb"));
       }
       if (info.id === "colony-center") {
         element.appendChild(

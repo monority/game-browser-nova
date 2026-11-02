@@ -104,6 +104,7 @@ describe("parsePreferences", () => {
       "water",
       "pollution",
       "population",
+      "logistics",
     ]);
   });
 });

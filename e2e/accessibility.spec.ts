@@ -89,7 +89,7 @@ test.describe("accessibility (Tier2)", () => {
     await page.goto("/");
     await pause(page);
     const before = await page.evaluate(() => JSON.stringify(window.__nova!.getState()));
-    for (const mode of ["food", "water", "pollution"] as const) {
+    for (const mode of ["food", "water", "pollution", "logistics"] as const) {
       const button = page.locator(`button[data-action='overlay-${mode}']`);
       await button.focus();
       await page.keyboard.press("Enter");

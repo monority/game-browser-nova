@@ -34,6 +34,8 @@ const OVERLAY_LEGENDS: Record<OverlayMode, string> = {
     "Pollution: emitters green clean (quality ≥ 50) · amber dirty (quality < 50) · gray inactive · parks green active",
   population:
     "Population: residences green while growth is possible · amber when housing is full (growth capped) · gray mothballed",
+  logistics:
+    "Logistics: hubs (warehouses, Center) green · extraction sites green at full rate · amber decayed by road distance to the warehouse · gray inactive",
 };
 
 /** Button label without the age suffix (base palette labels). */
@@ -146,6 +148,7 @@ export function createControlsPanel(callbacks: {
     ["water", "Water"],
     ["pollution", "Pollution"],
     ["population", "Population"],
+    ["logistics", "Logistics"],
   ];
   for (const [mode, label] of overlayModes) {
     const button = textButton(label, `overlay-${mode}`, () => {

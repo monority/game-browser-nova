@@ -4,6 +4,8 @@ import { validatePlacement } from "@/domain/building/placement.js";
 import { allRoadCells } from "@/domain/road/road.js";
 import { cellKey } from "@/domain/shared/cells.js";
 import type { Renderer } from "@/renderer/renderer.js";
+import type { Building } from "@/domain/building/building.js";
+import { buildLogisticsMap, logisticsDistance, logisticsEfficiencyPercent } from "@/domain/logistics/logistics.js";
 import { getStaffingOverview } from "@/application/queries/staffing.js";
 import { BUILDING_DETAIL } from "./details.js";
 import type { Ui } from "./ui.js";
@@ -37,6 +39,16 @@ export function attachInput(ctx: InputContext): {
   }
 
   /** Hover tooltip text for a cell in inspect mode (states, not instructions). */
+  /** Logistics state line for extraction worksites (states only, Step050). */
+  function logisticsLine(state: ReturnType<typeof ctx.getState>, building: Building): string | undefined {
+    if (building.type !== "lumberCamp" && building.type !== "quarry") return undefined;
+    const map = buildLogisticsMap(state);
+    const d = logisticsDistance(state, building, map);
+    const eff = logisticsEfficiencyPercent(state, building, map);
+    const where = d === Infinity ? "no path" : `${d} hops`;
+    return `logistics · ${eff}% · ${where} to warehouse`;
+  }
+
   function describeCell(x: number, y: number): string | null {
     const state = ctx.getState();
     for (const building of Object.values(state.buildings)) {
@@ -74,6 +86,7 @@ export function attachInput(ctx: InputContext): {
           detail: BUILDING_DETAIL[building.type],
           active: building.active,
           staffing: staffing?.staffingLine,
+          logistics: logisticsLine(state, building),
         });
         return;
       }

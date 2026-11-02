@@ -253,3 +253,32 @@ describe("resource contributors (drill-down)", () => {
     expect(c.consumptionPerTick).toBe(0);
   });
 });
+
+describe("logistics overlay (Step050)", () => {
+  it("hubs show ok, extraction sites ok/warn by distance, others never tint", () => {
+    const state = freshState();
+    stripToAnchor(state);
+    // subject under test is network distance, not terrain
+    state.world.blockedCells = {};
+    state.resources.money = 100000;
+    state.resources.planks = 50;
+    mustOk(applyCommand(state, {
+      kind: "placeRoads",
+      cells: Array.from({ length: 14 }, (_, i) => cellKey(2 + i, 0)),
+    }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "warehouse", x: 2, y: 1 }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x: 3, y: 1 }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x: 15, y: 1 }));
+    stepTicks(state, 2);
+    const c = tints(state, "logistics");
+    const anchor = Object.values(state.buildings).find((b) => b.type === "colonyCenter")!;
+    const warehouse = Object.values(state.buildings).find((b) => b.type === "warehouse")!;
+    const nearCamp = Object.values(state.buildings).find((b) => b.type === "lumberCamp" && b.x === 3)!;
+    const farCamp = Object.values(state.buildings).find((b) => b.type === "lumberCamp" && b.x === 15)!;
+    expect(c.get(cellKey(anchor.x, anchor.y))).toBe("ok");
+    expect(c.get(cellKey(warehouse.x, warehouse.y))).toBe("ok");
+    expect(c.get(cellKey(nearCamp.x, nearCamp.y))).toBe("ok"); // d=1 ≤ 12
+    expect(c.get(cellKey(farCamp.x, farCamp.y))).toBe("warn"); // d=13 → 96%
+    expect(c.has(cellKey(0, 5))).toBe(false); // no other building type tints
+  });
+});
