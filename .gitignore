@@ -4,3 +4,6 @@ coverage/
 test-results/
 *.local
 .DS_Store
+
+# agent playtest artifacts (screenshots + generated report)
+playtest/artifacts/

@@ -66,6 +66,38 @@ sentiment de contrôle ? Noter hésitations et agacements au fil de l'eau.
 4. si un chiffre ou un libellé reste obscur, le noter tel quel (c'est
    exactement le signal recherché).
 
+## 4bis. Exécution agent du scénario (instrument, pas un verdict)
+
+Un harnais rejoue les scénarios A-D à travers la vraie UI (vrais clics,
+captures, lecture des panneaux) :
+
+```
+pnpm exec playwright test -c playtest/playtest.config.ts
+```
+
+Sortie : `playtest/artifacts/PLAYTEST-REPORT.md` + captures PNG par
+moment observé (gitignorés). Observations agent déjà collectées :
+
+- **A** : guidage, confirmation, désélection, refus — tous visibles et
+  corrects dans l'UI réelle ;
+- **B** : le déficit alimentaire est anticipable (compte à rebours) ;
+  **nouvelle friction F12** : la ligne eau affiche la consommation
+  *servie* (`+10/-0` quand 12 colons ont soif) là où la ligne
+  nourriture affiche le *besoin* (`-12`) — sémantique incohérente à
+  faire converger ;
+- **C** : séquence représentative vérifiée — pollution 100 → alerte
+  « Growth blocked » nommant le seuil, colonie vivante (pop 10) → 2
+  parcs → pollution 6, croissance reprend (pop 14) → nouvelle pression
+  visible (compte à rebours nourriture) ;
+- **Constat structurel réaffirmé** : tout déficit non géré au plafond de
+  logement efface la colonie (famine all-or-nothing) — les walkthroughs
+  agent l'ont déclenché deux fois en construisant du logement sans
+  production ; c'est le mécanisme documenté, et la friction la plus
+  brutale pour un joueur non averti.
+
+Ces observations agent **préparent** le triage mais ne remplacent pas
+le verdict humain (§6).
+
 ## 5. Collecte des frictions (à compléter par le joueur)
 
 | # | Description | Moment (tick/âge approx.) | Gravité perçue (1-3) | Reproductible ? | Capture | Proposition libre |
