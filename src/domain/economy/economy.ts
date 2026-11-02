@@ -114,6 +114,8 @@ export function taxesPerTick(state: GameState): number {
 /**
  * Commerce per tick: connection base (population-gated, Step021) plus the
  * tradeRoutes tech bonus, plus the plank throughput bonus (always on).
+ * Workshops are EXEMPT from logistics efficiency (Step050 calibration —
+ * core-placed; the V2 network storage scope revisits this).
  * `planksProducedThisTick` is the actual transformation output this tick.
  */
 export function commercePerTick(state: GameState, planksProducedThisTick = 0): number {
@@ -122,8 +124,7 @@ export function commercePerTick(state: GameState, planksProducedThisTick = 0): n
   // Closed trade routes (Step047), P2 (Step049): the connection floor runs
   // at HALF (rounded up, so tech keeps its edge) instead of being fully
   // suspended — the aléa slows banking without cutting the only income
-  // line (Step048 report §1: market +45 ticks, treasury −15.6%). The
-  // plank throughput bonus stays always-on: real work still pays.
+  // line. The plank throughput bonus stays always-on: real work still pays.
   const closed = isEventActive(state, "tradeClosure");
   const floorPerWorkshop = closed ? Math.ceil(perWorkshop / 2) : perWorkshop;
   const floor = commerceUnlocked(state)

@@ -28,7 +28,10 @@ export function foodPerFarm(state: GameState): number {
   return FOOD_PER_FARM_PER_TICK + techLevel(state, "farmFood");
 }
 
-/** Expected food production for the coming tick (pure): staffed farms plus Center trickle. */
+/** Expected food production for the coming tick (pure): staffed farms plus
+ * Center trickle. Farms are EXEMPT from logistics efficiency (Step050
+ * calibration: subsistance producers stay full-rate until the V2 network
+ * storage lands — measured evidence in the Step050 report). */
 export function foodProductionPerTick(state: GameState): number {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {
@@ -58,7 +61,9 @@ export function waterPerWell(state: GameState): number {
   );
 }
 
-/** Expected water production for the coming tick (pure): staffed wells. */
+/** Expected water production for the coming tick (pure): staffed wells.
+ * Wells are EXEMPT from logistics efficiency (Step050 calibration, see
+ * foodProductionPerTick). */
 export function waterProductionPerTick(state: GameState): number {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {

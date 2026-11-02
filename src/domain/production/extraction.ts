@@ -4,6 +4,7 @@ import { techLevel } from "@/domain/progression/progression.js";
 import { extractAdjacent } from "@/domain/world/deposits.js";
 import { addStone, addWood } from "@/domain/resource/resource.js";
 import { compareCellCoords } from "@/domain/shared/cells.js";
+import { applyLogistics, buildLogisticsMap } from "@/domain/logistics/logistics.js";
 
 /**
  * Physical extraction (Steps 003/005 contract).
@@ -34,13 +35,19 @@ function extractShares(
   return taken;
 }
 
-/** Tick phase 3: wood extraction (staffed camps + unstaffed Colony Center). */
+/** Tick phase 3: wood extraction (staffed camps + unstaffed Colony Center,
+ * each camp scaled by its logistics efficiency — Step050). */
 export function produceWood(state: GameState): void {
+  const map = buildLogisticsMap(state);
   const sources: Array<{ x: number; y: number; share: number }> = [];
   for (const building of Object.values(state.buildings)) {
     if (!isActive(building)) continue;
     if (building.type === "lumberCamp" && building.staffed) {
-      sources.push({ x: building.x, y: building.y, share: WOOD_PER_LUMBER_CAMP_PER_TICK });
+      sources.push({
+        x: building.x,
+        y: building.y,
+        share: applyLogistics(state, building, WOOD_PER_LUMBER_CAMP_PER_TICK, map),
+      });
     }
     if (building.type === "colonyCenter") {
       sources.push({ x: building.x, y: building.y, share: WOOD_PER_COLONY_CENTER_PER_TICK });
@@ -51,8 +58,10 @@ export function produceWood(state: GameState): void {
   addWood(state.resources, extracted);
 }
 
-/** Tick phase 3: stone extraction (staffed quarries only — the anchor collects no stone). */
+/** Tick phase 3: stone extraction (staffed quarries only — the anchor
+ * collects no stone; each quarry scaled by its logistics efficiency). */
 export function produceStone(state: GameState): void {
+  const map = buildLogisticsMap(state);
   const sources: Array<{ x: number; y: number; share: number }> = [];
   for (const building of Object.values(state.buildings)) {
     if (
@@ -60,7 +69,11 @@ export function produceStone(state: GameState): void {
       isActive(building) &&
       building.staffed
     ) {
-      sources.push({ x: building.x, y: building.y, share: stonePerQuarry(state) });
+      sources.push({
+        x: building.x,
+        y: building.y,
+        share: applyLogistics(state, building, stonePerQuarry(state), map),
+      });
     }
   }
   if (sources.length === 0) return;

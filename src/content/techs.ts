@@ -4,7 +4,7 @@
  * per researched tech; the domain reads them via techLevel().
  */
 
-export type TechEffect = "farmFood" | "quarryStone" | "workshopCommerce";
+export type TechEffect = "farmFood" | "quarryStone" | "workshopCommerce" | "logisticsRadius";
 
 interface TechDefinition {
   id: string;
@@ -50,5 +50,13 @@ export const TECH_DEFINITIONS: Record<string, TechDefinition> = {
     cost: 150,
     age: 2,
     effect: "quarryStone",
+  },
+  wheelbarrow: {
+    id: "wheelbarrow",
+    displayName: "Wheelbarrow",
+    cost: 150,
+    age: 2,
+    // Step050 L3b: transport technology — widens the logistics free radius.
+    effect: "logisticsRadius",
   },
 };
