@@ -26,15 +26,15 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step045 post-audit maintenance — comparators/eligibility unified, dead code removed, market forecast cap-exact, strict v16 deposit migration |
+| HEAD | Step047 controlled events — seeded draws (ADR-007), tick phase 11, rate effects, v18 persistence, settings UI, events-on self-play guard |
 | Working tree | CLEAN (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
-| Typecheck | PASS — `pnpm exec tsc --noEmit`, no errors (2026-10-30, Step045) |
-| Lint | PASS — `pnpm exec eslint .`, no findings (2026-10-30, Step045) |
-| Unit tests | PASS — `pnpm exec vitest run`: 21 files / 283 tests, all green (2026-10-30, Step045; -3 dead-code tests removed, +2 regressions: storage-cap-exact market forecast, corrupt-v16 rejection) |
-| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 33/33 scenarios, executed 2026-10-24 on local Chromium (Step043; +population overlay persistence, +employment rename / full mode cycle) |
-| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59.9kB + three 471kB vendor chunk) (2026-10-30, Step045) |
+| Typecheck | PASS — `pnpm exec tsc --noEmit`, no errors (2026-11-02, Step047) |
+| Lint | PASS — `pnpm exec eslint .`, no findings (2026-11-02, Step047) |
+| Unit tests | PASS — `pnpm exec vitest run`: 22 files / 302 tests, all green (2026-11-02, Step047; +18 events tests, +1 events-on self-play guard) |
+| E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 34/34 scenarios, executed 2026-11-02 on local Chromium (Step047; +events toggle/frequency save-load scenario; #progression/.nova-status anchors shifted for the taller controls panel) |
+| Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59.9kB + three 471kB vendor chunk) (2026-11-02, Step047) |
 | CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
@@ -71,7 +71,8 @@ Update these values from actual command output.
 | Environment | IMPLEMENTED | global pollution stock, park absorption, admission quality gate (Step014); parks regrow adjacent wood to capacity (Step018) |
 | Technology | IMPLEMENTED | 5 techs, researchTech command, additive farm/quarry/commerce effects (Step016) |
 | Ages | IMPLEMENTED | Age 1 complete, milestones, advanceAge transition, Age 2 techs plus atmosphere (Step016); Age 2 systems continue Phase 9; Age 3 "Prosperity" set (pop20/tre1500/bld30/res20/shop3, Step035), advance proven in self-play |
-| Persistence | IMPLEMENTED | `SAVE_VERSION = 17` (sequential chain v13-v17: mothball flag, pollution stock, age plus techs, deposit capacity) - no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests; `serialize` deep-copies deposit cells (S3 detach regression test) |
+| Persistence | IMPLEMENTED | `SAVE_VERSION = 18` (sequential chain v13-v18: mothball flag, pollution stock, age plus techs, deposit capacity, controlled events) - no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests; `serialize` deep-copies deposit cells (S3 detach regression test) |
+| Controlled events | IMPLEMENTED | Step047 (ADR-007, D1-D5 approved in Step046): 3 cyclic systemic events (drought: wells 2→1/tick; closed trade routes: workshop floor suspended, plank bonus kept; bountiful harvest: farms +1/tick), 40 ticks, draws pure f(seed, occurrence), off by default (sandbox), frequency cursor in Settings (GameState-persisted), alerts states-only; events-on self-play guard passes the full MVP loop (ready@165, age2@165) |
 | Performance | MEASURED | sim 0.06–0.14 ms/tick (≤0.2% of 8x budget); mesh rebuild 1.6 ms/update; geometry leak found+fixed (Step027); full rebuild kept, measured OK |
 
 ---
@@ -109,7 +110,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step045 post-audit maintenance, complete (2026-10-30). Full-repo audit found zero architectural violations and zero probable bugs; applied its findings: (1) canonical comparators (`compareCellCoords`/`compareCellsWithId`) and the staffing eligibility predicate (`isEligibleWorkplace`) each defined once and shared; (2) removed production-dead `computeRoadNetworks` machinery and test-only `availableJobs` (recoverable from git history if per-network logistics design lands); (3) `expectedMarketSales` is now storage-cap-exact (cap bounds the post-consumption surplus — matches clampStorage phase order) and v16→v17 migration rejects corrupt deposit records instead of healing them as empty; (4) 20 file-internal-only exports un-exported. Zero behavioral change intended except the two fixes; all validation green (tsc, eslint, 283 unit tests, build).
+Step047 controlled events, complete (2026-11-02). Last Phase 10 deliverable closed: domain (`src/domain/events/events.ts`, tick phase 11 = canonical phase 12), v17→v18 migration, production/commerce rate integration via the existing pure functions (forecasts stay exact), alerts + Settings toggle/frequency, ADR-007. All validation green (tsc, eslint, 302 unit tests, 34/34 E2E, build). Deferred: conditional events (e.g. smog), intensity cursor.
 
 ---
 
