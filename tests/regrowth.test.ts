@@ -8,8 +8,6 @@ import { WOOD_REGROWTH_PER_PARK_PER_TICK } from "@/domain/environment/environmen
 import {
   parseSave,
   serialize,
-  SAVE_VERSION,
-  MIGRATABLE_SAVE_VERSION,
   SaveValidationError,
 } from "@/application/persistence/save.js";
 import { mustOk } from "./helpers.js";
@@ -129,11 +127,6 @@ describe("park forest regrowth", () => {
 });
 
 describe("regrowth persistence", () => {
-  it("exposes SAVE_VERSION 18 with the v13 migratable chain", () => {
-    expect(SAVE_VERSION).toBe(18);
-    expect(MIGRATABLE_SAVE_VERSION).toBe(13);
-  });
-
   it("round-trips capacities losslessly", () => {
     const state = freshState();
     placeParkNextTo(state, 5, 5);

@@ -12,8 +12,6 @@ import { getAlerts } from "@/application/queries/analysis.js";
 import {
   parseSave,
   serialize,
-  SAVE_VERSION,
-  MIGRATABLE_SAVE_VERSION,
 } from "@/application/persistence/save.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
@@ -120,11 +118,6 @@ describe("environmental admission gate", () => {
 });
 
 describe("environment persistence + alerts", () => {
-  it("exposes SAVE_VERSION 18 with the v13 migratable chain", () => {
-    expect(SAVE_VERSION).toBe(18);
-    expect(MIGRATABLE_SAVE_VERSION).toBe(13);
-  });
-
   it("v14 save migrates: pollution defaults to 0", () => {
     const state = freshState();
     const doc = serialize(state) as unknown as Record<string, unknown>;

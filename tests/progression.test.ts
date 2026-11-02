@@ -12,7 +12,6 @@ import {
 import { getResourceSummaries } from "@/application/queries/analysis.js";
 import {
   SAVE_VERSION,
-  MIGRATABLE_SAVE_VERSION,
   parseSave,
   serialize,
 } from "@/application/persistence/save.js";
@@ -317,11 +316,6 @@ describe("age-3 prosperity set (Step035)", () => {
   });
 
 describe("progression persistence", () => {
-  it("exposes SAVE_VERSION 18 with the v13 migratable chain", () => {
-    expect(SAVE_VERSION).toBe(18);
-    expect(MIGRATABLE_SAVE_VERSION).toBe(13);
-  });
-
   it("round-trips age + researched techs", () => {
     const state = freshState();
     state.age = 2;

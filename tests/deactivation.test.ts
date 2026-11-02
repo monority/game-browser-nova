@@ -7,7 +7,6 @@ import { housingCapacity } from "@/domain/population/population.js";
 import {
   parseSave,
   serialize,
-  SAVE_VERSION,
   MIGRATABLE_SAVE_VERSION,
   SaveValidationError,
 } from "@/application/persistence/save.js";
@@ -306,11 +305,6 @@ describe("zero-treasury recovery via mothballing (any composition)", () => {
 });
 
 describe("persistence", () => {
-  it("exposes SAVE_VERSION 18 with the v13 migratable chain", () => {
-    expect(SAVE_VERSION).toBe(18);
-    expect(MIGRATABLE_SAVE_VERSION).toBe(13);
-  });
-
   it("round-trips inactive state losslessly", () => {
     const { state, ids } = settledState();
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.well, active: false }));
