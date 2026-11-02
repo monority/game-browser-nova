@@ -140,3 +140,34 @@ Estimation : 1 à 2 slices. Aucune migration de sauvegarde.
 
 **GO = approbation du tableau L1–L5** (chaque ligne modifiable avant
 engagement).
+
+---
+
+## 6. Addendum Step050 — calibration mesurée (trois amendements)
+
+L'implémentation a suivi la doctrine « les garde-fous sont le critère de
+réglage ». Trois collisions avec la réalité mesurée, trois amendements :
+
+1. **L2 amendé — le hub est l'entrepôt, pas le Centre.** Le Centre est
+   ancré au coin bas-droit et la colonie D2 au coin haut-gauche
+   (~26 hops) : toute distance au Centre mettait l'ouverture D2 au
+   plancher et brisait l'économie jour-0 calibrée. Sans entrepôt,
+   logistique de fondation = 100 % partout ; le premier entrepôt
+   devient la référence, et avec lui la décision joueur.
+2. **L3 recalibré — rayon 12, décroissance 4, plancher 60.** Le rayon 8
+   taxait l'étalement organique du cluster pop-24 (~15 hops de span) :
+   fermes de bord à 60-70 % → déficits → famine (mesuré, pop 24 → 1).
+3. **L3 amendé — champs d'application restreint à l'EXTRACTION.** Même
+   à rayon 12, 13 fermes × rendement pénalisé < pop 24 : le plafond de
+   fermes du gouverneur (calibré pour un rendement plein) transforme
+   toute pénalité moyenne en déficit structurel. Fermes, puits et
+   ateliers restent donc au tarif plein — leur logistique atterrira
+   avec le scope V2 (stockage par réseau). Les chantiers d'extraction
+   (camp, carrière —attachés aux gisements dispersés par le monde)
+   portent seuls l'effet : c'est là que la distance varie réellement.
+
+**Résultat final** : les 7 garde-fous self-play passent (pop 24
+partout, y compris le seed de robustesse en frequent) ; 8 tests
+logistique dédiés (BFS, courbe, îlot déconnecté, wheelbarrow,
+exemptions) ; overlay + inspection livrés ; 316 tests unitaires, 34/34
+E2E, CI verte.

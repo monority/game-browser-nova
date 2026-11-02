@@ -26,13 +26,13 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step049 event tuning — P1' harvest one-off windfall (no rate inflation), P2 trade closure at half floor, P3 frequent interval floor 300, collapse guard on the robustness seed |
+| HEAD | Step050 logistics — warehouse-hub BFS distance efficiency on extraction worksites, wheelbarrow tech, logistics overlay + inspection, self-play guards calibrated |
 | Working tree | CLEAN (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `pnpm exec tsc --noEmit`, no errors (2026-11-02, Step047) |
 | Lint | PASS — `pnpm exec eslint .`, no findings (2026-11-02, Step047) |
-| Unit tests | PASS — `pnpm exec vitest run`: 24 files / 307 tests, all green (2026-11-02, Step049; +20 events tests incl. taper/windfall/half-floor, +Step049 no-famine collapse guard on measure-2) |
+| Unit tests | PASS — `pnpm exec vitest run`: 25 files / 316 tests, all green (2026-11-02, Step050; +8 logistics tests, +overlay/prefs pins) |
 | E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 34/34 scenarios, executed 2026-11-02 on local Chromium (Step047; +events toggle/frequency save-load scenario; #progression/.nova-status anchors shifted for the taller controls panel) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59.9kB + three 471kB vendor chunk) (2026-11-02, Step047) |
 | CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
@@ -63,7 +63,7 @@ Update these values from actual command output.
 | Colony Center | IMPLEMENTED | day-0 anchor, operational at tick 0, unstaffed 1 wood/tick, maintenance-exempt, never player-placed, bottom-right-most deterministic placement |
 | Economy | IMPLEMENTED | Step001 money model: treasury 100 start, tax 1/inhabitant/tick, commerce 2/connected Workshop/tick (staffing-independent; tradeRoutes tech adds +1/workshop, Step016), maintenance 1/operational building/tick, uncapped treasury clamped ≥ 0; Age 2 Markets sell up to 2 surplus food/tick at 1 money each (Step017) |
 | Storage | IMPLEMENTED | Step031: derived food/water caps (base 120/80 = 2× D2 stocks, +60/40 per operational warehouse at 25$ + 2 planks, upkeep 1, unstaffed, mothball removes); tick clamps true surplus after consumption (colonists eat first, famine/market semantics unchanged); storage-full alerts (states cause); caps in stats; treasury stays uncapped |
-| Logistics | PARTIAL | road networks + road access for staffing and commerce (orthogonal components); no distance/congestion/capacity effects |
+| Logistics | PARTIAL | Step050: road-graph distance efficiency on EXTRACTION worksites (camp/quarry; free radius 12, decay 4, floor 60, wheelbarrow +6), overlay + inspection; farms/wells/workshops exempt until V2 network storage; still no congestion/capacity effects |
 | Analysis | IMPLEMENTED | derived stats + resource forecasts (production/consumption/balance/ticks-remaining) + state alerts (never prescriptive) + staffing overlay + forecast drill-down (Step010–011); commerce throughput-anchored (Step012: 2/connected + 1/plank produced); food forecast includes farm tech (Step016) and nets the market drain (Step017) |
 | UI | IMPLEMENTED | palette, road mode, hover validity + info tooltip, inspection (detail/mothball/remove), time controls pause/1×–8× with keyboard (Space/1/2/4/8; rate bug fixed Step010), save/load, forecast + alerts; progression panel, research, age advance (Step016); age-gated palette plus market row (Step017); S1: visuals in `src/styles/nova.css` via `data-*` attrs, JS paints only tooltip geometry |
 | Deactivation (mothball) | IMPLEMENTED | `setBuildingActive` (Step009): inactive = no maintenance/output/housing/staffing/commerce; anchor protected; next-tick reactivation; SAVE_VERSION 14 + v13→v14 migration |
@@ -110,7 +110,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step049 event tuning, complete (2026-11-02). Applied the Step048 proposals with one measured amendment: P1's expiry taper alone proved insufficient (the crash reproduced DURING the event — on an exact-balance colony any production oscillation is fatal), so P1' makes the harvest a one-off +40 food windfall: no event inflates a production rate, hence none can create a dependency. P2 (trade closure floor halved, not suspended) and P3 (frequent interval floor 300) as proposed. Post-tuning grid: pop 24 on every run incl. the previously-collapsing measure-2/frequent; frequent costs −3.5%/−12.8% treasury, market +2/+41 ticks. New permanent guard: min pop ≥ 10 over the full robustness run. Volet B (human play session) still open.
+Step050 logistics, complete (2026-11-02). First logistics mechanic per the L1-L5 cadrage, with three measured calibration amendments (see the Step050 addendum): hub = warehouse (not the Center — D2 geometry evidence), curve 12/4/60, scope = extraction worksites only (farms/wells/workshops exempt until V2 network storage — farm-cap × penalty famine evidence). Wheelbarrow tech (Age 2, 150$, +6 radius). Overlay + inspection live. All 7 self-play guards green; 316 unit tests, 34/34 E2E, build green. Volet B (human play session) still open; V2 logistics (network storage, congestion) parked.
 
 ---
 
