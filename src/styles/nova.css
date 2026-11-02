@@ -100,7 +100,8 @@ body {
 }
 
 #progression {
-  bottom: 110px;
+  /* cleared above #controls: the Step047 events row added ~36px */
+  bottom: 146px;
   right: 12px;
   width: 240px;
 }
@@ -280,7 +281,8 @@ body {
 
 .nova-status {
   position: absolute;
-  bottom: 96px;
+  /* cleared above #controls: the Step047 events row added ~36px */
+  bottom: 132px;
   left: 12px;
   pointer-events: none;
   padding: 4px 8px;

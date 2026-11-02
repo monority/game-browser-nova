@@ -177,8 +177,15 @@ interface PlayResult {
   traj: string[];
 }
 
-function playGame(crisisAt = -1, stopEarly = true, housingCap = 14, growthCap?: number, buildMarket = true): PlayResult {
+function playGame(crisisAt = -1, stopEarly = true, housingCap = 14, growthCap?: number, buildMarket = true, eventsOn = false): PlayResult {
   const state = createInitialState(CONFIG);
+  if (eventsOn) {
+    // Step047 guard: the documented governor doctrine must survive the
+    // controlled events (frequent cursor = worst recurrence in budget).
+    if (!applyCommand(state, { kind: "configureEvents", enabled: true, frequency: "frequent" }).ok) {
+      throw new Error("events configuration failed");
+    }
+  }
   const phases: string[] = [];
   const seen = new Set<string>();
   const traj: string[] = [];
@@ -401,6 +408,22 @@ describe("self-play verifier", () => {
     const b = playGame();
     expect(b.state).toEqual(a.state);
     expect(b.phases).toEqual(a.phases);
+  }, 240000);
+
+  it("self-play with controlled events on still completes the MVP loop (Step047 guard)", () => {
+    // The events garde-fou: frequent recurrence must not turn any viable
+    // line non-viable (the Step001 trap precedent). Same phase gates as
+    // the main run; events demonstrably fired; state stays lossless.
+    const { state, phases } = playGame(-1, false, 14, undefined, true, true);
+    expect(state.eventsDrawn).toBeGreaterThanOrEqual(2);
+    expect(state.population).toBeGreaterThan(0);
+    for (const p of ["pop12", "ready", "age2", "market-built", "market-sale"]) {
+      expect(phases.some((x) => x.startsWith(p + "@")), "phase missing: " + p + " (reached: " + phases.join(", ") + ")").toBe(true);
+    }
+    expect(state.age).toBe(2);
+    const restored = parseSave(serialize(state));
+    expect(restored).toEqual(state);
+    console.log("events-on phases: " + phases.join(", "));
   }, 240000);
 
   it("reaches Age 3 with a prosperous endgame (Step035)", () => {

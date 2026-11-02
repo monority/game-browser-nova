@@ -87,4 +87,34 @@ test.describe("NOVA settings", () => {
     expect(after.population).toBe(popBefore);
     expect(after.tick).toBeGreaterThanOrEqual(0);
   });
+
+  test("events toggle and frequency update game state and survive save/load", async ({ page }) => {
+    await page.goto("/"); // runs unpaused: the first event spawns next tick
+    const toggle = page.locator("button[data-action='events-toggle']");
+    const frequency = page.locator("button[data-action='events-frequency']");
+    await expect(toggle).toHaveText("Events: off");
+    await expect(frequency).toHaveText("Frequency: normal");
+
+    await toggle.click();
+    await expect(toggle).toHaveText("Events: on");
+    await expect(page.locator(".nova-status")).toContainText("Events enabled");
+    await expect
+      .poll(() => page.evaluate(() => window.__nova!.getState().eventsDrawn))
+      .toBeGreaterThanOrEqual(1);
+
+    await frequency.click(); // normal → frequent
+    await expect(frequency).toHaveText("Frequency: frequent");
+    const configured = await page.evaluate(() => window.__nova!.getState());
+    expect(configured.eventsEnabled).toBe(true);
+    expect(configured.eventFrequency).toBe("frequent");
+
+    // events config lives in GameState (Step047): it survives save → reload → load
+    await page.locator("button[data-action='save']").click();
+    await page.reload();
+    await pause(page);
+    await page.locator("button[data-action='load']").click();
+    const loaded = await page.evaluate(() => window.__nova!.getState());
+    expect(loaded.eventsEnabled).toBe(true);
+    expect(loaded.eventFrequency).toBe("frequent");
+  });
 });
