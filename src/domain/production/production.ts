@@ -3,8 +3,7 @@ import { isActive } from "@/domain/building/building.js";
 import { techLevel } from "@/domain/progression/progression.js";
 import {
   DROUGHT_WATER_REDUCTION_PER_WELL,
-  HARVEST_FARM_BONUS_PER_TICK,
-  isEventActive,
+  isEventEffectTick,
 } from "@/domain/events/events.js";
 import { addFood, addWater, deductFood } from "@/domain/resource/resource.js";
 
@@ -23,13 +22,10 @@ export const WATER_PER_SERVED_COLONIST_PER_TICK = 1;
 export const FOOD_PER_COLONY_CENTER_PER_TICK = 1;
 
 /** Staffed active farms + the Colony Center trickle. Farm yield includes
- * technology (cropRotation/irrigation: +1 each, Step016) and the bountiful
- * harvest event bonus (Step047). */
+ * technology (cropRotation/irrigation: +1 each, Step016). The harvest is a
+ * one-off windfall (P1' Step049) — no event may inflate this rate. */
 export function foodPerFarm(state: GameState): number {
-  const harvest = isEventActive(state, "bountifulHarvest")
-    ? HARVEST_FARM_BONUS_PER_TICK
-    : 0;
-  return FOOD_PER_FARM_PER_TICK + techLevel(state, "farmFood") + harvest;
+  return FOOD_PER_FARM_PER_TICK + techLevel(state, "farmFood");
 }
 
 /** Expected food production for the coming tick (pure): staffed farms plus Center trickle. */
@@ -53,11 +49,12 @@ export function produceFood(state: GameState): void {
   addFood(state.resources, foodProductionPerTick(state));
 }
 
-/** Well yield includes the drought event reduction (Step047: 2 → 1/tick). */
+/** Well yield includes the drought event reduction (Step047: 2 → 1/tick,
+ * taper-aware P1 Step049). */
 export function waterPerWell(state: GameState): number {
   return (
     WATER_PER_WELL_PER_TICK -
-    (isEventActive(state, "drought") ? DROUGHT_WATER_REDUCTION_PER_WELL : 0)
+    (isEventEffectTick(state, "drought") ? DROUGHT_WATER_REDUCTION_PER_WELL : 0)
   );
 }
 

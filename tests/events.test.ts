@@ -59,7 +59,7 @@ describe("seeded draws (ADR-007)", () => {
     expect(rare.interval).toBeGreaterThanOrEqual(800);
     expect(rare.interval).toBeLessThanOrEqual(1200);
     const frequent = drawEvent(CONFIG.seed, 0, "frequent");
-    expect(frequent.interval).toBeGreaterThanOrEqual(150);
+    expect(frequent.interval).toBeGreaterThanOrEqual(300); // P3 floor (Step049)
     expect(frequent.interval).toBeLessThanOrEqual(350);
     const kinds = new Set<EventKind>();
     for (let i = 0; i < 24; i++) kinds.add(drawEvent(CONFIG.seed, i, "normal").kind);
@@ -140,14 +140,26 @@ describe("effects (next-tick timing)", () => {
     expect(state.resources.water).toBe(1);
   });
 
-  it("bountiful harvest adds +1 per farm", () => {
+  it("bountiful harvest pays a one-off granary windfall at spawn", () => {
     const state = freshState();
+    state.eventsEnabled = true;
+    state.eventFrequency = "normal";
+    // pick the occurrence whose seeded draw is the harvest
+    let occurrence = 0;
+    while (drawEvent(CONFIG.seed, occurrence, "normal").kind !== "bountifulHarvest") {
+      occurrence += 1;
+    }
+    state.eventsDrawn = occurrence;
+    state.nextEventTick = 0;
+    state.resources.food = 10;
+    resolveEvents(state);
+    expect(state.resources.food).toBe(50);
+    expect(state.events[0]?.kind).toBe("bountifulHarvest");
+    // the farm rate is untouched — no dependency can form (P1' Step049)
     expect(foodPerFarm(state)).toBe(2);
-    activate(state, "bountifulHarvest");
-    expect(foodPerFarm(state)).toBe(3);
   });
 
-  it("closed trade routes suspend the workshop floor but keep the plank bonus", () => {
+  it("closed trade routes halve the workshop floor but keep the plank bonus", () => {
     const state = freshState();
     state.population = 8;
     state.resources.wood = 10;
@@ -155,8 +167,25 @@ describe("effects (next-tick timing)", () => {
     const baseline = commercePerTick(state, planks);
     expect(baseline).toBeGreaterThan(planks); // floor + throughput
     activate(state, "tradeClosure");
-    expect(commercePerTick(state, planks)).toBe(planks); // throughput only
+    // P2 (Step049): half floor = 2 workshops × ceil(2/2) = 2, throughput kept
+    expect(commercePerTick(state, planks)).toBe(planks + 2);
     expect(isEventActive(state, "tradeClosure")).toBe(true);
+  });
+
+  describe("P1 expiry taper", () => {
+    it("applies the rate reduction every other tick during the final 8", () => {
+      const state = freshState();
+      state.events = [{ kind: "drought", ticksLeft: 9 }];
+      expect(waterPerWell(state)).toBe(1); // full effect until 8 left
+      state.events = [{ kind: "drought", ticksLeft: 8 }];
+      expect(waterPerWell(state)).toBe(1); // even tick → reduction applies
+      state.events = [{ kind: "drought", ticksLeft: 7 }];
+      expect(waterPerWell(state)).toBe(2); // odd tick → skipped
+      state.events = [{ kind: "drought", ticksLeft: 2 }];
+      expect(waterPerWell(state)).toBe(1);
+      state.events = [{ kind: "drought", ticksLeft: 1 }];
+      expect(waterPerWell(state)).toBe(2);
+    });
   });
 });
 

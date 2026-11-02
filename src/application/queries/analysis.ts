@@ -133,15 +133,16 @@ export interface Alert {
   message: string;
 }
 
-/** Event alert copy (Step047): the modified rate and the remaining span. */
+/** Event alert copy (Step047, P1'/P2 wording Step049): the effect and the
+ * remaining span. */
 function eventAlertLine(event: ActiveEvent): string {
   switch (event.kind) {
     case "drought":
       return `Drought: wells at half output · ${event.ticksLeft} ticks left`;
     case "tradeClosure":
-      return `Trade routes closed: workshop floor suspended · ${event.ticksLeft} ticks left`;
+      return `Trade routes closed: workshop floor halved · ${event.ticksLeft} ticks left`;
     case "bountifulHarvest":
-      return `Bountiful harvest: farms +1/tick · ${event.ticksLeft} ticks left`;
+      return `Bountiful harvest: granary +40 food · ${event.ticksLeft} ticks left`;
   }
 }
 

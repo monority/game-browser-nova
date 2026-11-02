@@ -17,10 +17,15 @@ self-play and save-continuation tests.
    (`hashString(seed) ^ EVENT_SEED_SALT ^ occurrence`), independent of
    player actions and of tick timing. The same seed replays the same
    event sequence at the same ticks.
-2. **Events are systemic rate modifiers with bounded duration** (D1):
+2. **Events are systemic effects with bounded duration** (D1):
    drought (wells 2→1/tick), closed trade routes (workshop commerce floor
-   suspended, plank throughput kept), bountiful harvest (farms +1/tick) —
-   40 ticks each, no destruction, no direct treasury effects.
+   halved, plank throughput kept — amended Step049, was full suspension),
+   bountiful harvest (one-off +40 food granary windfall at spawn —
+   amended Step049: no event may INFLATE a production rate, because a
+   rate boost lets a zero-margin colony grow into it and starve
+   all-or-nothing at expiry or taper alternation; measured Step048/049) —
+   40 ticks each, no destruction, no direct treasury effects. Rate
+   effects taper over their final 8 ticks (every other tick).
 3. **Active events and the draw counter persist** (D3): SAVE_VERSION 18,
    v17→v18 migration defaults to off/none (no event can predate the
    system).

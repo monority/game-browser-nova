@@ -26,13 +26,13 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step047 controlled events — seeded draws (ADR-007), tick phase 11, rate effects, v18 persistence, settings UI, events-on self-play guard |
+| HEAD | Step049 event tuning — P1' harvest one-off windfall (no rate inflation), P2 trade closure at half floor, P3 frequent interval floor 300, collapse guard on the robustness seed |
 | Working tree | CLEAN (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `pnpm exec tsc --noEmit`, no errors (2026-11-02, Step047) |
 | Lint | PASS — `pnpm exec eslint .`, no findings (2026-11-02, Step047) |
-| Unit tests | PASS — `pnpm exec vitest run`: 22 files / 302 tests, all green (2026-11-02, Step047; +18 events tests, +1 events-on self-play guard) |
+| Unit tests | PASS — `pnpm exec vitest run`: 24 files / 307 tests, all green (2026-11-02, Step049; +20 events tests incl. taper/windfall/half-floor, +Step049 no-famine collapse guard on measure-2) |
 | E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 34/34 scenarios, executed 2026-11-02 on local Chromium (Step047; +events toggle/frequency save-load scenario; #progression/.nova-status anchors shifted for the taller controls panel) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59.9kB + three 471kB vendor chunk) (2026-11-02, Step047) |
 | CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
@@ -72,7 +72,7 @@ Update these values from actual command output.
 | Technology | IMPLEMENTED | 5 techs, researchTech command, additive farm/quarry/commerce effects (Step016) |
 | Ages | IMPLEMENTED | Age 1 complete, milestones, advanceAge transition, Age 2 techs plus atmosphere (Step016); Age 2 systems continue Phase 9; Age 3 "Prosperity" set (pop20/tre1500/bld30/res20/shop3, Step035), advance proven in self-play |
 | Persistence | IMPLEMENTED | `SAVE_VERSION = 18` (sequential chain v13-v18: mothball flag, pollution stock, age plus techs, deposit capacity, controlled events) - no legacy migration chain (user decision: pre-reset saves do not exist here); strict validation, round-trip + deterministic continuation tests; `serialize` deep-copies deposit cells (S3 detach regression test) |
-| Controlled events | IMPLEMENTED | Step047 (ADR-007, D1-D5 approved in Step046): 3 cyclic systemic events (drought: wells 2→1/tick; closed trade routes: workshop floor suspended, plank bonus kept; bountiful harvest: farms +1/tick), 40 ticks, draws pure f(seed, occurrence), off by default (sandbox), frequency cursor in Settings (GameState-persisted), alerts states-only; events-on self-play guard passes the full MVP loop (ready@165, age2@165) |
+| Controlled events | IMPLEMENTED | Step047 + Step049 tuning (ADR-007 amended): 3 cyclic systemic events — drought (wells 2→1/tick, expiry taper), closed trade routes (workshop floor HALVED, plank bonus kept), bountiful harvest (one-off +40 food windfall at spawn; NO event inflates a production rate — measured wipe risk, Step048/049); 40 ticks, draws pure f(seed, occurrence), off by default (sandbox), frequency cursor in Settings (GameState-persisted), alerts states-only; no-famine collapse guard on the robustness seed passes (was wiping pop 24→0 pre-tuning) |
 | Performance | MEASURED | sim 0.06–0.14 ms/tick (≤0.2% of 8x budget); mesh rebuild 1.6 ms/update; geometry leak found+fixed (Step027); full rebuild kept, measured OK |
 
 ---
@@ -110,7 +110,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step048 measurement, complete (2026-11-02): events-grid pacing harness (`tests/measure.test.ts`, governor extracted to `tests/selfplay.governor.ts`) + report with evidence. Headline finding: harvest-event EXPIRY on a zero-margin colony wiped pop 24 → 0 (measure-2 seed, frequent) — violates §16/§22 spirit; proposals P1 (expiry ramp-out), P2 (trade closure at half floor), P3 (frequent interval floor 150→300) PENDING owner decision, nothing implemented. Volet B (human play session) still open.
+Step049 event tuning, complete (2026-11-02). Applied the Step048 proposals with one measured amendment: P1's expiry taper alone proved insufficient (the crash reproduced DURING the event — on an exact-balance colony any production oscillation is fatal), so P1' makes the harvest a one-off +40 food windfall: no event inflates a production rate, hence none can create a dependency. P2 (trade closure floor halved, not suspended) and P3 (frequent interval floor 300) as proposed. Post-tuning grid: pop 24 on every run incl. the previously-collapsing measure-2/frequent; frequent costs −3.5%/−12.8% treasury, market +2/+41 ticks. New permanent guard: min pop ≥ 10 over the full robustness run. Volet B (human play session) still open.
 
 ---
 

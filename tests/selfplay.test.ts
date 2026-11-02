@@ -3,7 +3,7 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { canAdvanceAge, evaluateMilestones } from "@/domain/progression/progression.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { mustOk } from "./helpers.js";
-import { playGame } from "./selfplay.governor.js";
+import { playGame, SELFPLAY_CONFIG } from "./selfplay.governor.js";
 
 /**
  * Self-play verifier: gate assertions over the shared governor
@@ -71,6 +71,29 @@ describe("self-play verifier", () => {
     const restored = parseSave(serialize(state));
     expect(restored).toEqual(state);
     console.log("events-on phases: " + phases.join(", "));
+  }, 240000);
+
+  it("tuned events never collapse the robustness seed (Step049 guard)", () => {
+    // Step048 finding: the harvest EXPIRY wiped a pop-24 colony on this
+    // seed (frequent, pre-P1). P1 taper + P2 half floor + P3 interval
+    // floor must keep the line viable — population only drops through
+    // all-or-nothing starvation, so min pop >= the D2 founding 10 proves
+    // no famine ever fired.
+    const config = { ...SELFPLAY_CONFIG, seed: "measure-2" };
+    let minPop = Infinity;
+    const { state, phases } = playGame(
+      -1, false, 14, 24, true, "frequent",
+      (s) => { minPop = Math.min(minPop, s.population); },
+      config,
+    );
+    expect(state.eventsDrawn).toBeGreaterThanOrEqual(2);
+    expect(minPop, "famine dip detected").toBeGreaterThanOrEqual(10);
+    expect(state.population).toBeGreaterThanOrEqual(20);
+    expect(state.resources.money).toBeGreaterThan(0);
+    expect(phases.some((x) => x.startsWith("age2@")), "phases: " + phases.join(", ")).toBe(true);
+    const restored = parseSave(serialize(state));
+    expect(restored).toEqual(state);
+    console.log("measure-2 tuned phases: " + phases.join(", "));
   }, 240000);
 
   it("reaches Age 3 with a prosperous endgame (Step035)", () => {

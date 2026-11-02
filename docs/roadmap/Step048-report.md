@@ -106,3 +106,35 @@ change), garde-fou self-play étendu au seed `measure-2` en frequent
 - Suite complète verte inchangée (304 tests unit, 34/34 E2E).
 - Les mesures sont reproductibles : `vitest run tests/measure.test.ts`
   réimprime la grille (même seed → mêmes courbes).
+
+---
+
+## 6. Addendum Step049 — re-mesure post-tuning et amendement de P1
+
+P1 telle que proposée (taper d'expiration) s'est révélée **insuffisante à
+la re-mesure** : le crash `measure-2`/frequent s'est reproduit — non plus
+à l'expiration mais PENDANT l'événement (t1011, récolte active). Cause
+racine établie : sur une colonie à marge zéro (pinning documenté
+Step035), **toute oscillation de la production est fatale** — le taper
+lui-même (bonus un tick sur deux) crée l'oscillation. Verdict : aucun
+événement ne doit gonfler un taux de production.
+
+**P1 amendée (P1')** : la récolte exceptionnelle devient une **manne
+one-shot au spawn** (+40 nourriture, plafonnée par le cap de stockage)
+— plus aucun événement ne module la production alimentaire à la
+hausse ; le taper reste appliqué à la sécheresse (réduction, sans
+risque de dépendance).
+
+**Grille re-mesurée après P1' + P2 + P3** (même harnais, même seed) :
+
+| run | age2@ | mkt-sale@ | pop finale | money final | év. | verdict |
+|---|---|---|---|---|---|---|
+| selfplay/off | 185 | 327 | 24 | 17 021 | 0 | baseline |
+| selfplay/rare | 185 | 327 | 24 | 16 981 | 2 | identique à baseline |
+| selfplay/normal | 185 | 327 | 24 | 16 920 | 4 | identique à baseline |
+| selfplay/frequent | 185 | 329 | 24 | 16 417 | 5 | −3,5 % trésorerie, +2 ticks marché |
+| measure-2/frequent (crash pré-fix) | 225 | 367 | **24** | **14 837** | 5 | **plus d'effondrement** (était pop 1 / 0 $) |
+
+Le garde-fou de non-effondrement (`selfplay.test.ts`, min pop ≥ 10 = «
+aucune famine ») verrouille le comportement. L'aléa frappe maintenant
+la trésorerie et le calendrier, jamais la viabilité — conforme à §16/§22.

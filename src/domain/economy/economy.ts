@@ -119,13 +119,16 @@ export function taxesPerTick(state: GameState): number {
 export function commercePerTick(state: GameState, planksProducedThisTick = 0): number {
   const perWorkshop =
     COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK + techLevel(state, "workshopCommerce");
-  // Closed trade routes (Step047): the connection floor is suspended, the
-  // plank throughput bonus stays — real transformation work still pays, so
-  // the event perturbs without removing the player's lever.
-  const floor =
-    commerceUnlocked(state) && !isEventActive(state, "tradeClosure")
-      ? connectedWorkshops(state) * perWorkshop
-      : 0;
+  // Closed trade routes (Step047), P2 (Step049): the connection floor runs
+  // at HALF (rounded up, so tech keeps its edge) instead of being fully
+  // suspended — the aléa slows banking without cutting the only income
+  // line (Step048 report §1: market +45 ticks, treasury −15.6%). The
+  // plank throughput bonus stays always-on: real work still pays.
+  const closed = isEventActive(state, "tradeClosure");
+  const floorPerWorkshop = closed ? Math.ceil(perWorkshop / 2) : perWorkshop;
+  const floor = commerceUnlocked(state)
+    ? connectedWorkshops(state) * floorPerWorkshop
+    : 0;
   return floor + planksProducedThisTick * COMMERCE_PER_PLANK_PRODUCED_PER_TICK;
 }
 
