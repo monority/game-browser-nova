@@ -19,6 +19,8 @@ interface ControlsPanel {
   setAvailableBuildings(types: BuildingType[]): void;
   /** Buildings shown in the palette but locked behind a later age. */
   setAgeLocked(types: BuildingType[]): void;
+  /** Reconciles the events toggle/frequency labels with game state. */
+  setEventsConfig(enabled: boolean, frequency: string): void;
 }
 
 /** Overlay legend tooltips (states only). */
@@ -57,6 +59,8 @@ export function createControlsPanel(callbacks: {
   onLoad(): void;
   onResetSave(): void;
   onOverlayChanged(mode: OverlayMode): void;
+  onEventsToggled(): void;
+  onEventsFrequencyCycled(): void;
 }): ControlsPanel {
   let selectedType: BuildingType | null = null;
   let roadsEnabled = false;
@@ -153,7 +157,18 @@ export function createControlsPanel(callbacks: {
     overlayRow.appendChild(button);
   }
 
-  element.append(controlsRow, paletteRow, overlayRow, speedRow);
+  // Events configuration (Step047): master toggle + frequency cursor.
+  // Labels are reconciled from game state by setEventsConfig.
+  const eventsRow = row("nova-row--gap nova-row--mt");
+  const eventsToggle = textButton("Events: off", "events-toggle", () => {
+    callbacks.onEventsToggled();
+  });
+  const eventsFrequency = textButton("Frequency: normal", "events-frequency", () => {
+    callbacks.onEventsFrequencyCycled();
+  });
+  eventsRow.append(eventsToggle, eventsFrequency);
+
+  element.append(controlsRow, paletteRow, overlayRow, speedRow, eventsRow);
 
   /**
    * One place that reconciles palette state: native hidden/disabled
@@ -227,6 +242,20 @@ export function createControlsPanel(callbacks: {
     refreshPalette();
   }
 
+  // Tier2: refreshStats runs every tick — only touch the DOM when the
+  // visible labels changed.
+  function setEventsConfig(enabled: boolean, frequency: string): void {
+    const toggleLabel = enabled ? "Events: on" : "Events: off";
+    if (eventsToggle.textContent !== toggleLabel) {
+      eventsToggle.textContent = toggleLabel;
+      eventsToggle.dataset.active = enabled ? "true" : "false";
+    }
+    const frequencyLabel = `Frequency: ${frequency}`;
+    if (eventsFrequency.textContent !== frequencyLabel) {
+      eventsFrequency.textContent = frequencyLabel;
+    }
+  }
+
   // initial paint: palette state; createUi's caller (boot) runs a
   // refreshStats() right after creation which applies age locks
   refreshPalette();
@@ -237,5 +266,6 @@ export function createControlsPanel(callbacks: {
     roadMode: () => roadsEnabled,
     setAvailableBuildings,
     setAgeLocked,
+    setEventsConfig,
   };
 }

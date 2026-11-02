@@ -25,6 +25,7 @@ import {
   savePreferences,
 } from "@/application/persistence/preferences.js";
 import { attachInput } from "./input.js";
+import { nextEventFrequency } from "@/domain/events/events.js";
 import { startFixedTimestepLoop } from "./loop.js";
 import { attachDiagnostics } from "./diagnostics.js";
 
@@ -83,6 +84,7 @@ export function boot(root: HTMLElement): { stop(): void } {
     const summaries = getResourceSummaries(state);
     ui.updateForecast(Object.values(summaries));
     ui.setAlerts(getAlerts(state, summaries));
+    ui.setEventsConfig(state.eventsEnabled, state.eventFrequency);
     const milestones = evaluateMilestones(state, state.age);
     ui.updateProgression({
       age: state.age,
@@ -207,6 +209,28 @@ export function boot(root: HTMLElement): { stop(): void } {
       const result = applyCommand(state, { kind: "advanceAge" });
       ui.setStatus(result.ok ? `Welcome to ${AGE_NAMES[state.age] ?? "Age " + state.age}.` : `Cannot advance: ${result.reason}`);
       renderer.update(state);
+      refreshStats();
+    },
+    onEventsToggled: () => {
+      if (!ui) return;
+      const enabled = !state.eventsEnabled;
+      const result = applyCommand(state, {
+        kind: "configureEvents",
+        enabled,
+        frequency: state.eventFrequency,
+      });
+      if (result.ok) {
+        ui.setStatus(enabled ? "Events enabled — first event next tick." : "Events disabled.");
+      }
+      refreshStats();
+    },
+    onEventsFrequencyCycled: () => {
+      if (!ui) return;
+      applyCommand(state, {
+        kind: "configureEvents",
+        enabled: state.eventsEnabled,
+        frequency: nextEventFrequency(state.eventFrequency),
+      });
       refreshStats();
     },
   });

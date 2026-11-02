@@ -36,6 +36,8 @@ export interface Ui {
   setAvailableBuildings(types: BuildingType[]): void;
   /** Buildings that exist in the palette but are locked behind a later age. */
   setAgeLocked(types: BuildingType[]): void;
+  /** Reconciles the events toggle/frequency labels with game state (Step047). */
+  setEventsConfig(enabled: boolean, frequency: string): void;
 }
 
 export interface UiCallbacks {
@@ -49,6 +51,8 @@ export interface UiCallbacks {
   onRemoveRoadCell(cell: string): void;
   onSetBuildingActive(id: string, active: boolean): void;
   onOverlayChanged(mode: OverlayMode): void;
+  onEventsToggled(): void;
+  onEventsFrequencyCycled(): void;
   onForecastRowClick(resource: SurvivalResource): void;
   onResearchTech(techId: string): void;
   onAdvanceAge(): void;
@@ -68,6 +72,8 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     onLoad: callbacks.onLoad,
     onResetSave: callbacks.onResetSave,
     onOverlayChanged: callbacks.onOverlayChanged,
+    onEventsToggled: callbacks.onEventsToggled,
+    onEventsFrequencyCycled: callbacks.onEventsFrequencyCycled,
   });
   const inspection = createInspectionPanel({
     onRemoveBuilding: callbacks.onRemoveBuilding,
@@ -140,6 +146,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     roadMode: controls.roadMode,
     setAvailableBuildings: controls.setAvailableBuildings,
     setAgeLocked: controls.setAgeLocked,
+    setEventsConfig: controls.setEventsConfig,
     setStatus(message: string, announce = true) {
       status.textContent = message;
       if (announce) statusAnnouncer.textContent = message;
