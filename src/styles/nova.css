@@ -281,8 +281,8 @@ body {
 
 .nova-status {
   position: absolute;
-  /* cleared above #controls: the Step047 events row added ~36px */
-  bottom: 132px;
+  /* cleared above #controls: 5 rows (~198px) since the Step047 events row */
+  bottom: 202px;
   left: 12px;
   pointer-events: none;
   padding: 4px 8px;
