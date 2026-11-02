@@ -12,7 +12,12 @@ import {
   taxesPerTick,
 } from "@/domain/economy/economy.js";
 import { compareCellCoords } from "@/domain/shared/cells.js";
-import { ENV_QUALITY_ALERT_THRESHOLD, environmentalQuality } from "@/domain/environment/environment.js";
+import {
+  ENV_QUALITY_ALERT_THRESHOLD,
+  environmentalQuality,
+  MIN_QUALITY_FOR_ADMISSION,
+} from "@/domain/environment/environment.js";
+import { housingCapacity } from "@/domain/population/population.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import type { ActiveEvent } from "@/domain/events/events.js";
@@ -227,6 +232,20 @@ export function getAlerts(
     alerts.push({
       severity: quality < 25 ? "warning" : "info",
       message: `Environment: quality ${quality} · pollution ${Math.round(state.pollution)}`,
+    });
+  }
+
+  // Growth blocked by air quality (Step053 F1): states the exact gate —
+  // quality, admission threshold, pollution — never an instruction.
+  if (
+    state.population > 0 &&
+    state.population < housingCapacity(state) &&
+    state.resources.food > 0 &&
+    quality < MIN_QUALITY_FOR_ADMISSION
+  ) {
+    alerts.push({
+      severity: "warning",
+      message: `Growth blocked: air quality ${Math.round(quality)} < admission threshold ${MIN_QUALITY_FOR_ADMISSION} (pollution ${Math.round(state.pollution)})`,
     });
   }
 

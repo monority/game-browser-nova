@@ -159,3 +159,28 @@ describe("alerts (states, not instructions)", () => {
     expect(getAlerts(state, summaries)).toEqual(getAlerts(state));
   });
 });
+
+describe("growth-blocked alert (Step053 F1)", () => {
+  it("warns when air quality blocks admission while housing and food allow growth", () => {
+    const state = fedColony();
+    // housing headroom: a second residence; then degrade the air
+    state.resources.money = 300;
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 3, y: 0 }));
+    state.pollution = 80; // degraded air blocks admission while it matures
+    stepTicks(state, 2); // mature the residence: housing 2 > pop 1 (quality 20 < 25)
+    const line = getAlerts(state).find((a) => a.message.startsWith("Growth blocked"));
+    expect(line?.severity).toBe("warning");
+    expect(line?.message).toContain("air quality 20");
+    expect(line?.message).toContain("threshold 25");
+    expect(line?.message).toContain("pollution 80");
+  });
+
+  it("stays silent while quality is above the admission threshold", () => {
+    const state = fedColony();
+    state.resources.money = 300;
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 3, y: 0 }));
+    stepTicks(state, 2);
+    state.pollution = 10; // quality 90
+    expect(getAlerts(state).some((a) => a.message.startsWith("Growth blocked"))).toBe(false);
+  });
+});

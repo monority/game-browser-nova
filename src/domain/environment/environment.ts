@@ -30,8 +30,15 @@ export function environmentalQuality(state: GameState): number {
   return POLLUTION_MAX - state.pollution;
 }
 
-/** Tick phase: pollution flows and clamps, then parks regrow adjacent wood. Returns the new pollution level. */
-export function updateEnvironment(state: GameState): number {
+/** Pure per-tick pollution flows (Step053 F1): the single counting used by
+ * both the simulation phase and the UI stats — they cannot drift. */
+export interface PollutionFlows {
+  emissions: number;
+  absorption: number;
+  net: number;
+}
+
+export function pollutionFlows(state: GameState): PollutionFlows {
   let emissions = 0;
   let absorption = 0;
   for (const building of Object.values(state.buildings)) {
@@ -40,9 +47,15 @@ export function updateEnvironment(state: GameState): number {
     if (building.type === "quarry") emissions += POLLUTION_PER_QUARRY_PER_TICK;
     if (building.type === "park") absorption += ABSORPTION_PER_PARK_PER_TICK;
   }
+  return { emissions, absorption, net: emissions - absorption };
+}
+
+/** Tick phase: pollution flows and clamps, then parks regrow adjacent wood. Returns the new pollution level. */
+export function updateEnvironment(state: GameState): number {
+  const { net } = pollutionFlows(state);
   state.pollution = Math.min(
     POLLUTION_MAX,
-    Math.max(POLLUTION_MIN, state.pollution + emissions - absorption),
+    Math.max(POLLUTION_MIN, state.pollution + net),
   );
   // Forest regrowth (Step018): parks tend adjacent wood deposits back
   // toward capacity. Stone never regrows. Runs after extraction, so regrown

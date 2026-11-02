@@ -26,13 +26,13 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `master` (origin: https://github.com/monority/Nova; `main` synced, CI on both) |
-| HEAD | Step050 logistics — warehouse-hub BFS distance efficiency on extraction worksites, wheelbarrow tech, logistics overlay + inspection, self-play guards calibrated |
+| HEAD | Step053 UX & readability — pollution flows surfaced (net/tick, threshold colors, growth-blocked alert), explicit forecast labels, placement guidance + feedback + auto-deselection |
 | Working tree | CLEAN (note: `prompt.md` was deleted during the 2026-10-19 concurrent session window; last content recoverable from the pi session transcript) |
 | Package manager | `pnpm` (pnpm 11.21.0) |
 | Node version | v24.19.0 |
 | Typecheck | PASS — `pnpm exec tsc --noEmit`, no errors (2026-11-02, Step047) |
 | Lint | PASS — `pnpm exec eslint .`, no findings (2026-11-02, Step047) |
-| Unit tests | PASS — `pnpm exec vitest run`: 25 files / 316 tests, all green (2026-11-02, Step050; +8 logistics tests, +overlay/prefs pins) |
+| Unit tests | PASS — `pnpm exec vitest run`: 25 files / 320 tests, all green (2026-11-02, Step053; +pollutionFlows pure query, +growth-blocked alert tests) |
 | E2E | PASS — Playwright `e2e/` (smoke/simulation/economy/interaction/settings/progression/accessibility/performance): 34/34 scenarios, executed 2026-11-02 on local Chromium (Step047; +events toggle/frequency save-load scenario; #progression/.nova-status anchors shifted for the taller controls panel) |
 | Build | PASS — `pnpm build` (tsc -p tsconfig.build.json + vite build; app 59.9kB + three 471kB vendor chunk) (2026-11-02, Step047) |
 | CI (GitHub) | PASS — Actions `verify` green on `354dfda` for both `master` (3m27s) and `main` (2m22s), observed 2026-10-20 — first green runs |
@@ -110,7 +110,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step050 logistics, complete (2026-11-02). First logistics mechanic per the L1-L5 cadrage, with three measured calibration amendments (see the Step050 addendum): hub = warehouse (not the Center — D2 geometry evidence), curve 12/4/60, scope = extraction worksites only (farms/wells/workshops exempt until V2 network storage — farm-cap × penalty famine evidence). Wheelbarrow tech (Age 2, 150$, +6 radius). Overlay + inspection live. All 7 self-play guards green; 316 unit tests, 34/34 E2E, build green. Volet B (human play session) still open; V2 logistics (network storage, congestion) parked.
+Step053 UX & readability, complete (2026-11-02). Frictions F1/F4/F6/F7/F8 from the Step052 playtest fixed with zero mechanic changes: pollution flows via one pure domain function shared by tick and UI (net/tick visible, quality threshold colored, growth-blocked alert naming the admission gate), explicit forecast labels, placement guidance/confirmation/auto-deselection (selection cleared only on success; click-after-placement no longer falls through to inspection). F5 (staffing noise) diagnosed and deferred. 320 unit tests, 34/34 E2E, self-play 7/7, build green; validated in the real browser at two viewport sizes. Not yet pushed (owner instruction). Volet B still open.
 
 ---
 

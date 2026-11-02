@@ -151,8 +151,14 @@ export function boot(root: HTMLElement): { stop(): void } {
             : "Reset failed: storage unavailable.",
       );
     },
-    onBuildTypeSelected: () => {
-      /* selection state lives in the UI; hover/click read it each event */
+    onBuildTypeSelected: (type) => {
+      if (!ui) return;
+      // Placement guidance (Step053 F6): transient pointer context —
+      // never announced; the success path overwrites it right after.
+      ui.setStatus(
+        type ? `Placing ${BUILDING_DEFINITIONS[type].displayName} — click a free cell` : "",
+        false,
+      );
     },
     onRoadModeToggled: () => {
       /* same */

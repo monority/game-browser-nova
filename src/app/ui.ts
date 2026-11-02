@@ -38,6 +38,8 @@ export interface Ui {
   setAgeLocked(types: BuildingType[]): void;
   /** Reconciles the events toggle/frequency labels with game state (Step047). */
   setEventsConfig(enabled: boolean, frequency: string): void;
+  /** Clears the build selection after a successful placement (Step053 F8). */
+  clearBuildSelection(): void;
 }
 
 export interface UiCallbacks {
@@ -147,6 +149,7 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
     setAvailableBuildings: controls.setAvailableBuildings,
     setAgeLocked: controls.setAgeLocked,
     setEventsConfig: controls.setEventsConfig,
+    clearBuildSelection: controls.clearBuildSelection,
     setStatus(message: string, announce = true) {
       status.textContent = message;
       if (announce) statusAnnouncer.textContent = message;

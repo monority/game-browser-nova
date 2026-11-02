@@ -7,7 +7,9 @@ import {
   environmentalQuality,
   MIN_QUALITY_FOR_ADMISSION,
   ABSORPTION_PER_PARK_PER_TICK,
+  pollutionFlows,
 } from "@/domain/environment/environment.js";
+import { getColonyStats } from "@/application/queries/stats.js";
 import { getAlerts } from "@/application/queries/analysis.js";
 import {
   parseSave,
@@ -164,5 +166,40 @@ describe("environment persistence + alerts", () => {
       stepTicks(s, 7);
     }
     expect(b).toEqual(a);
+  });
+});
+
+describe("pollutionFlows pure query (Step053 F1)", () => {
+  it("counts workshop emissions and park absorption without mutating", () => {
+    const state = freshState();
+    stripToAnchor(state);
+    state.resources.money = 500;
+    state.resources.water = 4;
+    // two matured road-adjacent workshops (dynamic free cells: obstacles)
+    for (let i = 0; i < 2; i++) {
+      const road = freeCell(state);
+      mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+      const spot = adjacentFree(state, road.x, road.y);
+      mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
+    }
+    stepTicks(state, 2);
+    const flows = pollutionFlows(state);
+    expect(flows).toEqual({ emissions: 2, absorption: 0, net: 2 });
+    // one matured park flips the balance to net 0
+    const parkSpot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "park", x: parkSpot.x, y: parkSpot.y }));
+    stepTicks(state, 2);
+    expect(pollutionFlows(state)).toEqual({ emissions: 2, absorption: 2, net: 0 });
+    expect(state.pollution).toBeGreaterThan(0); // pure: nothing clamped here
+  });
+
+  it("surfaces the flows through the colony stats query", () => {
+    const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
+    const stats = getColonyStats(state);
+    expect(stats.pollutionEmissionsPerTick).toBe(0);
+    expect(stats.pollutionAbsorptionPerTick).toBe(0);
+    expect(stats.pollutionNetPerTick).toBe(0);
   });
 });

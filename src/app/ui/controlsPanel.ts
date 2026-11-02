@@ -21,6 +21,9 @@ interface ControlsPanel {
   setAgeLocked(types: BuildingType[]): void;
   /** Reconciles the events toggle/frequency labels with game state. */
   setEventsConfig(enabled: boolean, frequency: string): void;
+  /** Clears the build selection (Step053 F8: after a successful placement).
+   * No-op when nothing is selected; roads mode is untouched. */
+  clearBuildSelection(): void;
 }
 
 /** Overlay legend tooltips (states only). */
@@ -66,6 +69,9 @@ export function createControlsPanel(callbacks: {
 }): ControlsPanel {
   let selectedType: BuildingType | null = null;
   let roadsEnabled = false;
+  /** Last selection announced through onBuildTypeSelected (undefined =
+   * road mode: nothing announced, matching the legacy contract). */
+  let announcedSelection: BuildingType | null | undefined;
   let availableTypes: BuildingType[] = [...PALETTE_TYPES];
   let ageLockedTypes: BuildingType[] = [];
 
@@ -214,14 +220,26 @@ export function createControlsPanel(callbacks: {
     }
     if (roadsEnabled) roadButton.dataset.active = "true";
     else delete roadButton.dataset.active;
-    if (!selectedType && !roadsEnabled) callbacks.onBuildTypeSelected(null);
-    else if (selectedType) callbacks.onBuildTypeSelected(selectedType);
+    // Announce only on effective change (Step053): refreshPalette runs on
+    // every tick via setAvailableBuildings — per-tick callbacks would wipe
+    // unrelated status messages.
+    const effective = selectedType ?? (roadsEnabled ? undefined : null);
+    if (effective !== announcedSelection) {
+      announcedSelection = effective;
+      if (effective !== undefined) callbacks.onBuildTypeSelected(effective);
+    }
   }
 
   function setRoads(enabled: boolean): void {
     roadsEnabled = enabled;
     if (enabled) selectedType = null;
     callbacks.onRoadModeToggled(enabled);
+  }
+
+  function clearBuildSelection(): void {
+    if (selectedType === null) return;
+    selectedType = null;
+    refreshPalette();
   }
 
   // Tier2: refreshStats runs every tick — skip reconciliation when the
@@ -270,5 +288,6 @@ export function createControlsPanel(callbacks: {
     setAvailableBuildings,
     setAgeLocked,
     setEventsConfig,
+    clearBuildSelection,
   };
 }

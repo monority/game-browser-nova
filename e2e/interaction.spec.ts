@@ -105,8 +105,8 @@ test.describe("NOVA interaction flows", () => {
       .toBe(base + 1);
     await page.getByRole("button", { name: "pause", exact: true }).click();
 
-    // deselect the palette (click the active button again), then inspect the cell
-    await page.locator("button[data-build-type='farm']").click();
+    // Step053 F8: the successful placement already cleared the palette —
+    // this canvas click therefore inspects the cell
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     const removeButton = page.locator("button[data-action='remove-building']");
     await expect(removeButton).toBeVisible();
@@ -164,8 +164,7 @@ test.describe("NOVA interaction flows", () => {
       .toBe(base + 1);
     await page.getByRole("button", { name: "pause", exact: true }).click();
 
-    // inspect ? mothball (deselect palette first)
-    await page.locator("button[data-build-type='farm']").click();
+    // inspect ? mothball (palette already cleared by the F8 auto-deselection)
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     const mothball = page.locator("button[data-action='deactivate-building']");
     await expect(mothball).toBeVisible();
@@ -241,8 +240,9 @@ test.describe("NOVA interaction flows", () => {
       return { stats: h.stats().resources, text: document.querySelector("#stats")?.textContent ?? "" };
     });
     expect(balanced.text).toContain("Forecast");
-    expect(balanced.text).toContain("Food 3/1");
-    expect(balanced.text).not.toContain("ticks"); // no countdown at +2/tick
+    expect(balanced.text).toContain("Food +3/-1 per tick");
+    expect(balanced.text).toContain("stock");
+    expect(balanced.text).not.toContain("→ "); // no countdown at +2/tick
 
     // mothball the farm → only the trickle (1) vs pop 1: balance 0, still no deficit.
     // Add a second colonist: consumption 2 vs trickle 1 → deficit −1 → countdown
@@ -330,6 +330,18 @@ test.describe("NOVA interaction flows", () => {
         ),
       )
       .toBe(2);
+    await pause(page);
+
+    // Step053 F1: degraded air + housing headroom surfaces the exact gate
+    await page.evaluate(() => {
+      const h = window.__nova!;
+      h.command({ kind: "placeBuilding", type: "residence", x: 4, y: 0 });
+      h.getState().pollution = 90;
+      h.getState().resources.food = 10;
+    });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect(page.locator(".nova-alerts")).toContainText("Growth blocked");
+    await expect(page.locator(".nova-alerts")).toContainText("admission threshold 25");
     await pause(page);
 
     // overlay toggle: staffing
@@ -496,7 +508,7 @@ test.describe("NOVA interaction flows", () => {
     await expect(page.locator("#stats")).toContainText("Workforce: 1/2 workplaces staffed");
 
     // inspect the idle farm: the staffing line exposes rank + state
-    await page.locator("button[data-build-type='farm']").click(); // deselect palette
+    // (palette already cleared by the F8 auto-deselection)
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
     await expect(page.locator("#inspection")).toContainText("staffing 2/2 · idle");
 
@@ -549,4 +561,28 @@ test.describe("NOVA interaction flows", () => {
     // rebuild cost stays trivial vs the 62.5ms/tick budget at 8x
     expect(after.avgUpdateMs).toBeLessThan(10);
   });
+});
+
+test("placement guidance, feedback, and auto-deselection (Step053)", async ({ page }) => {
+  await page.goto("/");
+  await pause(page);
+
+  const farm = page.locator("button[data-build-type='farm']");
+
+  // F6: selecting a building announces the placement guidance
+  await farm.click();
+  await expect(page.locator(".nova-status")).toHaveText(
+    "Placing Farm — click a free cell",
+  );
+
+  // F7/F8: a successful placement confirms and deselects
+  await page.locator("#app canvas").click({ position: { x: 700, y: 300 } });
+  await expect(page.locator(".nova-status")).toHaveText("Farm placed.");
+  await expect(farm).not.toHaveAttribute("data-selected", "true");
+
+  // F8: an invalid placement keeps the selection and states the reason
+  await farm.click();
+  await page.locator("#app canvas").click({ position: { x: 700, y: 300 } });
+  await expect(page.locator(".nova-status")).toContainText("Cannot place: occupied");
+  await expect(farm).toHaveAttribute("data-selected", "true");
 });

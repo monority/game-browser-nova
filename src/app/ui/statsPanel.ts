@@ -1,6 +1,7 @@
 import type { ColonyStats } from "@/application/queries/stats.js";
 import type { Alert, ResourceForecast, SurvivalResource } from "@/application/queries/analysis.js";
 import { panel, sectionHeader, liveStatRow, type LiveStatRow } from "./kit.js";
+import { ENV_QUALITY_ALERT_THRESHOLD } from "@/domain/environment/environment.js";
 
 /**
  * Stats + forecast + alerts panel: the single left column.
@@ -33,6 +34,8 @@ export function createStatsPanel(callbacks: {
     liveStatRow("Stone"),
     liveStatRow("Planks"),
     liveStatRow("Pollution"),
+    liveStatRow("  emitted/tick"),
+    liveStatRow("  absorbed/tick"),
     liveStatRow("Env quality"),
     liveStatRow("Revenue/tick"),
     liveStatRow("  taxes"),
@@ -71,14 +74,22 @@ export function createStatsPanel(callbacks: {
     statRows[5]!.set(String(Math.floor(stats.resources.wood)));
     statRows[6]!.set(String(Math.floor(stats.resources.stone)));
     statRows[7]!.set(String(Math.floor(stats.resources.planks)));
-    statRows[8]!.set(String(Math.round(stats.pollution)));
-    statRows[9]!.set(String(Math.round(stats.envQuality)));
-    statRows[10]!.set(String(stats.revenuePerTick));
-    statRows[11]!.set(String(stats.taxesPerTick));
-    statRows[12]!.set(String(stats.commercePerTick));
-    statRows[13]!.set(String(stats.marketPerTick));
-    statRows[14]!.set(String(stats.maintenancePerTick));
-    statRows[15]!.set(
+    statRows[8]!.set(
+      `${Math.round(stats.pollution)} · net ${stats.pollutionNetPerTick >= 0 ? "+" : ""}${stats.pollutionNetPerTick}/tick`,
+      stats.pollutionNetPerTick > 0 ? "nova-value--danger" : "nova-value--ok",
+    );
+    statRows[9]!.set(String(stats.pollutionEmissionsPerTick));
+    statRows[10]!.set(String(stats.pollutionAbsorptionPerTick));
+    statRows[11]!.set(
+      String(Math.round(stats.envQuality)),
+      stats.envQuality < ENV_QUALITY_ALERT_THRESHOLD ? "nova-value--danger" : "nova-value--ok",
+    );
+    statRows[12]!.set(String(stats.revenuePerTick));
+    statRows[13]!.set(String(stats.taxesPerTick));
+    statRows[14]!.set(String(stats.commercePerTick));
+    statRows[15]!.set(String(stats.marketPerTick));
+    statRows[16]!.set(String(stats.maintenancePerTick));
+    statRows[17]!.set(
       String(stats.netMoneyPerTick),
       stats.netMoneyPerTick >= 0 ? "nova-value--ok" : "nova-value--danger",
     );
@@ -90,8 +101,8 @@ export function createStatsPanel(callbacks: {
       seen.add(f.resource);
       const name = f.resource.charAt(0).toUpperCase() + f.resource.slice(1);
       const remaining = f.ticksRemaining !== null ? ` → ${f.ticksRemaining} ticks` : "";
-      const labelText = `${name} ${f.productionPerTick}/${f.consumptionPerTick}`;
-      const valueText = `${Math.floor(f.stock)}${remaining}`;
+      const labelText = `${name} +${f.productionPerTick}/-${f.consumptionPerTick} per tick`;
+      const valueText = `stock ${Math.floor(f.stock)}${remaining}`;
       const valueClass = f.balancePerTick < 0 ? "nova-value--danger" : "";
 
       let row = forecastRows.get(f.resource);

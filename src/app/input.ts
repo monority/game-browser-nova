@@ -7,6 +7,7 @@ import type { Renderer } from "@/renderer/renderer.js";
 import type { Building } from "@/domain/building/building.js";
 import { buildLogisticsMap, logisticsDistance, logisticsEfficiencyPercent } from "@/domain/logistics/logistics.js";
 import { getStaffingOverview } from "@/application/queries/staffing.js";
+import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 import { BUILDING_DETAIL } from "./details.js";
 import type { Ui } from "./ui.js";
 
@@ -48,6 +49,8 @@ export function attachInput(ctx: InputContext): {
     const where = d === Infinity ? "no path" : `${d} hops`;
     return `logistics · ${eff}% · ${where} to warehouse`;
   }
+
+  let placedThisInteraction = false;
 
   function describeCell(x: number, y: number): string | null {
     const state = ctx.getState();
@@ -173,7 +176,17 @@ export function attachInput(ctx: InputContext): {
       return;
     }
     const result = applyCommand(state, { kind: "placeBuilding", type: buildType, x: cell.x, y: cell.y });
-    ui.setStatus(result.ok ? "" : `Cannot place: ${result.reason}`);
+    if (result.ok) {
+      // Step053 F8/F7: confirm, then clear the selection. Clearing first
+      // wipes the "Placing …" guidance through the deselect branch, so the
+      // confirmation is the message the player is left with.
+      ui.clearBuildSelection();
+      ui.setStatus(`${BUILDING_DEFINITIONS[buildType].displayName} placed.`);
+      placedThisInteraction = true; // the matching click event must not inspect
+    } else {
+      placedThisInteraction = false;
+      ui.setStatus(`Cannot place: ${result.reason}`);
+    }
     renderer.update(state);
     ctx.refreshStats();
   }
@@ -194,6 +207,11 @@ export function attachInput(ctx: InputContext): {
   function onClick(event: MouseEvent): void {
     if (event.target !== rendererCanvas()) return;
     const ui = ctx.getUi();
+    // the click that completes a placement must not fall through to inspection
+    if (placedThisInteraction) {
+      placedThisInteraction = false;
+      return;
+    }
     if (ui.activeBuildType() || ui.roadMode()) return;
     const cell = ctx.getRenderer().pickCell(event.clientX, event.clientY);
     if (cell) inspectAt(cell.x, cell.y);

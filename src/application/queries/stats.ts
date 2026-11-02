@@ -11,7 +11,7 @@ import {
 } from "@/domain/economy/economy.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
 import { housingCapacity } from "@/domain/population/population.js";
-import { environmentalQuality } from "@/domain/environment/environment.js";
+import { environmentalQuality, pollutionFlows } from "@/domain/environment/environment.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 
 /** Derived read-only view for the UI (queries never mutate state). */
@@ -25,6 +25,9 @@ export interface ColonyStats {
   resources: GameState["resources"];
   pollution: number;
   envQuality: number;
+  pollutionEmissionsPerTick: number;
+  pollutionAbsorptionPerTick: number;
+  pollutionNetPerTick: number;
   taxesPerTick: number;
   commercePerTick: number;
   marketPerTick: number;
@@ -43,6 +46,7 @@ export function getColonyStats(state: GameState): ColonyStats {
   const commerce = commercePerTick(state, plankThroughput(state));
   const market = expectedMarketSales(state) * MONEY_PER_FOOD_SOLD;
   const maintenance = maintenancePerTick(state);
+  const pollution = pollutionFlows(state);
   return {
     tick: state.tick,
     population: state.population,
@@ -52,6 +56,9 @@ export function getColonyStats(state: GameState): ColonyStats {
     resources: { ...state.resources },
     pollution: state.pollution,
     envQuality: environmentalQuality(state),
+    pollutionEmissionsPerTick: pollution.emissions,
+    pollutionAbsorptionPerTick: pollution.absorption,
+    pollutionNetPerTick: pollution.net,
     taxesPerTick: taxes,
     commercePerTick: commerce,
     marketPerTick: market,
