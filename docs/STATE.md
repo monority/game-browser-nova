@@ -110,7 +110,7 @@ Do not implement deferred scope without an explicit product decision.
 
 ## Current Approved Step
 
-Step047 controlled events, complete (2026-11-02). Last Phase 10 deliverable closed: domain (`src/domain/events/events.ts`, tick phase 11 = canonical phase 12), v17→v18 migration, production/commerce rate integration via the existing pure functions (forecasts stay exact), alerts + Settings toggle/frequency, ADR-007. All validation green (tsc, eslint, 302 unit tests, 34/34 E2E, build). Deferred: conditional events (e.g. smog), intensity cursor.
+Step048 measurement, complete (2026-11-02): events-grid pacing harness (`tests/measure.test.ts`, governor extracted to `tests/selfplay.governor.ts`) + report with evidence. Headline finding: harvest-event EXPIRY on a zero-margin colony wiped pop 24 → 0 (measure-2 seed, frequent) — violates §16/§22 spirit; proposals P1 (expiry ramp-out), P2 (trade closure at half floor), P3 (frequent interval floor 150→300) PENDING owner decision, nothing implemented. Volet B (human play session) still open.
 
 ---
 
