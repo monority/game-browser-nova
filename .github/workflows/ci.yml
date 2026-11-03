@@ -3,9 +3,11 @@ name: CI
 # Continuous integration for NOVA (docs/DEVELOPMENT.md §CI).
 # One job, the same gate order as docs/VALIDATION.md:
 #   install -> typecheck -> lint -> unit -> build -> e2e
-# The E2E job runs against the dev server (same command as local) so the
+# The E2E step runs against the dev server (same command as local) so the
 # browser journeys are identical to a developer run; the production
 # bundle is validated by the separate build step.
+# Actions are pinned to commit SHAs (kept fresh by .github/dependabot.yml)
+# so a moved tag cannot silently change what runs here.
 
 on:
   push:
@@ -18,7 +20,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -29,16 +31,16 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 11.21.0
           run_install: false
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -58,6 +60,12 @@ jobs:
       - name: Production build
         run: pnpm build
 
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('pnpm-lock.yaml') }}
+
       - name: Install Chromium (Playwright)
         run: pnpm exec playwright install --with-deps chromium
 
@@ -66,9 +74,11 @@ jobs:
 
       - name: Upload test artifacts on failure
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: playwright-test-results
-          path: test-results/
+          name: playwright-artifacts
+          path: |
+            test-results/
+            playwright-report/
           retention-days: 7
           if-no-files-found: ignore

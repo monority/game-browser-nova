@@ -5,9 +5,14 @@ export default defineConfig({
   timeout: 60_000,
   retries: 0,
   workers: 1,
+  // The HTML report is always written (never auto-opened) so CI can upload
+  // it on failure; traces/screenshots are kept for failing journeys only.
+  reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: "http://localhost:5273",
     headless: true,
+    trace: "retain-on-failure",
+    screenshot: "only-on-failure",
   },
   webServer: {
     command: "pnpm dev --port 5273 --strictPort",
