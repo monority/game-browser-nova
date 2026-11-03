@@ -1,6 +1,6 @@
 import { appendFileSync, writeFileSync } from "node:fs";
-import { expect, test } from "@playwright/test";
-import { pause, stripToAnchor } from "../e2e/helpers.js";
+import { expect, test, type Page } from "@playwright/test";
+import { pause } from "../e2e/helpers.js";
 
 /**
  * Agent playtest walkthrough (Step054): scenarios A-D from
@@ -25,7 +25,7 @@ test.beforeAll(() => {
 });
 
 async function observe(
-  page: import("@playwright/test").Page,
+  page: Page,
   shot: string,
   note: string,
 ): Promise<void> {
