@@ -190,7 +190,9 @@ test.describe("NOVA economy", () => {
 
     // --- production changes: the new farm staffs, food/tick rises 11 -> 13 ---
     await page.getByRole("button", { name: "8x", exact: true }).click();
-    await expect(page.locator("#stats")).toContainText("Food 13/13");
+    await expect(page.locator("#stats")).toContainText(
+      "Food +13/-13 per tick",
+    );
     await page.getByRole("button", { name: "pause", exact: true }).click();
 
     // --- research 3 technologies via the progression panel (UI) ---
