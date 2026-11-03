@@ -96,7 +96,7 @@ If a new requirement changes a durable design rule, record an ADR rather than bu
 
 ## 7. Continuous integration
 
-CI runs the full gate chain on every push to `master` and on every pull
+CI runs the full gate chain on every push to `main` and on every pull
 request (`.github/workflows/ci.yml`):
 
 ```text
