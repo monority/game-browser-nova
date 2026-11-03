@@ -8,3 +8,10 @@ playwright-report/
 
 # agent playtest artifacts (screenshots + generated report)
 playtest/artifacts/
+
+# Local-only agent workflow and internal notes (never published)
+AGENTS.md
+TASK.md
+.unipi/
+playtest/
+docs/
