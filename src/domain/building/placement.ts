@@ -1,5 +1,5 @@
 import { BUILDING_DEFINITIONS, ROAD_MONEY_COST_PER_CELL, type BuildingType } from "@/content/buildings.js";
-import { cellKey } from "@/domain/shared/cells.js";
+import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
 import { isBlocked } from "@/domain/world/world.js";
 import { hasDepositAt } from "@/domain/world/deposits.js";
 import { allRoadCells } from "@/domain/road/road.js";
@@ -93,7 +93,7 @@ export function validateRoads(state: GameState, cells: readonly string[]): RoadV
   for (const key of cells) {
     if (seen.has(key)) continue;
     seen.add(key);
-    const { x, y } = parseKey(key);
+    const { x, y } = parseCellKey(key);
     if (x < 0 || y < 0 || x >= state.world.width || y >= state.world.height) {
       return { ok: false, reason: "outOfBounds" };
     }
@@ -111,12 +111,6 @@ export function validateRoads(state: GameState, cells: readonly string[]): RoadV
     return { ok: false, reason: "insufficientMoney" };
   }
   return { ok: true };
-}
-
-function parseKey(key: string): { x: number; y: number } {
-  const i = key.indexOf(",");
-  if (i < 0) throw new Error(`invalid cell key: ${key}`);
-  return { x: Number(key.slice(0, i)), y: Number(key.slice(i + 1)) };
 }
 
 /** Removal validation (MVP "removal" scope; no refund policy). */

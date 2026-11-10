@@ -160,9 +160,6 @@ export function boot(root: HTMLElement): { stop(): void } {
         false,
       );
     },
-    onRoadModeToggled: () => {
-      /* same */
-    },
     onRemoveBuilding: (id) => {
       if (!ui) return;
       const result = applyCommand(state, { kind: "removeBuilding", id });

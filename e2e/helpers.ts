@@ -1,54 +1,11 @@
 import { expect, type Page } from "@playwright/test";
+import type { NovaHandle } from "@/app/diagnostics.js";
 
 /** Test helpers for the NOVA browser surface. */
 
-/**
- * E2E-local contract of the `__nova` diagnostics surface: the wire
- * subset the tests actually read. Declared global so specs use
- * `window.__nova` directly — no per-site casts.
- */
-declare global {
-  interface Window {
-    __nova?: NovaHandle;
-  }
-}
-
-export interface NovaHandle {
-  getState(): {
-    tick: number;
-    population: number;
-    age: number;
-    researchedTechs: string[];
-    resources: Record<string, number>;
-    buildings: Record<string, { id: string; type: string; status: string; x: number; y: number; staffed: boolean; active: boolean }>;
-    world: { width: number; height: number; blockedCells: Record<string, true> };
-    roads: Record<string, { cells: string[] }>;
-    woodDeposits: Record<string, { remaining: number; capacity: number }>;
-    stoneDeposits: Record<string, { remaining: number; capacity: number }>;
-  };
-  stats(): {
-    tick: number;
-    population: number;
-    housingCapacity: number;
-    resources: Record<string, number>;
-    revenuePerTick: number;
-    maintenancePerTick: number;
-    netMoneyPerTick: number;
-  };
-  command(cmd: unknown): { ok: boolean; reason?: string };
-  perf(): {
-    drawCalls: number;
-    geometries: number;
-    textures: number;
-    programs: number;
-    triangles: number;
-    updateCount: number;
-    lastUpdateMs: number;
-    avgUpdateMs: number;
-  };
-  /** Overlay applied to the scene (Step039: load must keep it). */
-  overlay(): string;
-}
+// `window.__nova` is declared globally by src/app/diagnostics.ts: the E2E
+// specs consume the production contract instead of a drifting local copy.
+export type { NovaHandle };
 
 export async function nova(page: Page): Promise<NovaHandle> {
   return page.evaluate(() => {

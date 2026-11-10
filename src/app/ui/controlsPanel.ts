@@ -58,7 +58,6 @@ function setActive(container: HTMLElement, active: HTMLElement | null): void {
 
 export function createControlsPanel(callbacks: {
   onBuildTypeSelected(type: BuildingType | null): void;
-  onRoadModeToggled(enabled: boolean): void;
   onSpeedChanged(ticksPerSecond: number, id: string): void;
   onSave(): void;
   onLoad(): void;
@@ -233,7 +232,6 @@ export function createControlsPanel(callbacks: {
   function setRoads(enabled: boolean): void {
     roadsEnabled = enabled;
     if (enabled) selectedType = null;
-    callbacks.onRoadModeToggled(enabled);
   }
 
   function clearBuildSelection(): void {

@@ -48,12 +48,10 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
   const marketDrain = expectedMarketSales(state);
   const waterProduction = waterProductionPerTick(state);
   const foodConsumption = pop * FOOD_PER_COLONIST_PER_TICK;
-  // served colonists: consumption is capped by availability, but the *rate*
-  // the colony needs is pop; the served amount is a shortage signal.
-  const waterConsumption = Math.min(
-    state.resources.water,
-    pop * WATER_PER_SERVED_COLONIST_PER_TICK,
-  );
+  // Forecast consumption is the need, not the served amount (F12): showing
+  // min(stock, need) turned a shortage into a fake surplus. The served amount
+  // remains the shortage signal in getAlerts.
+  const waterConsumption = pop * WATER_PER_SERVED_COLONIST_PER_TICK;
 
   // Market sales are neither production nor consumption: apply the drain to the
   // food balance so ticks-remaining stays honest while markets sell (Step017).
@@ -181,7 +179,7 @@ export function getAlerts(
   } else if (state.population > 0 && state.resources.food === 0) {
     alerts.push({
       severity: "warning",
-      message: `Food: 0 stock · population ${state.population} unfed next tick`,
+      message: `Food: 0 stock · ${state.population} colonists unfed (−1/tick)`,
     });
   }
 

@@ -22,7 +22,8 @@ test.describe("rendering efficiency (Tier2)", () => {
         new MutationObserver((records) => {
           for (const r of records) {
             if (r.type === "childList" && (r.addedNodes.length > 0 || r.removedNodes.length > 0)) {
-              w.__churn![id] += 1;
+              const churn = w.__churn;
+              if (churn) churn[id] = (churn[id] ?? 0) + 1;
             }
           }
         }).observe(el, { childList: true, subtree: true });
@@ -36,9 +37,9 @@ test.describe("rendering efficiency (Tier2)", () => {
     expect(perf.updateCount).toBeGreaterThan(20);
     // residual below 200→900: alert lines legitimately rewrite while their
     // numbers change (e.g. D2 storage-full transient); full rebuild was ≈1843
-    expect(churn.stats).toBeLessThan(900); // pre-Tier2 ≈ 1843
-    expect(churn.progression).toBeLessThan(200); // pre-Tier2 ≈ 1164
-    expect(churn.controls).toBeLessThan(200); // pre-Tier2 ≈ 1746
+    expect(churn.stats ?? 0).toBeLessThan(900); // pre-Tier2 ≈ 1843
+    expect(churn.progression ?? 0).toBeLessThan(200); // pre-Tier2 ≈ 1164
+    expect(churn.controls ?? 0).toBeLessThan(200); // pre-Tier2 ≈ 1746
     // D2 steady-state ≈ 628 geometries; a per-tick dispose leak explodes
     expect(perf.geometries).toBeLessThan(700);
   });

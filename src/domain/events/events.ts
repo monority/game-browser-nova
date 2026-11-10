@@ -52,8 +52,8 @@ export const EVENT_DURATION_TICKS = 40;
  * their effect per tick at expiry. Note (Step048/049 re-measurement): NO
  * event may INFLATE a production rate — on an exact-balance colony any
  * rate boost creates a dependency whose expiry (or taper alternation)
- * starves the colony all-or-nothing. The harvest is therefore a one-off
- * granary windfall, never a rate effect.
+ * starves the colony. The harvest is therefore a one-off granary
+ * windfall, never a rate effect.
  */
 export const EVENT_TAPER_TICKS = 8;
 
@@ -71,8 +71,6 @@ export function isEventEffectTick(state: GameState, kind: EventKind): boolean {
 /** Drought: each well loses this much output (2 → 1/tick). */
 export const DROUGHT_WATER_REDUCTION_PER_WELL = 1;
 
-/** Bountiful harvest: each farm gains this much yield (2 → 3/tick). */
-export const HARVEST_FARM_BONUS_PER_TICK = 1;
 
 /** Mean interval between events per frequency cursor (ticks). P3 (Step049):
  * the frequent floor rose 150 → 300 — clustering (7 events in ~800 ticks)

@@ -47,16 +47,22 @@ describe("resource summaries", () => {
 
   it("negative balance: countdown to depletion (deficit beats the trickle)", () => {
     const state = fedColony();
-    state.resources.food = 84;
-    // mothball the farm: only the Center trickle (1) remains vs pop 1 + ...
+    // Two colonists eat 2/tick; the mothballed farm leaves only the Center
+    // trickle (1/tick), so the colony drains 1/tick.
+    state.population = 2;
+    state.resources.food = 10;
     const farmId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "farm");
     if (!farmId) throw new Error("farm missing");
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
-    stepTicks(state, 1); // production 1 = consumption 1 → balance 0
+    stepTicks(state, 1); // +1 trickle − 2 consumption → stock 9
     const s = getResourceSummaries(state);
-    expect(s.food.productionPerTick).toBe(1);
-    expect(s.food.balancePerTick).toBe(0);
-    expect(s.food.ticksRemaining).toBeNull();
+    expect(s.food).toMatchObject({
+      productionPerTick: 1,
+      consumptionPerTick: 2,
+      balancePerTick: -1,
+      stock: 9,
+      ticksRemaining: 9,
+    });
   });
 
   it("counts the Center trickle even when the farm is mothballed", () => {
@@ -68,13 +74,20 @@ describe("resource summaries", () => {
     expect(getResourceSummaries(state).food.productionPerTick).toBe(1);
   });
 
-  it("water consumption reflects served colonists only", () => {
+  it("water consumption reflects the colony need, not the served amount (F12)", () => {
     const state = fedColony();
     state.population = 2;
     state.resources.water = 1; // only 1 of 2 can be served
     const s = getResourceSummaries(state);
-    expect(s.water.consumptionPerTick).toBe(1);
+    expect(s.water.consumptionPerTick).toBe(2);
+    expect(s.water.balancePerTick).toBe(-2);
     expect(s.water.stock).toBe(1);
+    expect(s.water.ticksRemaining).toBe(0);
+    // The served amount stays the shortage signal in the alert.
+    expect(getAlerts(state)).toContainEqual({
+      severity: "warning",
+      message: "Water: 1/2 colonists served",
+    });
   });
 
   it("empty colony: no consumption, Center trickle only, no alerts", () => {
@@ -88,23 +101,19 @@ describe("resource summaries", () => {
 });
 
 describe("alerts (states, not instructions)", () => {
-  it("warns with a countdown when food is draining (deficit beats the trickle)", () => {
+  it("warns with the exact countdown when food is draining", () => {
     const state = fedColony();
-    state.resources.food = 10;
-    // second colonist: consumption 2 vs production 3 (farm 2 + trickle 1)... use
-    // a deficit instead: mothball the farm with 2 colonists
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 3, y: 0 }));
-    state.population = 2; // consumption 2; production = farm 2 + trickle 1 = 3?? no deficit
+    // Mothballed farm + two colonists: 1 produced, 2 eaten → −1/tick.
+    state.population = 2;
     state.resources.food = 10;
     const farmId = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "farm");
     if (!farmId) throw new Error("farm missing");
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
-    // production 1 (trickle) vs consumption 2 → deficit −1
-    stepTicks(state, 1); // food 10 − (2 − 1) = 9
-    const alerts = getAlerts(state);
-    const foodAlert = alerts.find((a) => a.message.startsWith("Food:"));
-    expect(foodAlert?.severity).toBe("warning");
-    expect(foodAlert?.message).toContain("-1/tick");
+    stepTicks(state, 1); // stock 9, balance −1
+    expect(getAlerts(state)).toContainEqual({
+      severity: "warning",
+      message: "Food: -1/tick · stock 9 → 9 ticks",
+    });
   });
 
   it("warns when water does not serve the whole population", () => {

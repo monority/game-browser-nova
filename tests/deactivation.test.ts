@@ -113,12 +113,12 @@ describe("deactivation effects", () => {
     stepTicks(state, 2);
     expect(state.population).toBe(1);
     expect(state.resources.food).toBe(foodAtPop1); // trickle covers exactly
-    // pop 2: consumption 2 > trickle 1 → all-or-nothing starvation
+    // pop 2: consumption 2 > trickle 1 → one colonist lost per unfed tick
     state.population = 2;
     state.resources.food = 3;
-    stepTicks(state, 4); // 3→2→1→0 then an unfed tick → starved
-    expect(state.population).toBe(0);
-    stepTicks(state, 1); // the trickle re-seeds admission (anti-lock, Step015)
+    stepTicks(state, 4); // 3→2→1→0 then one unfed colonist is lost
+    expect(state.population).toBe(1);
+    stepTicks(state, 1); // the trickle sustains the survivor (anti-lock, Step015)
     expect(state.population).toBe(1);
   });
 

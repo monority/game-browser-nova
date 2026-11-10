@@ -174,8 +174,8 @@ describe("population", () => {
     state.resources.water = 10;
     stepTicks(state, 4); // pop 2
     state.resources.food = 0; // total starvation
-    stepTicks(state, 1); // unfed tick → pop 0 (the old terminal moment)
-    expect(state.population).toBe(0);
+    stepTicks(state, 1); // one unfed tick → one colonist lost (gradual, Step055 B)
+    expect(state.population).toBe(1);
     // the Center trickle re-seeds food → the colony oscillates through
     // subsistence (0↔1↔2) but is NEVER permanently dead — the retired lock
     const pops: number[] = [];
@@ -224,7 +224,7 @@ describe("population", () => {
     expect(state.population).toBe(1);
   });
 
-  it("starvation is all-or-nothing: unfed tick removes the entire population (pop 2 beats the trickle)", () => {
+  it("starvation is gradual: an unfed tick removes one colonist (Step055 option B)", () => {
     const state = freshState();
     stripToAnchor(state);
     state.population = 0;
@@ -233,9 +233,27 @@ describe("population", () => {
     state.resources.water = 10; // admission headroom
     stepTicks(state, 4); // pop 2
     expect(state.population).toBe(2);
-    state.resources.food = 1; // trickle +1 → 2, but 2 colonists eat 2 → stock 0
-    stepTicks(state, 2); // an unfed tick arrives → all removed
-    expect(state.population).toBe(0);
+    state.resources.food = 1; // trickle covers one tick, then the stock runs out
+    stepTicks(state, 2); // second tick: one colonist unfed → one loss, not a wipe
+    expect(state.population).toBe(1);
+    stepTicks(state, 3); // the Center trickle sustains the survivor
+    expect(state.population).toBe(1);
+  });
+
+  it("starvation stops as soon as the colony is fed again", () => {
+    const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
+    applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 1 });
+    applyCommand(state, { kind: "placeBuilding", type: "residence", x: 2, y: 1 });
+    state.resources.water = 10;
+    stepTicks(state, 4); // pop 2
+    state.resources.food = 0;
+    stepTicks(state, 1); // one unfed tick → pop 1
+    expect(state.population).toBe(1);
+    state.resources.food = 20; // the granary recovers
+    stepTicks(state, 1); // fed again: no further loss, and admission resumes
+    expect(state.population).toBe(2);
   });
 
   it("population-0 + food-0 colony re-admits once food returns (recovery)", () => {

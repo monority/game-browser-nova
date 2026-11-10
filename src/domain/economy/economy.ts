@@ -1,6 +1,7 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import { isAdjacentToRoad } from "@/domain/network/network.js";
-import { isActive } from "@/domain/building/building.js";
+import { countActiveOfType, isActive } from "@/domain/building/building.js";
+import type { BuildingType } from "@/content/buildings.js";
 import { addMoney, deductFood } from "@/domain/resource/resource.js";
 import { foodProductionPerTick, FOOD_PER_COLONIST_PER_TICK } from "@/domain/production/production.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
@@ -38,15 +39,15 @@ export function commerceUnlocked(state: GameState): boolean {
 }
 export const MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK = 1;
 
+/** Active buildings of one type that have road access. */
+function countConnectedOfType(state: GameState, type: BuildingType): number {
+  return countActiveOfType(state.buildings, type, (building) =>
+    isAdjacentToRoad(state.roads, building.x, building.y),
+  );
+}
+
 export function connectedWorkshops(state: GameState): number {
-  let count = 0;
-  for (const building of Object.values(state.buildings)) {
-    if (building.type !== "workshop") continue;
-    if (!isActive(building)) continue;
-    if (!isAdjacentToRoad(state.roads, building.x, building.y)) continue;
-    count += 1;
-  }
-  return count;
+  return countConnectedOfType(state, "workshop");
 }
 
 /**
@@ -59,14 +60,7 @@ export const FOOD_SOLD_PER_MARKET_PER_TICK = 2;
 export const MONEY_PER_FOOD_SOLD = 1;
 
 export function connectedMarkets(state: GameState): number {
-  let count = 0;
-  for (const building of Object.values(state.buildings)) {
-    if (building.type !== "market") continue;
-    if (!isActive(building)) continue;
-    if (!isAdjacentToRoad(state.roads, building.x, building.y)) continue;
-    count += 1;
-  }
-  return count;
+  return countConnectedOfType(state, "market");
 }
 
 /**

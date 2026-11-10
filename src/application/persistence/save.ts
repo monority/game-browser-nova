@@ -1,10 +1,10 @@
 import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
-import { parseCellKey } from "@/domain/shared/cells.js";
+import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
 import type { Building, BuildingStatus } from "@/domain/building/building.js";
 import type { Road } from "@/domain/road/road.js";
 import { depositCapacities, type Deposits } from "@/domain/world/deposits.js";
-import { createWorld } from "@/domain/world/world.js";
+import { createWorld, inBounds, isBlocked } from "@/domain/world/world.js";
 import { POLLUTION_MAX } from "@/domain/environment/environment.js";
 import {
   EVENT_FREQUENCIES,
@@ -123,13 +123,32 @@ export function parseSave(input: unknown): GameState {
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
+  const width = expectPositiveInt(world.width, "world.width");
+  const height = expectPositiveInt(world.height, "world.height");
+  const blockedCells = expectCellKeyArray(world.blockedCells, "world.blockedCells");
+  const woodSeeds = expectDepositSeeds(world.woodDeposits, "world.woodDeposits");
+  const stoneSeeds = expectDepositSeeds(world.stoneDeposits, "world.stoneDeposits");
+  const bounds = { width, height };
+  // Terrain and deposits are regenerated from the config: their cells must
+  // lie inside the world the save describes.
+  for (const key of blockedCells) {
+    const { x, y } = parseCellKey(key);
+    if (!inBounds(x, y, bounds)) {
+      throw new SaveValidationError(`world.blockedCells is out of bounds: ${key}`);
+    }
+  }
+  for (const seed of [...woodSeeds, ...stoneSeeds]) {
+    if (!inBounds(seed.x, seed.y, bounds)) {
+      throw new SaveValidationError(`world deposit is out of bounds: ${seed.x},${seed.y}`);
+    }
+  }
   const config: WorldConfig = {
     seed: expectString(world.seed, "world.seed"),
-    width: expectPositiveInt(world.width, "world.width"),
-    height: expectPositiveInt(world.height, "world.height"),
-    blockedCells: expectCellKeyArray(world.blockedCells, "world.blockedCells"),
-    woodDeposits: expectDepositSeeds(world.woodDeposits, "world.woodDeposits"),
-    stoneDeposits: expectDepositSeeds(world.stoneDeposits, "world.stoneDeposits"),
+    width,
+    height,
+    blockedCells,
+    woodDeposits: woodSeeds,
+    stoneDeposits: stoneSeeds,
   };
   const generated = createWorld(config); // deterministic regeneration (ADR-005)
 
@@ -137,6 +156,17 @@ export function parseSave(input: unknown): GameState {
   if (!isRecord(deposits)) throw new SaveValidationError("save.deposits missing");
   const woodDeposits = expectDeposits(deposits.wood, "deposits.wood");
   const stoneDeposits = expectDeposits(deposits.stone, "deposits.stone");
+  for (const [field, record] of [
+    ["wood", woodDeposits],
+    ["stone", stoneDeposits],
+  ] as const) {
+    for (const key of Object.keys(record)) {
+      const { x, y } = parseCellKey(key);
+      if (!inBounds(x, y, bounds)) {
+        throw new SaveValidationError(`deposits.${field} has an out-of-bounds cell: ${key}`);
+      }
+    }
+  }
 
   const resources = doc.resources;
   if (!isRecord(resources)) throw new SaveValidationError("save.resources missing");
@@ -165,16 +195,28 @@ export function parseSave(input: unknown): GameState {
     if (status !== "underConstruction" && status !== "operational") {
       throw new SaveValidationError(`invalid building status: ${status}`);
     }
+    const x = expectNonNegativeInt(raw.x, "building.x");
+    const y = expectNonNegativeInt(raw.y, "building.y");
+    if (!inBounds(x, y, bounds)) {
+      throw new SaveValidationError(`building ${id} is out of bounds: ${x},${y}`);
+    }
+    const constructionTicksLeft = expectNonNegativeInt(
+      raw.constructionTicksLeft,
+      "building.constructionTicksLeft",
+    );
+    if (status === "operational" && constructionTicksLeft !== 0) {
+      throw new SaveValidationError(`operational building ${id} has construction time left`);
+    }
+    if (status === "underConstruction" && constructionTicksLeft === 0) {
+      throw new SaveValidationError(`building ${id} is under construction with no time left`);
+    }
     buildings[id] = {
       id,
       type,
-      x: expectNonNegativeInt(raw.x, "building.x"),
-      y: expectNonNegativeInt(raw.y, "building.y"),
+      x,
+      y,
       status,
-      constructionTicksLeft: expectNonNegativeInt(
-        raw.constructionTicksLeft,
-        "building.constructionTicksLeft",
-      ),
+      constructionTicksLeft,
       staffed: expectBoolean(raw.staffed, "building.staffed"),
       active: expectBoolean(raw.active, "building.active"),
     };
@@ -182,14 +224,47 @@ export function parseSave(input: unknown): GameState {
   if (!buildings["colony-center"]) {
     throw new SaveValidationError("save is missing the Colony Center anchor");
   }
+  // Cell layout must be physically consistent: no two buildings share a
+  // cell, and no building overwrites terrain or a finite deposit.
+  const buildingCells = new Set<string>();
+  for (const building of Object.values(buildings)) {
+    const key = cellKey(building.x, building.y);
+    if (buildingCells.has(key)) {
+      throw new SaveValidationError(`two buildings occupy the same cell: ${key}`);
+    }
+    buildingCells.add(key);
+    if (isBlocked(generated, building.x, building.y)) {
+      throw new SaveValidationError(`building ${building.id} sits on a blocked cell: ${key}`);
+    }
+    if (woodDeposits[key] || stoneDeposits[key]) {
+      throw new SaveValidationError(`building ${building.id} sits on a deposit: ${key}`);
+    }
+  }
 
   if (!Array.isArray(doc.roads)) throw new SaveValidationError("save.roads must be an array");
   const roads: Record<string, Road> = {};
+  const roadCells = new Set<string>();
   for (const raw of doc.roads) {
     if (!isRecord(raw)) throw new SaveValidationError("road must be an object");
     const id = expectString(raw.id, "road.id");
     if (roads[id]) throw new SaveValidationError(`duplicate road id: ${id}`);
-    roads[id] = { id, cells: expectCellKeyArray(raw.cells, "road.cells") };
+    const cells = expectCellKeyArray(raw.cells, "road.cells");
+    if (cells.length === 0) throw new SaveValidationError(`road ${id} has no cells`);
+    for (const key of cells) {
+      const { x, y } = parseCellKey(key);
+      if (!inBounds(x, y, bounds)) {
+        throw new SaveValidationError(`road ${id} cell is out of bounds: ${key}`);
+      }
+      if (isBlocked(generated, x, y)) {
+        throw new SaveValidationError(`road ${id} crosses a blocked cell: ${key}`);
+      }
+      if (buildingCells.has(key)) {
+        throw new SaveValidationError(`road ${id} overlaps a building at ${key}`);
+      }
+      if (roadCells.has(key)) throw new SaveValidationError(`duplicate road cell: ${key}`);
+      roadCells.add(key);
+    }
+    roads[id] = { id, cells };
   }
 
   const population = expectNonNegativeInt(doc.population, "population");

@@ -1,5 +1,5 @@
 import { D2_FOOD, D2_WATER, type GameState } from "@/domain/simulation/state.js";
-import { isActive } from "@/domain/building/building.js";
+import { countActiveOfType } from "@/domain/building/building.js";
 
 /**
  * Storage capacity (Step031): food/water colony stocks are capped by a
@@ -20,13 +20,7 @@ export const WATER_PER_WAREHOUSE = D2_WATER;
 
 /** Operational warehouses: active flag + operational status (mothball removes). */
 export function operationalWarehouses(state: GameState): number {
-  let count = 0;
-  for (const building of Object.values(state.buildings)) {
-    if (building.type !== "warehouse") continue;
-    if (!isActive(building)) continue;
-    count += 1;
-  }
-  return count;
+  return countActiveOfType(state.buildings, "warehouse");
 }
 
 export function foodCapacity(state: GameState): number {

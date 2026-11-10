@@ -77,8 +77,8 @@ describe("self-play verifier", () => {
     // Step048 finding: the harvest EXPIRY wiped a pop-24 colony on this
     // seed (frequent, pre-P1). P1 taper + P2 half floor + P3 interval
     // floor must keep the line viable — population only drops through
-    // all-or-nothing starvation, so min pop >= the D2 founding 10 proves
-    // no famine ever fired.
+    // starvation (one colonist per unfed tick since Step055 option B), so
+    // min pop >= the D2 founding 10 proves no famine ever fired.
     const config = { ...SELFPLAY_CONFIG, seed: "measure-2" };
     let minPop = Infinity;
     const { state, phases } = playGame(

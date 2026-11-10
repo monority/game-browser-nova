@@ -19,11 +19,11 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *   2. produceFood / produceWater (previous tick's staffing)
  *   3. produceWood / produceStone (extraction from finite deposits)
  *   4. producePlanks (Workshop transformation, 2 wood → 1 plank)
- *   5. consumeFood (all-or-nothing) / consumeWater
+ *   5. consumeFood (partial feeding) / consumeWater
  *   6. clampStorage (Step031: food/water capped, true surplus lost —
  *       runs after consumption so the clamp never eats what colonists
  *       would have consumed this tick)
- *   7. updatePopulation (starvation + admission)
+ *   7. updatePopulation (gradual starvation + admission)
  *   8. assignJobs (next tick's staffing)
  *   9. collectRevenue → payMaintenance (money model, same-tick inflow)
  *   10. updateEnvironment (pollution flows + park wood regrowth)
@@ -42,12 +42,12 @@ export function stepSimulation(state: GameState): GameState {
   produceStone(state);
   const planksProduced = producePlanks(state);
 
-  const fed = consumeFood(state);
+  const fedColonists = consumeFood(state);
   consumeWater(state);
 
   clampStorage(state);
 
-  updatePopulation(state, fed);
+  updatePopulation(state, fedColonists);
 
   assignJobs(state);
 

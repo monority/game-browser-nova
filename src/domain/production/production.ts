@@ -80,19 +80,16 @@ export function produceWater(state: GameState): void {
 }
 
 /**
- * Food consumption is ALL-OR-NOTHING (documented): either the whole
- * population eats (food -= population) or the stock exhausts to 0 and
- * the population phase starves everyone this tick.
- * Returns whether the population was fed.
+ * Food consumption (Step055 option B): each colonist needs 1/tick and
+ * eats in order, so a partial stock feeds part of the colony instead of
+ * zeroing the whole population.
+ * Returns the number of colonists actually fed this tick.
  */
-export function consumeFood(state: GameState): boolean {
+export function consumeFood(state: GameState): number {
   const requirement = state.population * FOOD_PER_COLONIST_PER_TICK;
-  if (state.resources.food >= requirement) {
-    deductFood(state.resources, requirement);
-    return true;
-  }
-  deductFood(state.resources, state.resources.food);
-  return false;
+  const eaten = Math.min(state.resources.food, requirement);
+  deductFood(state.resources, eaten);
+  return Math.floor(eaten / FOOD_PER_COLONIST_PER_TICK);
 }
 
 /**
