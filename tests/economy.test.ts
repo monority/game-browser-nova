@@ -190,6 +190,9 @@ describe("full-tick economy", () => {
       stepTicks(state, 2);
     }
     state.population = 2;
+    // buffer the food so the population is fed: this test isolates the money
+    // model, and since Step055 option B an unfed tick costs one colonist
+    state.resources.food = 10;
     const before = state.resources.money;
     stepTicks(state, 1);
     // revenue 2 (2 taxes, commerce locked below pop 8) - maintenance 5

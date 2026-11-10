@@ -1,6 +1,6 @@
 import type { ColonyStats } from "@/application/queries/stats.js";
 import type { Alert, ResourceForecast, SurvivalResource } from "@/application/queries/analysis.js";
-import { panel, sectionHeader, liveStatRow, type LiveStatRow } from "./kit.js";
+import { panel, sectionHeader, liveStatRow } from "./kit.js";
 import { ENV_QUALITY_ALERT_THRESHOLD } from "@/domain/environment/environment.js";
 
 /**
@@ -24,27 +24,29 @@ export function createStatsPanel(callbacks: {
 }): StatsPanel {
   const { element } = panel("stats");
 
-  const statRows: LiveStatRow[] = [
-    liveStatRow("Tick"),
-    liveStatRow("Population"),
-    liveStatRow("Money"),
-    liveStatRow("Food"),
-    liveStatRow("Water"),
-    liveStatRow("Wood"),
-    liveStatRow("Stone"),
-    liveStatRow("Planks"),
-    liveStatRow("Pollution"),
-    liveStatRow("  emitted/tick"),
-    liveStatRow("  absorbed/tick"),
-    liveStatRow("Env quality"),
-    liveStatRow("Revenue/tick"),
-    liveStatRow("  taxes"),
-    liveStatRow("  commerce"),
-    liveStatRow("  market"),
-    liveStatRow("Maintenance/tick"),
-    liveStatRow("Net money/tick"),
-  ];
-  for (const row of statRows) element.appendChild(row.element);
+  // Named rows keep updateStats independent of positional indices; the
+  // literal order is the visual order (object insertion order is defined).
+  const statRows = {
+    tick: liveStatRow("Tick"),
+    population: liveStatRow("Population"),
+    money: liveStatRow("Money"),
+    food: liveStatRow("Food"),
+    water: liveStatRow("Water"),
+    wood: liveStatRow("Wood"),
+    stone: liveStatRow("Stone"),
+    planks: liveStatRow("Planks"),
+    pollution: liveStatRow("Pollution"),
+    emitted: liveStatRow("  emitted/tick"),
+    absorbed: liveStatRow("  absorbed/tick"),
+    envQuality: liveStatRow("Env quality"),
+    revenue: liveStatRow("Revenue/tick"),
+    taxes: liveStatRow("  taxes"),
+    commerce: liveStatRow("  commerce"),
+    market: liveStatRow("  market"),
+    maintenance: liveStatRow("Maintenance/tick"),
+    net: liveStatRow("Net money/tick"),
+  };
+  for (const row of Object.values(statRows)) element.appendChild(row.element);
 
   const forecastSection = document.createElement("div");
   forecastSection.dataset.section = "forecast";
@@ -66,30 +68,30 @@ export function createStatsPanel(callbacks: {
   let lastAlertSignature = "";
 
   function updateStats(stats: ColonyStats): void {
-    statRows[0]!.set(String(stats.tick));
-    statRows[1]!.set(`${stats.population} / ${stats.housingCapacity}`);
-    statRows[2]!.set(String(Math.floor(stats.resources.money)));
-    statRows[3]!.set(`${Math.floor(stats.resources.food)} / ${stats.foodCapacity}`);
-    statRows[4]!.set(`${Math.floor(stats.resources.water)} / ${stats.waterCapacity}`);
-    statRows[5]!.set(String(Math.floor(stats.resources.wood)));
-    statRows[6]!.set(String(Math.floor(stats.resources.stone)));
-    statRows[7]!.set(String(Math.floor(stats.resources.planks)));
-    statRows[8]!.set(
+    statRows.tick.set(String(stats.tick));
+    statRows.population.set(`${stats.population} / ${stats.housingCapacity}`);
+    statRows.money.set(String(Math.floor(stats.resources.money)));
+    statRows.food.set(`${Math.floor(stats.resources.food)} / ${stats.foodCapacity}`);
+    statRows.water.set(`${Math.floor(stats.resources.water)} / ${stats.waterCapacity}`);
+    statRows.wood.set(String(Math.floor(stats.resources.wood)));
+    statRows.stone.set(String(Math.floor(stats.resources.stone)));
+    statRows.planks.set(String(Math.floor(stats.resources.planks)));
+    statRows.pollution.set(
       `${Math.round(stats.pollution)} · net ${stats.pollutionNetPerTick >= 0 ? "+" : ""}${stats.pollutionNetPerTick}/tick`,
       stats.pollutionNetPerTick > 0 ? "nova-value--danger" : "nova-value--ok",
     );
-    statRows[9]!.set(String(stats.pollutionEmissionsPerTick));
-    statRows[10]!.set(String(stats.pollutionAbsorptionPerTick));
-    statRows[11]!.set(
+    statRows.emitted.set(String(stats.pollutionEmissionsPerTick));
+    statRows.absorbed.set(String(stats.pollutionAbsorptionPerTick));
+    statRows.envQuality.set(
       String(Math.round(stats.envQuality)),
       stats.envQuality < ENV_QUALITY_ALERT_THRESHOLD ? "nova-value--danger" : "nova-value--ok",
     );
-    statRows[12]!.set(String(stats.revenuePerTick));
-    statRows[13]!.set(String(stats.taxesPerTick));
-    statRows[14]!.set(String(stats.commercePerTick));
-    statRows[15]!.set(String(stats.marketPerTick));
-    statRows[16]!.set(String(stats.maintenancePerTick));
-    statRows[17]!.set(
+    statRows.revenue.set(String(stats.revenuePerTick));
+    statRows.taxes.set(String(stats.taxesPerTick));
+    statRows.commerce.set(String(stats.commercePerTick));
+    statRows.market.set(String(stats.marketPerTick));
+    statRows.maintenance.set(String(stats.maintenancePerTick));
+    statRows.net.set(
       String(stats.netMoneyPerTick),
       stats.netMoneyPerTick >= 0 ? "nova-value--ok" : "nova-value--danger",
     );

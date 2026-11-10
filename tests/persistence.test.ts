@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "@/domain/shared/cells.js";
+import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
@@ -184,5 +184,106 @@ describe("save rejection (corrupt data never loads as valid)", () => {
   it("rejects negative pollution (range floor is 0)", () => {
     const doc = serialize(richState());
     expect(() => parseSave({ ...doc, pollution: -1 })).toThrow(/pollution/);
+  });
+
+  // Layout guards: a loaded save must describe a world the simulation
+  // could have produced, not just well-typed fields.
+  it("rejects a building outside the world bounds", () => {
+    const doc = serialize(richState());
+    const buildings = doc.buildings.map((b) =>
+      b.type === "residence" ? { ...b, x: doc.world.width, y: 0 } : b,
+    );
+    expect(() => parseSave({ ...doc, buildings })).toThrow(/out of bounds/);
+  });
+
+  it("rejects two buildings on the same cell", () => {
+    const doc = serialize(richState());
+    const workshop = doc.buildings.find((b) => b.type === "workshop");
+    if (!workshop) throw new Error("workshop missing");
+    const buildings = doc.buildings.map((b) =>
+      b.type === "residence" ? { ...b, x: workshop.x, y: workshop.y } : b,
+    );
+    expect(() => parseSave({ ...doc, buildings })).toThrow(/same cell/);
+  });
+
+  it("rejects a building on a blocked terrain cell", () => {
+    const state = richState();
+    const doc = serialize(state);
+    const key = Object.keys(state.world.blockedCells).find(
+      (cell) => !doc.buildings.some((b) => cellKey(b.x, b.y) === cell),
+    );
+    if (!key) throw new Error("no free blocked cell");
+    const { x, y } = parseCellKey(key);
+    const buildings = doc.buildings.map((b) =>
+      b.type === "residence" ? { ...b, x, y } : b,
+    );
+    expect(() => parseSave({ ...doc, buildings })).toThrow(/blocked cell/);
+  });
+
+  it("rejects a building on a deposit", () => {
+    const doc = serialize(richState());
+    const buildings = doc.buildings.map((b) =>
+      b.type === "residence" ? { ...b, x: 3, y: 3 } : b,
+    );
+    expect(() => parseSave({ ...doc, buildings })).toThrow(/deposit/);
+  });
+
+  it("rejects a road cell outside the world bounds", () => {
+    const doc = serialize(richState());
+    const road = doc.roads[0];
+    if (!road) throw new Error("road missing");
+    expect(() =>
+      parseSave({ ...doc, roads: [{ ...road, cells: [`${doc.world.width},0`] }] }),
+    ).toThrow(/out of bounds/);
+  });
+
+  it("rejects duplicate road cells across roads", () => {
+    const doc = serialize(richState());
+    const road = doc.roads[0];
+    if (!road) throw new Error("road missing");
+    expect(() =>
+      parseSave({
+        ...doc,
+        roads: [...doc.roads, { id: "road-99", cells: [road.cells[0] ?? "0,0"] }],
+      }),
+    ).toThrow(/duplicate road cell/);
+  });
+
+  it("rejects a road overlapping a building", () => {
+    const doc = serialize(richState());
+    const center = doc.buildings.find((b) => b.id === "colony-center");
+    if (!center) throw new Error("center missing");
+    expect(() =>
+      parseSave({ ...doc, roads: [{ id: "road-99", cells: [cellKey(center.x, center.y)] }] }),
+    ).toThrow(/overlaps a building/);
+  });
+
+  it("rejects inconsistent construction state", () => {
+    const doc = serialize(richState());
+    const buildings = doc.buildings.map((b) =>
+      b.type === "residence" ? { ...b, constructionTicksLeft: 1 } : b,
+    );
+    expect(() => parseSave({ ...doc, buildings })).toThrow(/construction time/);
+  });
+
+  it("rejects an out-of-bounds deposit seed", () => {
+    const doc = serialize(richState());
+    const world = { ...doc.world, woodDeposits: [{ x: 99, y: 0, amount: 1 }] };
+    expect(() => parseSave({ ...doc, world })).toThrow(/deposit is out of bounds/);
+  });
+
+  it("rejects an out-of-bounds blocked cell in the world config", () => {
+    const doc = serialize(richState());
+    const world = { ...doc.world, blockedCells: ["99,0"] };
+    expect(() => parseSave({ ...doc, world })).toThrow(/blockedCells is out of bounds/);
+  });
+
+  it("rejects an out-of-bounds persisted deposit cell", () => {
+    const doc = serialize(richState());
+    const deposits = {
+      ...doc.deposits,
+      wood: { ...doc.deposits.wood, "99,0": { remaining: 1, capacity: 1 } },
+    };
+    expect(() => parseSave({ ...doc, deposits })).toThrow(/out-of-bounds cell/);
   });
 });

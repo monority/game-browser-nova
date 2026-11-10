@@ -70,18 +70,6 @@ export function sectionHeader(text: string, loose = false): HTMLDivElement {
   return header;
 }
 
-/** Two-column label/value row; `valueClass` colors the value (ok/warn/danger). */
-export function statRow(label: string, value: string, valueClass?: string): HTMLDivElement {
-  const row = document.createElement("div");
-  row.className = "nova-row nova-row--between";
-  const labelSpan = document.createElement("span");
-  labelSpan.textContent = label;
-  const valueSpan = document.createElement("span");
-  valueSpan.textContent = value;
-  if (valueClass) valueSpan.className = valueClass;
-  row.append(labelSpan, valueSpan);
-  return row;
-}
 
 /** Persistent stat row (Tier2): stable DOM node; `set` writes only when
  * the text/class actually changed — no per-tick childList churn. */

@@ -242,7 +242,8 @@ test.describe("NOVA interaction flows", () => {
     expect(balanced.text).toContain("Forecast");
     expect(balanced.text).toContain("Food +3/-1 per tick");
     expect(balanced.text).toContain("stock");
-    expect(balanced.text).not.toContain("→ "); // no countdown at +2/tick
+    // no countdown on food at +2/tick (water may warn legitimately: stock 0, deficit −1)
+    await expect(page.locator('.nova-forecast-row[data-resource="food"]')).not.toContainText("→ ");
 
     // mothball the farm → only the trickle (1) vs pop 1: balance 0, still no deficit.
     // Add a second colonist: consumption 2 vs trickle 1 → deficit −1 → countdown

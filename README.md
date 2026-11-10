@@ -12,8 +12,9 @@ distribution, trade — so the interesting decisions stay with the player.
 MVP delivered. The playable loop runs from a day-0 colony through production,
 storage, logistics, population needs, research, Age 2 and the first market. The
 simulation is deterministic (fixed ticks, seeded world), which keeps runs reproducible
-and testable. Post-MVP product decisions (F12/F13, events, Step054 human playtest)
-remain open; current facts live in `docs/STATE.md`.
+and testable. Post-MVP product decisions (F13, Step054 human playtest) remain open; the
+F12 water-forecast defect is fixed in the working tree. Current facts live
+in `docs/STATE.md`.
 
 ## Tech stack
 

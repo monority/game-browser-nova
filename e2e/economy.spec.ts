@@ -261,7 +261,9 @@ test.describe("NOVA economy", () => {
       const touches = [`${cell.x + 1},${cell.y}`, `${cell.x - 1},${cell.y}`, `${cell.x},${cell.y + 1}`, `${cell.x},${cell.y - 1}`];
       if (touches.some((k) => roads.includes(k))) return;
       const spot = touches.find((k) => {
-        const [x, y] = k.split(",").map(Number);
+        const [rawX, rawY] = k.split(",");
+        const x = Number(rawX);
+        const y = Number(rawY);
         if (x < 0 || y < 0 || x >= s.world.width || y >= s.world.height) return false;
         if (s.world.blockedCells[k]) return false;
         if (s.woodDeposits[k] || s.stoneDeposits[k]) return false;

@@ -25,6 +25,22 @@ export function isActive(building: Building): boolean {
   return building.status === "operational" && building.active;
 }
 
+/** Count operational + active buildings of one type (mothball removes them). */
+export function countActiveOfType(
+  buildings: Record<string, Building>,
+  type: BuildingType,
+  where?: (building: Building) => boolean,
+): number {
+  let count = 0;
+  for (const building of Object.values(buildings)) {
+    if (building.type !== type) continue;
+    if (!isActive(building)) continue;
+    if (where && !where(building)) continue;
+    count += 1;
+  }
+  return count;
+}
+
 export function createBuilding(id: string, type: BuildingType, x: number, y: number): Building {
   const definition = BUILDING_DEFINITIONS[type];
   return {

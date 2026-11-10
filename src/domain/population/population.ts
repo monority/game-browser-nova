@@ -16,20 +16,23 @@ export function housingCapacity(state: GameState): number {
   return capacity;
 }
 
+/** Colonists lost per unfed tick (Step055 option B: gradual, never a wipe). */
+export const STARVATION_LOSS_PER_TICK = 1;
+
 /**
- * Population phase: starvation + admission (documented contract).
+ * Population phase: gradual starvation + admission (Step055 option B).
  *
- * Starvation is all-or-nothing: an unfed tick removes the ENTIRE
- * population. Admission is the deterministic growth mechanism: one
+ * An unfed tick removes ONE colonist, never the whole population: the
+ * loss stays readable and leaves the player the ticks needed to correct
+ * the deficit. Admission is the deterministic growth mechanism: one
  * colonist per tick while housing is vacant and food is available.
  * Water gate: admission requires water headroom, with a bootstrap
  * exemption for the first colonist (population 0) — the documented
  * anti-deadlock rule.
  */
-export function updatePopulation(state: GameState, fedThisTick: boolean): void {
-  if (!fedThisTick) {
-    state.population = 0;
-    return;
+export function updatePopulation(state: GameState, fedColonists: number): void {
+  if (fedColonists < state.population) {
+    state.population = Math.max(0, state.population - STARVATION_LOSS_PER_TICK);
   }
 
   if (

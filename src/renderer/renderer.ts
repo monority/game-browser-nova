@@ -9,6 +9,7 @@ import {
   isCachedMaterial,
   type BuildingMaterialCache,
 } from "./shapes.js";
+import { createOrbitControls, syncCameraToOrbit } from "./orbit.js";
 
 /**
  * Presentation layer (ADR-001): the renderer consumes simulation state
@@ -60,7 +61,7 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
     200,
   );
   const orbit = createOrbitControls(camera, container, state);
-  syncCameraToOrbit(camera, orbit, state);
+  syncCameraToOrbit(camera, orbit);
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.setSize(container.clientWidth, container.clientHeight);
@@ -213,98 +214,6 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
   update(state);
 
   return { update, setOverlay, currentOverlay: () => overlayMode, pickCell, setHover, dispose, perfStats };
-}
-
-// --- orbit camera (drag rotate, wheel zoom, right-drag pan) ---------------
-
-interface OrbitState {
-  theta: number;
-  phi: number;
-  radius: number;
-  target: THREE.Vector3;
-  detach(): void;
-  apply(): void;
-}
-
-function createOrbitControls(
-  camera: THREE.PerspectiveCamera,
-  container: HTMLElement,
-  state: GameState,
-): OrbitState {
-  const target = new THREE.Vector3(state.world.width / 2, 0, state.world.height / 2);
-  const orbit: OrbitState = {
-    theta: Math.PI / 4,
-    phi: Math.PI / 3.2,
-    radius: Math.max(state.world.width, state.world.height) * 1.1,
-    target,
-    detach: () => {
-      container.removeEventListener("pointerdown", onDown);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      container.removeEventListener("wheel", onWheel);
-      container.removeEventListener("contextmenu", onContextMenu);
-    },
-    apply: () => syncCameraToOrbit(camera, orbit, state),
-  };
-
-  let dragging: "rotate" | "pan" | null = null;
-  let lastX = 0;
-  let lastY = 0;
-
-  function onDown(event: PointerEvent): void {
-    dragging = event.button === 2 ? "pan" : "rotate";
-    lastX = event.clientX;
-    lastY = event.clientY;
-  }
-  function onMove(event: PointerEvent): void {
-    if (!dragging) return;
-    const dx = event.clientX - lastX;
-    const dy = event.clientY - lastY;
-    lastX = event.clientX;
-    lastY = event.clientY;
-    if (dragging === "rotate") {
-      orbit.theta -= dx * 0.005;
-      orbit.phi = clamp(orbit.phi - dy * 0.005, 0.15, Math.PI / 2.05);
-    } else {
-      const panScale = orbit.radius * 0.0016;
-      const sin = Math.sin(orbit.theta);
-      const cos = Math.cos(orbit.theta);
-      orbit.target.x -= (dx * cos - dy * sin) * panScale;
-      orbit.target.z -= (-dx * sin - dy * cos) * panScale;
-    }
-  }
-  function onUp(): void {
-    dragging = null;
-  }
-  function onWheel(event: WheelEvent): void {
-    event.preventDefault();
-    orbit.radius = clamp(orbit.radius * (1 + Math.sign(event.deltaY) * 0.1), 5, 80);
-  }
-  function onContextMenu(event: MouseEvent): void {
-    event.preventDefault();
-  }
-
-  container.addEventListener("pointerdown", onDown);
-  window.addEventListener("pointermove", onMove);
-  window.addEventListener("pointerup", onUp);
-  container.addEventListener("wheel", onWheel, { passive: false });
-  container.addEventListener("contextmenu", onContextMenu);
-
-  return orbit;
-}
-
-function syncCameraToOrbit(
-  camera: THREE.PerspectiveCamera,
-  orbit: OrbitState,
-  state: GameState,
-): void {
-  camera.position.set(
-    orbit.target.x + orbit.radius * Math.sin(orbit.phi) * Math.sin(orbit.theta),
-    orbit.target.y + orbit.radius * Math.cos(orbit.phi),
-    orbit.target.z + orbit.radius * Math.sin(orbit.phi) * Math.cos(orbit.theta),
-  );
-  camera.lookAt(orbit.target.x, 0, orbit.target.z);
-  void state;
 }
 
 // --- scene builders --------------------------------------------------------
@@ -485,8 +394,4 @@ function disposeGroup(group: THREE.Group): void {
     group.remove(child);
   }
   group.clear();
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
 }

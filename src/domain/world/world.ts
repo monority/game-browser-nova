@@ -1,4 +1,4 @@
-import { cellKey } from "@/domain/shared/cells.js";
+import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
 import { createRng, hashString } from "@/domain/shared/rng.js";
 import type { DepositSeed } from "./deposits.js";
 
@@ -59,7 +59,7 @@ export function createWorld(config: WorldConfig): World {
   const blockedCells: Record<string, true> = {};
 
   for (const key of normalized.blockedCells) {
-    const { x, y } = parseOrThrow(key);
+    const { x, y } = parseCellKey(key);
     if (!inBounds(x, y, normalized)) {
       throw new Error(`blocked cell out of bounds: ${key}`);
     }
@@ -88,15 +88,4 @@ export function inBounds(x: number, y: number, world: { width: number; height: n
 
 export function isBlocked(world: World, x: number, y: number): boolean {
   return world.blockedCells[cellKey(x, y)] === true;
-}
-
-function parseOrThrow(key: string): { x: number; y: number } {
-  const i = key.indexOf(",");
-  if (i < 0) throw new Error(`invalid blocked cell key: ${key}`);
-  const x = Number(key.slice(0, i));
-  const y = Number(key.slice(i + 1));
-  if (!Number.isFinite(x) || !Number.isFinite(y)) {
-    throw new Error(`invalid blocked cell key: ${key}`);
-  }
-  return { x, y };
 }

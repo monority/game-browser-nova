@@ -44,7 +44,6 @@ export interface Ui {
 
 export interface UiCallbacks {
   onBuildTypeSelected(type: BuildingType | null): void;
-  onRoadModeToggled(enabled: boolean): void;
   onSpeedChanged(ticksPerSecond: number, id: string): void;
   onSave(): void;
   onLoad(): void;
@@ -68,7 +67,6 @@ export function createUi(container: HTMLElement, callbacks: UiCallbacks): Ui {
   const stats = createStatsPanel({ onForecastRowClick: callbacks.onForecastRowClick });
   const controls = createControlsPanel({
     onBuildTypeSelected: callbacks.onBuildTypeSelected,
-    onRoadModeToggled: callbacks.onRoadModeToggled,
     onSpeedChanged: callbacks.onSpeedChanged,
     onSave: callbacks.onSave,
     onLoad: callbacks.onLoad,
