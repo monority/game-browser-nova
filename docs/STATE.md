@@ -26,17 +26,17 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `main` (origin: https://github.com/monority/game-browser-nova; default branch on GitHub, CI on `main`) |
-| HEAD | `f321b8a` — test(nova): Step054 scenario E famine-recovery measurement; later docs-only commits do not change the code state |
-| Working tree | MODIFIED (Step056 + Step057, uncommitted) — F13 option B committed as `94500ee` (gradual starvation) on top of the quality pass `54575bd` (F12 water forecast, save layout validation, dead-code/duplication cleanup, E2E typecheck, corrected analysis tests), plus a follow-up cleanup (explicit starvation alert, recovery test, docs). `AGENTS.md` and `TASK.md` stay local-only; `docs/STATE.md` is the single versioned documentation exception (README links to it), the rest of `docs/` remains a local mirror. |
-| Package manager | `pnpm` 11.21.0 required; the global binary is broken in the agent container (`libatomic`), so validation ran through `./node_modules/.bin/{tsc,eslint,vitest,vite}` |
+| HEAD | `ee7cd1f` — feat(nova): show pollution and workforce facts without alert noise (Step056 + Step057), pushed to `origin/main`; the remote history was rewritten under it (`226a3c3` → `97ad592`, same tree `8d6499e`) and the commit was rebased onto that base. |
+| Working tree | MODIFIED (uncommitted) — the `pnpm verify` script (full local CI gate), its documentation in `README.md`, `docs/DEVELOPMENT.md`, `docs/VALIDATION.md` and this file, and the opt-in `githooks/pre-push` hook that replays that gate before a push (not activated in the agent container, whose global `core.hooksPath` is already set). Step056 + Step057 are committed as `ee7cd1f`. `AGENTS.md` and `TASK.md` stay local-only; `docs/STATE.md` is the single versioned documentation exception (README links to it), the rest of `docs/` remains a local mirror. |
+| Package manager | `pnpm` 11.21.0 required. The global binary needs `libatomic.so.1`: it fails in the agent container until `LD_LIBRARY_PATH` points at the cached Debian trixie libraries (`~/.cache/nova-e2e/root`), which is how `pnpm verify` ran on 2026-11-11. Without that path the `./node_modules/.bin/*` equivalents perform the same steps. |
 | Documentation | Canonical durable copy in the project vault at `05-Projects/nova`; repository `docs/STATE.md` is the single versioned status exception; the rest of `docs/` is a local working mirror |
 | Node version | v24.22.2 used for the 2026-11-10 validation; `package.json` requires `>=24.19.0` |
 | Typecheck | PASS — `tsc --noEmit`, no errors, including `e2e/` (2026-11-11) |
 | Lint | PASS — `eslint .`, no findings (2026-11-11) |
 | Unit tests | PASS — `vitest run`: 26 files / 342 tests, all green (2026-11-11) |
-| E2E | PASS — `playwright test`: 35/35 specs on Chromium 1248 (2026-11-11), including the Step056 admission-block pin. Run with the cached Debian trixie libraries (`LD_LIBRARY_PATH` over `~/.cache/nova-e2e/root`) and Vite launched directly because the `pnpm` binary is broken (`libatomic`); the image still lacks the Playwright OS packages, so CI must install them or reproduce that workaround. |
+| E2E | PASS — `pnpm test:e2e`: 35/35 specs on Chromium 1248 (2026-11-11), including the Step056 admission-block pin; 3.5 min with the Playwright `webServer` (`pnpm dev`) and `LD_LIBRARY_PATH` over the cached trixie libraries. Fine-grained runs may still launch Vite directly if `pnpm` is unavailable. |
 | Build | PASS — tsc -p tsconfig.build.json + vite build; app 68.39 kB (21.99 kB gzip) + three 470.93 kB vendor chunk (2026-11-11) |
-| CI (GitHub) | PASS — run 50 on `main` @ `667c856` (2026-11-10): install → typecheck → lint → unit → build → E2E, all green; the Step053 red was not reproduced (run 47 @ `828241d` was the first green). |
+| CI (GitHub) | PASS — run 50 on `main` @ `667c856` (2026-11-10): install → typecheck → lint → unit → build → E2E, all green; the Step053 red was not reproduced (run 47 @ `828241d` was the first green). The Actions quota was exhausted on 2026-11-11, so the same chain is replayed locally with `pnpm verify` until it resets. |
 
 > **Rebuild note (2026-10-09):** this repository was intentionally reset to
 > docs-only and the implementation was rebuilt from the documented contract

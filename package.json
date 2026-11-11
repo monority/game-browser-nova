@@ -14,6 +14,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "check": "pnpm run typecheck && pnpm run lint && pnpm run test",
+    "verify": "pnpm run check && pnpm run build && pnpm run test:e2e",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",

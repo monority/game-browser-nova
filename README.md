@@ -54,6 +54,7 @@ Then open the URL printed by Vite (default `http://localhost:5173`).
 | `pnpm test` | Unit + self-play tests (Vitest) |
 | `pnpm test:e2e` | Browser journeys (Playwright) |
 | `pnpm check` | Typecheck + lint + unit tests |
+| `pnpm verify` | Full local CI gate: check + build + browser journeys |
 
 ## Project structure
 
@@ -69,5 +70,6 @@ tests/            Vitest unit and self-play tests
 
 ## Validation
 
-`pnpm check` mirrors the CI gate for types, lint and unit tests; `pnpm test:e2e` adds
-the browser journeys. CI runs both on every push and pull request to `main`.
+`pnpm verify` replays the whole CI gate locally (typecheck, lint, unit, build, browser
+journeys); `pnpm check` and `pnpm test:e2e` run the same steps separately. CI runs the
+chain on every push and pull request to `main`.
