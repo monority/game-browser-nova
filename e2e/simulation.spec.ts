@@ -154,5 +154,13 @@ test.describe("NOVA simulation", () => {
     expect(degraded.pollution).toBeGreaterThan(0);
     expect(degraded.text).toContain("Pollution");
     expect(degraded.text).toContain("Env quality");
+    // Step056 F1: the crisis carries a deadline, not only a stock. At 8x the
+    // gate may already be shut, so 0 ("blocked now") is a valid deadline too.
+    expect(degraded.text).toContain("admission block");
+    const blockTicks = await page.evaluate(
+      () => window.__nova!.stats().pollutionTicksToAdmissionBlock,
+    );
+    expect(blockTicks).not.toBeNull();
+    expect(blockTicks).toBeGreaterThanOrEqual(0);
   });
 });

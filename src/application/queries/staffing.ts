@@ -41,6 +41,8 @@ interface StaffingOverview {
   /** Workplaces competing for workers (matches assignJobs eligibility). */
   eligible: number;
   staffed: number;
+  /** Operational workplaces no road reaches (a fixable access defect). */
+  unconnected: number;
   /** Eligible workplaces in staffing rank order first, then the rest in canonical order. */
   entries: StaffingEntry[];
 }
@@ -101,6 +103,7 @@ export function getStaffingOverview(state: GameState): StaffingOverview {
     workers: state.population,
     eligible: eligible.length,
     staffed: staffedIds.size,
+    unconnected: entries.filter((e) => e.reason === "no-road").length,
     entries: [...ranked, ...unranked],
   };
 }

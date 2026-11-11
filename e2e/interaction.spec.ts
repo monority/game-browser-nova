@@ -505,8 +505,10 @@ test.describe("NOVA interaction flows", () => {
     const idleFarm = states.find((f) => !f.staffed)!;
     expect(staffedFarm.y).toBeLessThan(idleFarm.y); // canonical order: north farm staffed
 
-    // workforce shortage is visible as an info alert (states only)
-    await expect(page.locator("#stats")).toContainText("Workforce: 1/2 workplaces staffed");
+    // Step057 F5: the workforce ratio is a permanent stat row, never a
+    // per-tick alert; the structural shortage is stated, not prescribed.
+    await expect(page.locator("#stats")).toContainText("1 / 2 staffed");
+    await expect(page.locator("#stats")).not.toContainText("Workforce:");
 
     // inspect the idle farm: the staffing line exposes rank + state
     // (palette already cleared by the F8 auto-deselection)
@@ -527,10 +529,10 @@ test.describe("NOVA interaction flows", () => {
       if (!r.ok) throw new Error("mothball failed: " + r.reason);
     }, staffedId);
 
-    // one tick: reassignment + alert refresh
+    // one tick: reassignment + stats refresh — the single workplace is staffed
     await page.getByRole("button", { name: "8x", exact: true }).click();
     await page.getByRole("button", { name: "pause", exact: true }).click();
-    await expect(page.locator("#stats")).not.toContainText("Workforce:");
+    await expect(page.locator("#stats")).toContainText("1 / 1 staffed");
 
     // the previously idle farm is now staffed at rank 1
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });

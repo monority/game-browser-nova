@@ -7,7 +7,9 @@ import {
   environmentalQuality,
   MIN_QUALITY_FOR_ADMISSION,
   ABSORPTION_PER_PARK_PER_TICK,
+  pollutionContributionPerTick,
   pollutionFlows,
+  pollutionTicksToAdmissionBlock,
 } from "@/domain/environment/environment.js";
 import { getColonyStats } from "@/application/queries/stats.js";
 import { getAlerts } from "@/application/queries/analysis.js";
@@ -201,5 +203,71 @@ describe("pollutionFlows pure query (Step053 F1)", () => {
     expect(stats.pollutionEmissionsPerTick).toBe(0);
     expect(stats.pollutionAbsorptionPerTick).toBe(0);
     expect(stats.pollutionNetPerTick).toBe(0);
+  });
+});
+
+describe("per-building pollution contribution (Step056)", () => {
+  it("maps every building type to its per-tick contribution", () => {
+    expect(pollutionContributionPerTick("workshop")).toBe(1);
+    expect(pollutionContributionPerTick("quarry")).toBe(1);
+    expect(pollutionContributionPerTick("park")).toBe(-ABSORPTION_PER_PARK_PER_TICK);
+    expect(pollutionContributionPerTick("farm")).toBe(0);
+    expect(pollutionContributionPerTick("well")).toBe(0);
+    expect(pollutionContributionPerTick("residence")).toBe(0);
+    expect(pollutionContributionPerTick("lumberCamp")).toBe(0);
+    expect(pollutionContributionPerTick("warehouse")).toBe(0);
+    expect(pollutionContributionPerTick("market")).toBe(0);
+    expect(pollutionContributionPerTick("colonyCenter")).toBe(0);
+  });
+
+  it("feeds the same totals as pollutionFlows (inspection and stock cannot drift)", () => {
+    const state = pollutingColony(); // one active workshop
+    expect(pollutionFlows(state)).toEqual({ emissions: 1, absorption: 0, net: 1 });
+    expect(getColonyStats(state).pollutionNetPerTick).toBe(
+      pollutionContributionPerTick("workshop"),
+    );
+  });
+});
+
+describe("admission-block forecast (Step056 F1)", () => {
+  it("is null while pollution is stable or falling", () => {
+    const clean = freshState();
+    stripToAnchor(clean);
+    clean.population = 0;
+    expect(pollutionTicksToAdmissionBlock(clean)).toBeNull();
+    expect(getColonyStats(clean).pollutionTicksToAdmissionBlock).toBeNull();
+
+    // one park flips a one-workshop colony to net -1: no deadline at all
+    const state = pollutingColony();
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "park", x: spot.x, y: spot.y }));
+    stepTicks(state, 2);
+    expect(pollutionFlows(state).net).toBe(-1);
+    expect(pollutionTicksToAdmissionBlock(state)).toBeNull();
+  });
+
+  it("counts the exact ticks until quality closes the admission gate", () => {
+    const state = pollutingColony(); // +1/tick
+    state.pollution = 70; // quality 30 — gate closes above pollution 75
+    expect(pollutionTicksToAdmissionBlock(state)).toBe(6);
+    state.pollution = 75; // quality 25: still admitting
+    expect(pollutionTicksToAdmissionBlock(state)).toBe(1);
+    state.pollution = 76; // quality 24: closed
+    expect(pollutionTicksToAdmissionBlock(state)).toBe(0);
+    expect(getColonyStats(state).pollutionTicksToAdmissionBlock).toBe(0);
+  });
+
+  it("scales with the net flow (two workshops burn the margin twice as fast)", () => {
+    const state = pollutingColony();
+    state.resources.money = 300;
+    state.resources.water = 4;
+    const road = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+    const spot = adjacentFree(state, road.x, road.y);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
+    stepTicks(state, 2); // second workshop operational → net +2
+    state.pollution = 63; // 63 + 2·6 = 75 (last clean tick), 77 on the 7th
+    expect(pollutionFlows(state).net).toBe(2);
+    expect(pollutionTicksToAdmissionBlock(state)).toBe(7);
   });
 });

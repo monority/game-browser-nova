@@ -247,17 +247,19 @@ export function getAlerts(
     });
   }
 
-  // Workforce visibility (Step025): staff compete for workplaces in fixed
-  // canonical order; a shortage shows as idle eligible workplaces. The alert
-  // states the ratio only — the staffing order is inspectable per building.
-  if (state.population > 0) {
-    const staffing = getStaffingOverview(state);
-    if (staffing.eligible > 0 && staffing.staffed < staffing.eligible) {
-      alerts.push({
-        severity: "info",
-        message: `Workforce: ${staffing.staffed}/${staffing.eligible} workplaces staffed`,
-      });
-    }
+  // Workforce access (Step025, reworked Step057 F5): the staffed/eligible
+  // ratio is a permanent stat row now — information without a permanent
+  // alert on every tick of a structural shortage (more workplaces than
+  // colonists is normal in the D2 opening). The alert stream only carries a
+  // fixable defect: an operational workplace that no road reaches. Idle by
+  // workforce alone has no state-only remedy and stays out of the alerts
+  // (per-building staffing rank remains inspectable).
+  const unconnected = getStaffingOverview(state).unconnected;
+  if (unconnected > 0) {
+    alerts.push({
+      severity: "info",
+      message: `Workplaces: ${unconnected} without road access`,
+    });
   }
 
   return alerts;

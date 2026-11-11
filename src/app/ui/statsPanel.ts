@@ -29,6 +29,9 @@ export function createStatsPanel(callbacks: {
   const statRows = {
     tick: liveStatRow("Tick"),
     population: liveStatRow("Population"),
+    // Step057 F5: the workforce ratio lives here permanently instead of
+    // re-firing an alert every tick of a structural shortage.
+    workforce: liveStatRow("Workforce"),
     money: liveStatRow("Money"),
     food: liveStatRow("Food"),
     water: liveStatRow("Water"),
@@ -38,6 +41,7 @@ export function createStatsPanel(callbacks: {
     pollution: liveStatRow("Pollution"),
     emitted: liveStatRow("  emitted/tick"),
     absorbed: liveStatRow("  absorbed/tick"),
+    admissionBlock: liveStatRow("  admission block"),
     envQuality: liveStatRow("Env quality"),
     revenue: liveStatRow("Revenue/tick"),
     taxes: liveStatRow("  taxes"),
@@ -70,6 +74,7 @@ export function createStatsPanel(callbacks: {
   function updateStats(stats: ColonyStats): void {
     statRows.tick.set(String(stats.tick));
     statRows.population.set(`${stats.population} / ${stats.housingCapacity}`);
+    statRows.workforce.set(`${stats.staffedWorkplaces} / ${stats.eligibleWorkplaces} staffed`);
     statRows.money.set(String(Math.floor(stats.resources.money)));
     statRows.food.set(`${Math.floor(stats.resources.food)} / ${stats.foodCapacity}`);
     statRows.water.set(`${Math.floor(stats.resources.water)} / ${stats.waterCapacity}`);
@@ -82,6 +87,12 @@ export function createStatsPanel(callbacks: {
     );
     statRows.emitted.set(String(stats.pollutionEmissionsPerTick));
     statRows.absorbed.set(String(stats.pollutionAbsorptionPerTick));
+    // Step056 F1: the consequence has a countdown, not just a stock.
+    const blockTicks = stats.pollutionTicksToAdmissionBlock;
+    statRows.admissionBlock.set(
+      blockTicks === null ? "—" : blockTicks === 0 ? "blocked now" : `in ${blockTicks} ticks`,
+      blockTicks === null ? "" : "nova-value--danger",
+    );
     statRows.envQuality.set(
       String(Math.round(stats.envQuality)),
       stats.envQuality < ENV_QUALITY_ALERT_THRESHOLD ? "nova-value--danger" : "nova-value--ok",
