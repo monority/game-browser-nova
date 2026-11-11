@@ -1,0 +1,51 @@
+#!/bin/sh
+# NOVA — local pre-push gate.
+#
+# GitHub Actions minutes are a finite resource (see docs/STATE.md), so the
+# chain `.github/workflows/ci.yml` runs is replayed before the push leaves
+# the workstation:  typecheck -> lint -> unit -> build -> E2E  (`pnpm verify`).
+#
+# Enable once per clone (docs/DEVELOPMENT.md §7):
+#     git config core.hooksPath githooks
+#
+# Deliberate bypass, e.g. a docs-only push:
+#     NOVA_SKIP_PUSH_GATE=1 git push
+#
+# A global `core.hooksPath` (environment-wide guard) is never silently
+# dropped: after the gate this hook chains to that `pre-push`, if any.
+
+set -u
+
+REPO_ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || REPO_ROOT=.
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd) || exit 0
+SELF="$SCRIPT_DIR/$(basename "$0")"
+
+chain_global_hook() {
+  global_dir=$(git config --global --get core.hooksPath 2>/dev/null) || return 0
+  [ -n "${global_dir:-}" ] || return 0
+  global_dir=$(cd "$global_dir" 2>/dev/null && pwd) || return 0
+  global_hook="$global_dir/pre-push"
+  [ -x "$global_hook" ] || return 0
+  [ "$global_hook" = "$SELF" ] && return 0
+  printf 'pre-push: chaining global hook %s\n' "$global_hook"
+  "$global_hook" "$@"
+}
+
+if [ "${NOVA_SKIP_PUSH_GATE:-0}" = "1" ]; then
+  printf 'pre-push: gate skipped (NOVA_SKIP_PUSH_GATE=1)\n'
+else
+  if ! command -v pnpm >/dev/null 2>&1; then
+    printf 'pre-push: pnpm is not on PATH, the gate cannot run.\n' >&2
+    printf 'pre-push: install dependencies, or bypass with NOVA_SKIP_PUSH_GATE=1 git push\n' >&2
+    exit 1
+  fi
+  printf 'pre-push: pnpm verify (typecheck, lint, unit, build, E2E — about 4 min)\n'
+  if ! ( cd "$REPO_ROOT" && pnpm verify ); then
+    printf 'pre-push: gate failed, push aborted.\n' >&2
+    printf 'pre-push: fix the red step, or bypass with NOVA_SKIP_PUSH_GATE=1 git push\n' >&2
+    exit 1
+  fi
+  printf 'pre-push: gate green\n'
+fi
+
+chain_global_hook "$@"
