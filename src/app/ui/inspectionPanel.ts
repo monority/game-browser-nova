@@ -17,6 +17,8 @@ export interface RemoveBuildingInfo {
   staffing?: string;
   /** Logistics line for extraction worksites (states only, Step050). */
   logistics?: string;
+  /** Per-tick pollution contribution line (states only, Step056). */
+  pollution?: string;
 }
 
 export interface RemoveRoadInfo {
@@ -125,6 +127,11 @@ export function createInspectionPanel(callbacks: {
       }
       if (info.logistics) {
         element.appendChild(staticNote(info.logistics, "nova-note--mb"));
+      }
+      if (info.pollution) {
+        const pollution = staticNote(info.pollution, "nova-note--mb");
+        pollution.dataset.pollution = info.id;
+        element.appendChild(pollution);
       }
       if (info.id === "colony-center") {
         element.appendChild(

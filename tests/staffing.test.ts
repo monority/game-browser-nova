@@ -5,6 +5,7 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { getStaffingOverview } from "@/application/queries/staffing.js";
 import { getAlerts } from "@/application/queries/analysis.js";
+import { getColonyStats } from "@/application/queries/stats.js";
 import { mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "staffing-test", width: 16, height: 16 };
@@ -96,6 +97,7 @@ describe("getStaffingOverview (Step025)", () => {
     state.population = 5;
     const overview = getStaffingOverview(state);
     expect(overview.eligible).toBe(0);
+    expect(overview.unconnected).toBe(1);
     expect(overview.entries).toHaveLength(1);
     expect(overview.entries[0]).toMatchObject({ state: "no-road", order: null });
   });
@@ -160,26 +162,46 @@ describe("getStaffingOverview (Step025)", () => {
   });
 });
 
-describe("workforce alert (Step025)", () => {
-  it("no alert when every eligible workplace is staffed", () => {
+describe("workforce alerts (Step025, reworked Step057 F5)", () => {
+  it("never alerts on a structural shortage: the ratio is a stat, not an alert", () => {
+    const state = bare();
+    workplaceRow(state, ["farm", "well", "workshop"]);
+    state.population = 1; // 1/3: the D2-style permanent shortage
+    // the fact reaches the stats surface...
+    expect(getColonyStats(state)).toMatchObject({
+      staffedWorkplaces: 1,
+      eligibleWorkplaces: 3,
+    });
+    // ...and the alert stream stays quiet about it
+    expect(getAlerts(state).some((a) => a.message.startsWith("Workforce:"))).toBe(false);
+    expect(getAlerts(state).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
+  });
+
+  it("alerts on the fixable cause: operational workplaces with no road access", () => {
+    const state = bare();
+    state.resources.money = 500;
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 3, y: 3 }));
+    stepTicks(state, 2);
+    state.population = 5;
+    expect(getStaffingOverview(state).unconnected).toBe(1);
+    expect(getAlerts(state).find((a) => a.message.startsWith("Workplaces:"))).toEqual({
+      severity: "info",
+      message: "Workplaces: 1 without road access",
+    });
+  });
+
+  it("no access alert when every operational workplace is road-connected", () => {
     const state = bare();
     workplaceRow(state, ["farm", "well"]);
     state.population = 5;
-    expect(getAlerts(state).some((a) => a.message.startsWith("Workforce:"))).toBe(false);
+    expect(getStaffingOverview(state).unconnected).toBe(0);
+    expect(getAlerts(state).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
   });
 
-  it("info alert states staffed/eligible when workers run out", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well", "workshop"]);
-    state.population = 1;
-    const alert = getAlerts(state).find((a) => a.message.startsWith("Workforce:"));
-    expect(alert).toEqual({ severity: "info", message: "Workforce: 1/3 workplaces staffed" });
-  });
-
-  it("no workforce alert while the colony has no colonists", () => {
+  it("no access alert while the colony has no colonists", () => {
     const state = bare();
     workplaceRow(state, ["farm", "well"]);
     state.population = 0;
-    expect(getAlerts(state).some((a) => a.message.startsWith("Workforce:"))).toBe(false);
+    expect(getAlerts(state).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
   });
 });

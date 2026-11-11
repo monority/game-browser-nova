@@ -1,5 +1,6 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import { isActive } from "@/domain/building/building.js";
+import type { BuildingType } from "@/content/buildings.js";
 import { regrowAdjacent } from "@/domain/world/deposits.js";
 
 /**
@@ -30,6 +31,25 @@ export function environmentalQuality(state: GameState): number {
   return POLLUTION_MAX - state.pollution;
 }
 
+/**
+ * Per-building pollution contribution per tick: positive emits, negative
+ * absorbs, 0 for every other type. Single source shared by the tick phase
+ * and the inspection panel (Step056), so a building's displayed rate can
+ * never drift from the stock it actually moves.
+ */
+export function pollutionContributionPerTick(type: BuildingType): number {
+  switch (type) {
+    case "workshop":
+      return POLLUTION_PER_WORKSHOP_PER_TICK;
+    case "quarry":
+      return POLLUTION_PER_QUARRY_PER_TICK;
+    case "park":
+      return -ABSORPTION_PER_PARK_PER_TICK;
+    default:
+      return 0;
+  }
+}
+
 /** Pure per-tick pollution flows (Step053 F1): the single counting used by
  * both the simulation phase and the UI stats — they cannot drift. */
 export interface PollutionFlows {
@@ -43,11 +63,27 @@ export function pollutionFlows(state: GameState): PollutionFlows {
   let absorption = 0;
   for (const building of Object.values(state.buildings)) {
     if (!isActive(building)) continue;
-    if (building.type === "workshop") emissions += POLLUTION_PER_WORKSHOP_PER_TICK;
-    if (building.type === "quarry") emissions += POLLUTION_PER_QUARRY_PER_TICK;
-    if (building.type === "park") absorption += ABSORPTION_PER_PARK_PER_TICK;
+    const contribution = pollutionContributionPerTick(building.type);
+    if (contribution > 0) emissions += contribution;
+    else if (contribution < 0) absorption -= contribution;
   }
   return { emissions, absorption, net: emissions - absorption };
+}
+
+/**
+ * Ticks until the air alone closes the admission gate (quality below
+ * MIN_QUALITY_FOR_ADMISSION, i.e. pollution above POLLUTION_MAX minus
+ * it): null while the net flow is not positive, 0 when already closed.
+ * States-only forecast for the stats panel (Step056 F1): the player sees
+ * the deadline instead of discovering the freeze at the housing doorstep.
+ */
+export function pollutionTicksToAdmissionBlock(state: GameState): number | null {
+  const { net } = pollutionFlows(state);
+  if (net <= 0) return null;
+  // Highest pollution that still admits growth (quality == the threshold).
+  const lastCleanPollution = POLLUTION_MAX - MIN_QUALITY_FOR_ADMISSION;
+  if (state.pollution > lastCleanPollution) return 0;
+  return Math.floor((lastCleanPollution - state.pollution) / net) + 1;
 }
 
 /** Tick phase: pollution flows and clamps, then parks regrow adjacent wood. Returns the new pollution level. */

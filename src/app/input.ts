@@ -6,6 +6,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import type { Renderer } from "@/renderer/renderer.js";
 import type { Building } from "@/domain/building/building.js";
 import { buildLogisticsMap, logisticsDistance, logisticsEfficiencyPercent } from "@/domain/logistics/logistics.js";
+import { pollutionContributionPerTick } from "@/domain/environment/environment.js";
 import { getStaffingOverview } from "@/application/queries/staffing.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 import { BUILDING_DETAIL } from "./details.js";
@@ -50,6 +51,21 @@ export function attachInput(ctx: InputContext): {
     return `logistics · ${eff}% · ${where} to warehouse`;
   }
 
+  /**
+   * Per-building pollution line (states only, Step056 F1): names the rate
+   * this building adds to (or removes from) the colony stock, so the
+   * emitted/absorbed totals in the stats panel become traceable.
+   */
+  function pollutionLine(building: Building): string | undefined {
+    const rate = pollutionContributionPerTick(building.type);
+    if (rate === 0) return undefined;
+    if (!building.active) return "pollution · none (mothballed)";
+    if (building.status !== "operational") return "pollution · none while under construction";
+    return rate > 0
+      ? `pollution · +${rate}/tick emitted`
+      : `pollution · -${-rate}/tick absorbed`;
+  }
+
   let placedThisInteraction = false;
 
   function describeCell(x: number, y: number): string | null {
@@ -90,6 +106,7 @@ export function attachInput(ctx: InputContext): {
           active: building.active,
           staffing: staffing?.staffingLine,
           logistics: logisticsLine(state, building),
+          pollution: pollutionLine(building),
         });
         return;
       }
