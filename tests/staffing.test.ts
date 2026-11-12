@@ -38,120 +38,89 @@ function workplaceRow(
 
 describe("getStaffingOverview (Step025)", () => {
   it("bare colony: no eligible workplaces, no workers", () => {
-    const state = bare();
-    const overview = getStaffingOverview(state);
-    expect(overview.eligible).toBe(0);
-    expect(overview.staffed).toBe(0);
-    expect(overview.workers).toBe(0);
-    expect(overview.entries).toEqual([]);
+    expect(getStaffingOverview(bare())).toMatchObject({
+      eligible: 0,
+      staffed: 0,
+      workers: 0,
+      entries: [],
+    });
   });
 
-  it("eligible workplaces ranked in canonical (y,x,id) order", () => {
-    const state = bare();
-    // farms at (0,2),(1,2),(0,1): canonical order = y asc, x asc
-    state.resources.money = 500;
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 3), cellKey(1, 3), cellKey(0, 0)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 0, y: 2 }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 1, y: 2 }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 0, y: 1 }));
-    stepTicks(state, 2);
-    state.population = 10;
-    const overview = getStaffingOverview(state);
+  it("ranks workplaces canonically (y, x, id), staffs in rank order, leaves the tail idle", () => {
+    const ranked = bare();
+    ranked.resources.money = 500;
+    mustOk(applyCommand(ranked, { kind: "placeRoads", cells: [cellKey(0, 3), cellKey(1, 3), cellKey(0, 0)] }));
+    mustOk(applyCommand(ranked, { kind: "placeBuilding", type: "farm", x: 0, y: 2 }));
+    mustOk(applyCommand(ranked, { kind: "placeBuilding", type: "farm", x: 1, y: 2 }));
+    mustOk(applyCommand(ranked, { kind: "placeBuilding", type: "farm", x: 0, y: 1 }));
+    stepTicks(ranked, 2);
+    ranked.population = 10;
+    const overview = getStaffingOverview(ranked);
     expect(overview.eligible).toBe(3);
-    expect(overview.entries.map((e) => [e.x, e.y])).toEqual([
-      [0, 1],
-      [0, 2],
-      [1, 2],
-    ]);
+    expect(overview.entries.map((e) => [e.x, e.y])).toEqual([[0, 1], [0, 2], [1, 2]]);
     expect(overview.entries.map((e) => e.order)).toEqual([1, 2, 3]);
-  });
 
-  it("workers staff in rank order; surplus workers leave the tail idle", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well", "workshop"]);
-    state.population = 2;
-    const overview = getStaffingOverview(state);
-    expect(overview.workers).toBe(2);
-    expect(overview.eligible).toBe(3);
-    expect(overview.staffed).toBe(2);
-    expect(overview.entries.map((e) => e.state)).toEqual(["staffed", "staffed", "idle"]);
-  });
-
-  it("idle reason is no-workers, not no-road, when the queue exhausts", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well", "workshop"]);
-    state.population = 1;
-    const overview = getStaffingOverview(state);
-    const idle = overview.entries.filter((e) => e.state === "idle");
-    expect(idle).toHaveLength(2);
-    for (const entry of idle) {
+    const short = bare();
+    workplaceRow(short, ["farm", "well", "workshop"]);
+    short.population = 2;
+    const two = getStaffingOverview(short);
+    expect(two).toMatchObject({ workers: 2, eligible: 3, staffed: 2 });
+    expect(two.entries.map((e) => e.state)).toEqual(["staffed", "staffed", "idle"]);
+    // an idle tail reports no-workers (road access is not the cause)
+    for (const entry of two.entries.filter((e) => e.state === "idle")) {
       expect(entry.reason).toBe("no-workers");
     }
+    // staffing line: rank and state
+    const line = (index: number) => two.entries[index]?.staffingLine;
+    expect(line(0)).toBe("staffing 1/3 · staffed");
+    expect(line(2)).toBe("staffing 3/3 · idle");
   });
 
-  it("no-road workplaces are never eligible and report no-road", () => {
-    const state = bare();
-    state.resources.money = 500;
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 3, y: 3 }));
-    stepTicks(state, 2);
-    state.population = 5;
-    const overview = getStaffingOverview(state);
-    expect(overview.eligible).toBe(0);
-    expect(overview.unconnected).toBe(1);
-    expect(overview.entries).toHaveLength(1);
-    expect(overview.entries[0]).toMatchObject({ state: "no-road", order: null });
-  });
+  it("reports no-road, mothballed and under-construction as ineligible, and lists no non-workplace", () => {
+    const unconnected = bare();
+    unconnected.resources.money = 500;
+    mustOk(applyCommand(unconnected, { kind: "placeBuilding", type: "farm", x: 3, y: 3 }));
+    stepTicks(unconnected, 2);
+    unconnected.population = 5;
+    const road1 = getStaffingOverview(unconnected);
+    expect(road1).toMatchObject({ eligible: 0, unconnected: 1 });
+    expect(road1.entries[0]).toMatchObject({ state: "no-road", order: null });
 
-  it("mothballed workplaces are never eligible and report mothballed", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well"]);
-    const farmId = Object.values(state.buildings).find((b) => b.type === "farm")!.id;
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
-    stepTicks(state, 1);
-    state.population = 5;
-    const overview = getStaffingOverview(state);
-    expect(overview.eligible).toBe(1);
-    const farm = overview.entries.find((e) => e.id === farmId)!;
-    expect(farm.state).toBe("mothballed");
+    const mothballed = bare();
+    workplaceRow(mothballed, ["farm", "well"]);
+    const farmId = Object.values(mothballed.buildings).find((b) => b.type === "farm")?.id;
+    if (!farmId) throw new Error("farm missing");
+    mustOk(applyCommand(mothballed, { kind: "setBuildingActive", id: farmId, active: false }));
+    stepTicks(mothballed, 1);
+    mothballed.population = 5;
+    const off = getStaffingOverview(mothballed);
+    expect(off.eligible).toBe(1);
+    expect(off.entries.find((e) => e.id === farmId)?.state).toBe("mothballed");
     // mothballing frees the worker: the well keeps its staff
-    expect(overview.entries.find((e) => e.type === "well")!.state).toBe("staffed");
+    expect(off.entries.find((e) => e.type === "well")?.state).toBe("staffed");
+
+    const building = bare();
+    building.resources.money = 500;
+    mustOk(applyCommand(building, { kind: "placeRoads", cells: [cellKey(0, 3)] }));
+    mustOk(applyCommand(building, { kind: "placeBuilding", type: "farm", x: 0, y: 2 }));
+    expect(getStaffingOverview(building).entries[0]).toMatchObject({
+      state: "under-construction",
+      order: null,
+    });
+
+    const homes = bare();
+    homes.resources.money = 500;
+    mustOk(applyCommand(homes, { kind: "placeRoads", cells: [cellKey(1, 1)] }));
+    mustOk(applyCommand(homes, { kind: "placeBuilding", type: "residence", x: 1, y: 2 }));
+    stepTicks(homes, 2);
+    expect(
+      getStaffingOverview(homes).entries.every(
+        (e) => e.type !== "residence" && e.type !== "colonyCenter",
+      ),
+    ).toBe(true);
   });
 
-  it("under-construction workplaces are listed but never eligible", () => {
-    const state = bare();
-    state.resources.money = 500;
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 3)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 0, y: 2 }));
-    // farm: constructionTicks > 0, so no tick ran yet
-    const overview = getStaffingOverview(state);
-    expect(overview.entries).toHaveLength(1);
-    expect(overview.entries[0]).toMatchObject({ state: "under-construction", order: null });
-    expect(overview.eligible).toBe(0);
-  });
-
-  it("non-workplaces (residence, colony center) are excluded", () => {
-    const state = bare();
-    state.resources.money = 500;
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(1, 1)] }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: 1, y: 2 }));
-    stepTicks(state, 2);
-    const overview = getStaffingOverview(state);
-    expect(overview.entries.every((e) => e.type !== "residence" && e.type !== "colonyCenter")).toBe(true);
-  });
-
-  it("staffing line: rank and state for eligible workplaces", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well", "workshop"]);
-    state.population = 1;
-    const overview = getStaffingOverview(state);
-    const line = (id: string) => overview.entries.find((e) => e.id === id)!.staffingLine;
-    const farm = overview.entries[0]!;
-    const workshop = overview.entries[2]!;
-    expect(line(farm.id)).toBe("staffing 1/3 · staffed");
-    expect(line(workshop.id)).toBe("staffing 3/3 · idle");
-  });
-
-  it("overview is deterministic across identical states (no hidden ordering)", () => {
+  it("is deterministic across identical states (no hidden ordering)", () => {
     const build = () => {
       const state = bare();
       workplaceRow(state, ["farm", "well", "workshop", "park"]);
@@ -163,45 +132,38 @@ describe("getStaffingOverview (Step025)", () => {
 });
 
 describe("workforce alerts (Step025, reworked Step057 F5)", () => {
-  it("never alerts on a structural shortage: the ratio is a stat, not an alert", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well", "workshop"]);
-    state.population = 1; // 1/3: the D2-style permanent shortage
+  it("never alerts on a structural shortage, but warns about road access when it is the cause", () => {
+    const shortage = bare();
+    workplaceRow(shortage, ["farm", "well", "workshop"]);
+    shortage.population = 1; // 1/3: the D2-style permanent shortage
     // the fact reaches the stats surface...
-    expect(getColonyStats(state)).toMatchObject({
+    expect(getColonyStats(shortage)).toMatchObject({
       staffedWorkplaces: 1,
       eligibleWorkplaces: 3,
     });
     // ...and the alert stream stays quiet about it
-    expect(getAlerts(state).some((a) => a.message.startsWith("Workforce:"))).toBe(false);
-    expect(getAlerts(state).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
-  });
+    expect(getAlerts(shortage).some((a) => a.message.startsWith("Workforce:"))).toBe(false);
+    expect(getAlerts(shortage).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
 
-  it("alerts on the fixable cause: operational workplaces with no road access", () => {
-    const state = bare();
-    state.resources.money = 500;
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 3, y: 3 }));
-    stepTicks(state, 2);
-    state.population = 5;
-    expect(getStaffingOverview(state).unconnected).toBe(1);
-    expect(getAlerts(state).find((a) => a.message.startsWith("Workplaces:"))).toEqual({
+    const stranded = bare();
+    stranded.resources.money = 500;
+    mustOk(applyCommand(stranded, { kind: "placeBuilding", type: "farm", x: 3, y: 3 }));
+    stepTicks(stranded, 2);
+    stranded.population = 5;
+    expect(getAlerts(stranded).find((a) => a.message.startsWith("Workplaces:"))).toEqual({
       severity: "info",
       message: "Workplaces: 1 without road access",
     });
-  });
 
-  it("no access alert when every operational workplace is road-connected", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well"]);
-    state.population = 5;
-    expect(getStaffingOverview(state).unconnected).toBe(0);
-    expect(getAlerts(state).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
-  });
+    const connected = bare();
+    workplaceRow(connected, ["farm", "well"]);
+    connected.population = 5;
+    expect(getStaffingOverview(connected).unconnected).toBe(0);
+    expect(getAlerts(connected).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
 
-  it("no access alert while the colony has no colonists", () => {
-    const state = bare();
-    workplaceRow(state, ["farm", "well"]);
-    state.population = 0;
-    expect(getAlerts(state).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
+    const empty = bare();
+    workplaceRow(empty, ["farm", "well"]);
+    empty.population = 0;
+    expect(getAlerts(empty).some((a) => a.message.startsWith("Workplaces:"))).toBe(false);
   });
 });

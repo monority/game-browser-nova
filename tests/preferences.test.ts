@@ -42,36 +42,18 @@ function fakeStorage(
 }
 
 describe("parsePreferences", () => {
-  it("accepts a full valid payload", () => {
+  it("accepts valid payloads and falls back per field on missing or wrong-typed values", () => {
     expect(parsePreferences({ speedId: "4x", overlay: "staffing" })).toEqual({
       speedId: "4x",
       overlay: "staffing",
     });
-    expect(parsePreferences({ overlay: "population" })).toEqual({
-      speedId: "1x",
-      overlay: "population",
-    });
-  });
-
-  it("falls back per-field on missing values", () => {
-    expect(parsePreferences({ speedId: "4x" })).toEqual({
-      speedId: "4x",
-      overlay: "none",
-    });
-    expect(parsePreferences({ overlay: "deposits" })).toEqual({
-      speedId: "1x",
-      overlay: "deposits",
-    });
+    expect(parsePreferences({ speedId: "4x" })).toEqual({ speedId: "4x", overlay: "none" });
+    expect(parsePreferences({ overlay: "deposits" })).toEqual({ speedId: "1x", overlay: "deposits" });
     expect(parsePreferences({})).toEqual(DEFAULT_PREFERENCES);
+    expect(parsePreferences({ speedId: 4, overlay: ["staffing"] })).toEqual(DEFAULT_PREFERENCES);
   });
 
-  it("falls back per-field on wrong types", () => {
-    expect(parsePreferences({ speedId: 4, overlay: ["staffing"] })).toEqual(
-      DEFAULT_PREFERENCES,
-    );
-  });
-
-  it("rejects unknown ids but keeps valid siblings", () => {
+  it("rejects unknown ids and non-objects while keeping valid siblings and known fields", () => {
     expect(parsePreferences({ speedId: "16x", overlay: "staffing" })).toEqual({
       speedId: "1x",
       overlay: "staffing",
@@ -80,12 +62,9 @@ describe("parsePreferences", () => {
       speedId: "2x",
       overlay: "none",
     });
-  });
-
-  it("rejects non-objects and ignores extra fields", () => {
-    expect(parsePreferences(null)).toEqual(DEFAULT_PREFERENCES);
-    expect(parsePreferences("{\"speedId\":\"4x\"}")).toEqual(DEFAULT_PREFERENCES);
-    expect(parsePreferences(42)).toEqual(DEFAULT_PREFERENCES);
+    for (const payload of [null, '{"speedId":"4x"}', 42]) {
+      expect(parsePreferences(payload)).toEqual(DEFAULT_PREFERENCES);
+    }
     expect(parsePreferences({ speedId: "4x", overlay: "none", volume: 11 })).toEqual({
       speedId: "4x",
       overlay: "none",
@@ -93,55 +72,38 @@ describe("parsePreferences", () => {
   });
 
   it("stays in sync with the UI sources", () => {
-    for (const setting of SPEED_SETTINGS) {
-      expect(storedSpeedIds()).toContain(setting.id);
-    }
+    for (const setting of SPEED_SETTINGS) expect(storedSpeedIds()).toContain(setting.id);
     expect(storedOverlayModes()).toEqual([
-      "none",
-      "staffing",
-      "deposits",
-      "food",
-      "water",
-      "pollution",
-      "population",
-      "logistics",
+      "none", "staffing", "deposits", "food", "water", "pollution", "population", "logistics",
     ]);
   });
 });
 
 describe("serialize/load/save round-trip", () => {
-  it("round-trips through JSON", () => {
+  it("round-trips, defaults on missing/corrupt/throwing storage, and reports save failures", () => {
     const prefs = { speedId: "8x", overlay: "deposits" } as const;
     expect(parsePreferences(JSON.parse(serializePreferences(prefs)))).toEqual(prefs);
-  });
 
-  it("loads stored prefs, defaults when missing", () => {
-    const storage = fakeStorage({
-      [PREFS_STORAGE_KEY]: serializePreferences({ speedId: "2x", overlay: "staffing" }),
-    });
-    expect(loadPreferences(storage)).toEqual({ speedId: "2x", overlay: "staffing" });
+    expect(
+      loadPreferences(
+        fakeStorage({ [PREFS_STORAGE_KEY]: serializePreferences({ speedId: "2x", overlay: "staffing" }) }),
+      ),
+    ).toEqual({ speedId: "2x", overlay: "staffing" });
     expect(loadPreferences(fakeStorage())).toEqual(DEFAULT_PREFERENCES);
-  });
-
-  it("defaults on corrupt JSON and on throwing storage", () => {
     expect(loadPreferences(fakeStorage({ [PREFS_STORAGE_KEY]: "not-json{" }))).toEqual(
       DEFAULT_PREFERENCES,
     );
     expect(loadPreferences(fakeStorage({}, { get: true }))).toEqual(DEFAULT_PREFERENCES);
-  });
 
-  it("saves exact JSON, reports failure instead of throwing", () => {
     const storage = fakeStorage();
     expect(savePreferences(storage, { speedId: "4x", overlay: "staffing" })).toBe(true);
-    expect(storage.getItem(PREFS_STORAGE_KEY)).toBe(
-      '{"speedId":"4x","overlay":"staffing"}',
-    );
+    expect(storage.getItem(PREFS_STORAGE_KEY)).toBe('{"speedId":"4x","overlay":"staffing"}');
     expect(savePreferences(fakeStorage({}, { set: true }), DEFAULT_PREFERENCES)).toBe(false);
   });
 });
 
 describe("coerce helpers", () => {
-  it("passes valid ids, falls back on anything else", () => {
+  it("passes valid ids and falls back on anything else", () => {
     expect(coerceSpeedId("8x")).toBe("8x");
     expect(coerceSpeedId("pause")).toBe("pause");
     expect(coerceSpeedId("16x")).toBe("1x");
@@ -154,7 +116,7 @@ describe("coerce helpers", () => {
 });
 
 describe("clearSaveSlot", () => {
-  it("deletes only the target slot and reports cleared", () => {
+  it("deletes only the target slot, reporting cleared/empty/failed without throwing", () => {
     const storage = fakeStorage({
       "nova-save": "{...}",
       [PREFS_STORAGE_KEY]: '{"speedId":"4x","overlay":"none"}',
@@ -162,13 +124,8 @@ describe("clearSaveSlot", () => {
     });
     expect(clearSaveSlot(storage, "nova-save")).toBe("cleared");
     expect(storage.keys()).toEqual([PREFS_STORAGE_KEY, "other-game"]);
-  });
 
-  it("reports empty when the slot is absent", () => {
     expect(clearSaveSlot(fakeStorage(), "nova-save")).toBe("empty");
-  });
-
-  it("reports failed on throwing storage without throwing", () => {
     expect(clearSaveSlot(fakeStorage({}, { get: true }), "nova-save")).toBe("failed");
     expect(clearSaveSlot(fakeStorage({ "nova-save": "x" }, { remove: true }), "nova-save")).toBe(
       "failed",

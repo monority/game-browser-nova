@@ -36,110 +36,81 @@ function placeWarehouse(state: GameState): string {
 }
 
 describe("storage capacity (Step031)", () => {
-  it("constants match the documented contract", () => {
-    expect(BASE_FOOD_CAPACITY).toBe(120);
-    expect(BASE_WATER_CAPACITY).toBe(80);
-    expect(FOOD_PER_WAREHOUSE).toBe(60);
-    expect(WATER_PER_WAREHOUSE).toBe(40);
-  });
-
-  it("base caps double the D2 day-0 stocks (headroom, no day-0 clamp)", () => {
+  it("honours the documented base contract, with no day-0 clamp", () => {
+    expect([BASE_FOOD_CAPACITY, BASE_WATER_CAPACITY, FOOD_PER_WAREHOUSE, WATER_PER_WAREHOUSE])
+      .toEqual([120, 80, 60, 40]);
     const state = freshState();
     expect(foodCapacity(state)).toBe(120);
     expect(waterCapacity(state)).toBe(80);
+    // base caps double the D2 day-0 stocks (headroom, no day-0 clamp)
     expect(state.resources.food).toBeLessThanOrEqual(120);
     expect(state.resources.water).toBeLessThanOrEqual(80);
   });
 
-  it("each operational warehouse adds one day-0 stock (60/40)", () => {
-    const state = freshState();
-    placeWarehouse(state);
-    expect(foodCapacity(state)).toBe(180);
-    expect(waterCapacity(state)).toBe(120);
-  });
-
-  it("under-construction warehouse adds nothing", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.resources.money = 1000;
-    state.resources.planks = 10;
-    const spot = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "warehouse", x: spot.x, y: spot.y }));
-    expect(foodCapacity(state)).toBe(120);
-  });
-
-  it("mothballed warehouse removes its capacity", () => {
+  it("counts operational warehouses only, gates on planks, and reaches the stats surface", () => {
     const state = freshState();
     const id = placeWarehouse(state);
+    expect(foodCapacity(state)).toBe(180);
+    expect(waterCapacity(state)).toBe(120);
+    expect(getColonyStats(state)).toMatchObject({ foodCapacity: 180, waterCapacity: 120 });
+
     mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: false }));
     expect(foodCapacity(state)).toBe(120);
     expect(waterCapacity(state)).toBe(80);
+
+    const building = freshState();
+    stripToAnchor(building);
+    building.resources.money = 1000;
+    building.resources.planks = 10;
+    const spot = freeCell(building);
+    mustOk(applyCommand(building, { kind: "placeBuilding", type: "warehouse", x: spot.x, y: spot.y }));
+    expect(foodCapacity(building)).toBe(120); // under construction adds nothing
+
+    const broke = freshState();
+    stripToAnchor(broke);
+    broke.resources.money = 1000;
+    broke.resources.planks = 0;
+    const other = freeCell(broke);
+    expect(
+      applyCommand(broke, { kind: "placeBuilding", type: "warehouse", x: other.x, y: other.y }).ok,
+    ).toBe(false); // warehouse placement requires planks (industry gate)
   });
 
-  it("warehouse placement requires planks (industry gate)", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.resources.money = 1000;
-    state.resources.planks = 0;
-    const spot = freeCell(state);
-    const result = applyCommand(state, { kind: "placeBuilding", type: "warehouse", x: spot.x, y: spot.y });
-    expect(result.ok).toBe(false);
+  it("discards overflow, clamps after consumption, and never exceeds capacity", () => {
+    const overflow = freshState();
+    stripToAnchor(overflow);
+    overflow.resources.food = 300;
+    overflow.resources.water = 300;
+    expect(clampStorage(overflow)).toEqual({ foodWasted: 180, waterWasted: 220 });
+    expect(overflow.resources).toMatchObject({ food: 120, water: 80 });
+
+    const pinned = freshState();
+    stripToAnchor(pinned);
+    pinned.population = 0; // no consumption: pure production vs cap
+    pinned.resources.food = 120;
+    pinned.resources.water = 80;
+    stepTicks(pinned, 1); // colony-center trickle +1, then clamp
+    expect(pinned.resources).toMatchObject({ food: 120, water: 80 });
+
+    const grown = freshState();
+    stepTicks(grown, 50);
+    expect(grown.resources.food).toBeLessThanOrEqual(foodCapacity(grown));
+    expect(grown.resources.water).toBeLessThanOrEqual(waterCapacity(grown));
   });
 
-  it("clamp discards overflow above capacity", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.resources.food = 300;
-    state.resources.water = 300;
-    const wasted = clampStorage(state);
-    expect(state.resources.food).toBe(120);
-    expect(state.resources.water).toBe(80);
-    expect(wasted.foodWasted).toBe(180);
-    expect(wasted.waterWasted).toBe(220);
-  });
-
-  it("tick clamps after consumption (true surplus wasted, colonists eat first)", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 0; // no consumption: pure production vs cap
-    state.resources.food = 120; // pinned at base cap
-    state.resources.water = 80;
-    stepTicks(state, 1); // colony-center trickle +1, then clamp
-    expect(state.resources.food).toBe(120);
-    expect(state.resources.water).toBe(80);
-  });
-
-  it("stock never exceeds capacity across ticks", () => {
-    const state = freshState();
-    stepTicks(state, 50);
-    expect(state.resources.food).toBeLessThanOrEqual(foodCapacity(state));
-    expect(state.resources.water).toBeLessThanOrEqual(waterCapacity(state));
-  });
-
-  it("storage-full alert fires on pinned stock with positive balance, silent below cap", () => {
+  it("alerts on pinned stock with a positive balance, silent below the cap", () => {
     const state = freshState();
     stripToAnchor(state);
     state.population = 0;
     state.resources.food = 120;
-    const alerts = getAlerts(state).map((a) => a.message);
-    expect(alerts.some((m) => m.startsWith("Food storage full"))).toBe(true);
+    expect(getAlerts(state).some((a) => a.message.startsWith("Food storage full"))).toBe(true);
     state.resources.food = 10;
-    const quiet = getAlerts(state).map((a) => a.message);
-    expect(quiet.some((m) => m.startsWith("Food storage full"))).toBe(false);
-  });
-
-  it("stats expose derived caps", () => {
-    const state = freshState();
-    placeWarehouse(state);
-    const stats = getColonyStats(state);
-    expect(stats.foodCapacity).toBe(180);
-    expect(stats.waterCapacity).toBe(120);
+    expect(getAlerts(state).some((a) => a.message.startsWith("Food storage full"))).toBe(false);
   });
 
   it("warehouse round-trips losslessly with no save migration", () => {
     const state = freshState();
     placeWarehouse(state);
-    const restored = parseSave(serialize(state));
-    expect(restored).toEqual(state);
+    expect(parseSave(serialize(state))).toEqual(state);
   });
 });
