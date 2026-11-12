@@ -96,18 +96,62 @@ test.describe("NOVA simulation", () => {
     await page.goto("/");
     await pause(page);
 
-    await page.evaluate(() => {
+    // Step064: an emitter only pollutes while STAFFED, so the scenario needs a
+    // workshop that is really staffed, on a cell that is really free (the old
+    // fixed coordinates were already occupied, and the spec leaned on the
+    // shipped colony's idling workshops for its emissions).
+    const built = await page.evaluate(() => {
       const h = window.__nova!;
       const s = h.getState();
       s.resources.money = 500;
-      s.resources.water = 20;
-      h.command({ kind: "placeRoads", cells: ["0,0"] });
-      h.command({ kind: "placeBuilding", type: "workshop", x: 1, y: 0 });
-      h.command({ kind: "placeBuilding", type: "residence", x: 1, y: 1 });
-      h.command({ kind: "placeBuilding", type: "residence", x: 2, y: 1 });
-      h.command({ kind: "placeBuilding", type: "park", x: 1, y: 2 });
-      h.command({ kind: "placeBuilding", type: "park", x: 2, y: 2 });
+      s.resources.water = 40;
+      s.population = 14; // more colonists than workplaces: every one is staffed
+      const key = (x: number, y: number) => `${x},${y}`;
+      const roads = Object.values(s.roads).flatMap((r) => r.cells);
+      const free = (x: number, y: number) => {
+        if (x < 0 || y < 0 || x >= s.world.width || y >= s.world.height) return false;
+        const k = key(x, y);
+        if (s.world.blockedCells[k] || s.woodDeposits[k] || s.stoneDeposits[k]) return false;
+        if (roads.includes(k)) return false;
+        return !Object.values(s.buildings).some((b) => b.x === x && b.y === y);
+      };
+      const sides = [
+        [1, 0],
+        [-1, 0],
+        [0, 1],
+        [0, -1],
+      ] as const;
+
+      // a road cell with one free neighbour beside it, for the workshop
+      let site: { x: number; y: number; nx: number; ny: number } | null = null;
+      for (let y = 0; y < s.world.height && !site; y++) {
+        for (let x = 0; x < s.world.width && !site; x++) {
+          if (!free(x, y)) continue;
+          const nb = sides.find(([dx, dy]) => free(x + dx, y + dy));
+          if (nb) site = { x, y, nx: x + nb[0], ny: y + nb[1] };
+        }
+      }
+      if (!site) return { ok: false, reason: "no free road+workshop site" };
+      h.command({ kind: "placeRoads", cells: [key(site.x, site.y)] });
+      const workshop = h.command({
+        kind: "placeBuilding",
+        type: "workshop",
+        x: site.nx,
+        y: site.ny,
+      });
+      if (!workshop.ok) return { ok: false, reason: workshop.reason };
+
+      // three parks: −6/tick, more than the three staffed workshops' +3
+      let parks = 0;
+      for (let y = 0; y < s.world.height && parks < 3; y++) {
+        for (let x = 0; x < s.world.width && parks < 3; x++) {
+          if (!free(x, y)) continue;
+          if (h.command({ kind: "placeBuilding", type: "park", x, y }).ok) parks++;
+        }
+      }
+      return { ok: parks === 3, parks };
     });
+    expect(built.ok).toBe(true);
     await page.getByRole("button", { name: "8x", exact: true }).click();
     await expect
       .poll(() =>
@@ -119,7 +163,7 @@ test.describe("NOVA simulation", () => {
       .toBeGreaterThan(8); // buildings mature, park absorption active
     await pause(page);
 
-    // 2 parks (−4) dominate 1 workshop (+1): air stays clean at the clamp
+    // 3 parks (−6) dominate the three staffed workshops (+3): air stays clean
     const clean = await page.evaluate(
       () => window.__nova!.stats(),
     );

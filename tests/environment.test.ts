@@ -55,8 +55,10 @@ describe("pollution flows", () => {
 
   it("active workshop emits 1/tick; mothballed emits nothing", () => {
     const state = pollutingColony();
-    // workshop operational during ticks 2 and 3 → 2 emitting ticks so far
-    expect(state.pollution).toBe(2);
+    // Step064: emission now runs before assignJobs, so it follows the same
+    // staffing set as the output — operational at tick 2, first emission at
+    // tick 3 → 1 emitting tick so far
+    expect(state.pollution).toBe(1);
     const wsId = Object.values(state.buildings).find((b) => b.type === "workshop")?.id;
     if (!wsId) throw new Error("workshop missing");
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: wsId, active: false }));
@@ -86,6 +88,42 @@ describe("pollution flows", () => {
     stepTicks(state, 3);
     expect(state.pollution).toBe(100);
     expect(environmentalQuality(state)).toBe(0);
+  });
+});
+
+describe("staffed-only emission (Step064)", () => {
+  it("an idling workshop emits nothing and starts the same tick as its output", () => {
+    const state = freshState();
+    state.resources.money = 300;
+    state.resources.water = 2;
+    stripToAnchor(state);
+    state.population = 0;
+    const road = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+    const spot = adjacentFree(state, road.x, road.y);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
+    stepTicks(state, 5);
+    const workshop = Object.values(state.buildings).find((b) => b.type === "workshop");
+    expect(workshop?.staffed).toBe(false);
+    expect(pollutionFlows(state)).toEqual({ emissions: 0, absorption: 0, net: 0 });
+    expect(state.pollution).toBe(0);
+
+    state.population = 1; // the colonist fills the workplace at the end of the tick
+    stepTicks(state, 1);
+    expect(workshop?.staffed).toBe(true);
+    expect(state.pollution).toBe(0); // no work done yet
+    stepTicks(state, 2); // now it works and emits, one tick per tick
+    expect(state.pollution).toBe(2);
+  });
+
+  it("a park still absorbs while unstaffed (parks have no job capacity)", () => {
+    const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "park", x: spot.x, y: spot.y }));
+    stepTicks(state, 2);
+    expect(pollutionFlows(state).absorption).toBe(ABSORPTION_PER_PARK_PER_TICK);
   });
 });
 
@@ -259,6 +297,9 @@ describe("admission-block forecast (Step056 F1)", () => {
 
   it("scales with the net flow (two workshops burn the margin twice as fast)", () => {
     const state = pollutingColony();
+    // Step064: emission requires staffing, so the second workshop needs a
+    // second colonist to count (otherwise it idles and emits nothing)
+    state.population = 2;
     state.resources.money = 300;
     state.resources.water = 4;
     const road = freeCell(state);

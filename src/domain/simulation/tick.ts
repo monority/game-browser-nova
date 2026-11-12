@@ -24,11 +24,14 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *       runs after consumption so the clamp never eats what colonists
  *       would have consumed this tick)
  *   7. updatePopulation (gradual starvation + admission)
- *   8. assignJobs (next tick's staffing)
- *   9. collectRevenue → payMaintenance (money model, same-tick inflow;
+ *   8. updateEnvironment (pollution flows + park wood regrowth). Runs
+ *       BEFORE assignJobs so emission follows the staffing set that
+ *       produced THIS tick's output (assigned at the end of the previous
+ *       tick, Step064) — an idling workshop emits nothing
+ *   9. assignJobs (next tick's staffing)
+ *   10. collectRevenue → payMaintenance (money model, same-tick inflow;
  *       market sales keep the Step062 safety stock — the granary is never
  *       emptied by trade)
- *   10. updateEnvironment (pollution flows + park wood regrowth)
  *   11. resolveEvents (Step047: expire + seeded draws; canonical phase 12
  *       of 05-SIMULATION §3 — active events feed the NEXT tick's
  *       production/commerce phases, same timing contract as staffing)
@@ -51,11 +54,12 @@ export function stepSimulation(state: GameState): GameState {
 
   updatePopulation(state, fedColonists);
 
+  updateEnvironment(state);
+
   assignJobs(state);
 
   collectRevenue(state, planksProduced);
   payMaintenance(state);
-  updateEnvironment(state);
   resolveEvents(state);
 
   return state;

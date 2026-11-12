@@ -1,12 +1,15 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import { isActive } from "@/domain/building/building.js";
+import type { Building } from "@/domain/building/building.js";
 import type { BuildingType } from "@/content/buildings.js";
 import { regrowAdjacent } from "@/domain/world/deposits.js";
 
 /**
  * Environment system (MVP Phase 7, minimal coherent form):
- * global pollution stock 0–100; active workshops and quarries emit;
- * active parks absorb; environmental quality = 100 − pollution.
+ * global pollution stock 0–100; active and STAFFED workshops and quarries
+ * emit (Step064: an idling workshop produces nothing, so it pollutes
+ * nothing); active parks absorb regardless of staffing (they have no job
+ * capacity); environmental quality = 100 − pollution.
  * Quality gates *further* admission (bootstrap-exempt like water):
  * existing population is never harmed by pollution in the MVP.
  */
@@ -58,12 +61,25 @@ export interface PollutionFlows {
   net: number;
 }
 
+/**
+ * Per-building pollution contribution to the STOCK (Step064): the type rate
+ * above, gated on being active and, for emitters, staffed. An unstaffed
+ * workshop or quarry does no work and therefore emits nothing, while a park
+ * (0 job capacity) always absorbs. Single source shared by the tick phase
+ * and the inspection line, so the two cannot drift.
+ */
+export function pollutionContributionForBuilding(building: Building): number {
+  if (!isActive(building)) return 0;
+  const rate = pollutionContributionPerTick(building.type);
+  if (rate > 0 && !building.staffed) return 0;
+  return rate;
+}
+
 export function pollutionFlows(state: GameState): PollutionFlows {
   let emissions = 0;
   let absorption = 0;
   for (const building of Object.values(state.buildings)) {
-    if (!isActive(building)) continue;
-    const contribution = pollutionContributionPerTick(building.type);
+    const contribution = pollutionContributionForBuilding(building);
     if (contribution > 0) emissions += contribution;
     else if (contribution < 0) absorption -= contribution;
   }
