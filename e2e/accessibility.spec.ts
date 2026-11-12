@@ -4,13 +4,16 @@ import { pause } from "./helpers.js";
 /**
  * Tier2 accessibility regressions: visible keyboard focus, polite live
  * regions for command outcomes and alert-kind changes, Space on focused
- * buttons, and the new overlay toggles (keyboard + no state mutation).
+ * buttons, and the overlay toggles (keyboard + no state mutation).
  */
 
 test.describe("accessibility (Tier2)", () => {
-  test("keyboard focus gets a visible outline", async ({ page }) => {
+  test("focus outline, Space acting on the focused button, and announced outcomes", async ({
+    page,
+  }) => {
     await page.goto("/");
-    await pause(page);
+
+    // the first Tab stop shows the focus ring
     await page.keyboard.press("Tab");
     const outline = await page.locator(":focus").evaluate((el) => {
       const s = getComputedStyle(el);
@@ -18,13 +21,16 @@ test.describe("accessibility (Tier2)", () => {
     });
     expect(outline.style).toBe("solid");
     expect(outline.width).toBe("2px");
-  });
 
-  test("command outcomes announce through the status live region", async ({ page }) => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Save", exact: true }).click();
+    // Space on a focused button activates that button, not the global pause
+    const before = await page.evaluate(() => window.__nova!.getState().tick);
+    await page.getByRole("button", { name: "Save", exact: true }).focus();
+    await page.keyboard.press("Space");
+    await expect(page.locator(".nova-status")).toHaveText("Colony saved.");
     await expect(page.locator("[data-announcer='status']")).toHaveText("Colony saved.");
-    await expect(page.locator(".nova-status")).toHaveText("Colony saved."); // visual preserved
+    await expect
+      .poll(async () => page.evaluate(() => window.__nova!.getState().tick))
+      .toBeGreaterThan(before);
   });
 
   test("alert announcements fire on kind changes, not every tick", async ({ page }) => {
@@ -64,30 +70,18 @@ test.describe("accessibility (Tier2)", () => {
     expect(visualPollution).toBeGreaterThan(firstPollution);
   });
 
-  test("Space on a focused button activates the button, not pause", async ({ page }) => {
-    await page.goto("/");
-    const before = await page.evaluate(() => window.__nova!.getState().tick);
-    await page.getByRole("button", { name: "Save", exact: true }).focus();
-    await page.keyboard.press("Space");
-    await expect(page.locator(".nova-status")).toHaveText("Colony saved.");
-    // simulation still running → the global Space handler did not fire
-    await expect
-      .poll(async () => page.evaluate(() => window.__nova!.getState().tick))
-      .toBeGreaterThan(before);
-  });
-
-  test("forecast rows are semantic buttons driving the drill-down", async ({ page }) => {
+  test("forecast rows open the drill-down; overlay toggles are keyboard-operable and inert", async ({
+    page,
+  }) => {
     await page.goto("/");
     await pause(page);
+
+    // the forecast rows are real buttons, not clickable divs
     const foodRow = page.locator("#stats button[data-resource='food']");
     await expect(foodRow).toHaveCount(1);
     await foodRow.click();
     await expect(page.locator("#inspection")).toBeVisible();
-  });
 
-  test("overlay buttons are keyboard-operable and mutate no simulation state", async ({ page }) => {
-    await page.goto("/");
-    await pause(page);
     const before = await page.evaluate(() => JSON.stringify(window.__nova!.getState()));
     for (const mode of ["food", "water", "pollution", "logistics"] as const) {
       const button = page.locator(`button[data-action='overlay-${mode}']`);
@@ -98,6 +92,7 @@ test.describe("accessibility (Tier2)", () => {
     }
     const after = await page.evaluate(() => JSON.stringify(window.__nova!.getState()));
     expect(after).toBe(before);
+
     // switching to none clears the sibling active markers
     await page.locator("button[data-action='overlay-none']").click();
     await expect(page.locator("button[data-action='overlay-pollution']")).not.toHaveAttribute(
