@@ -7,8 +7,9 @@
 # Step065 removed the market, so nothing sells the food surplus any more and
 # two things changed for this journey:
 #   - the old "exact balance = mouths + 2 sold" plan is gone. A colony that
-#     produces more than it eats just pins at 120/120 and the assessor calls
-#     that critical, so the journey never buys the surplus farms: at pop 16
+#     produces more than it eats just pins at 120/120 and destroys the surplus
+#     (the storage line is information, not a fault, since 2026-11-12), so the
+#     journey never buys the surplus farms: at pop 16
 #     the arc already runs +1 food/tick and stays HEALTHY (measured).
 #   - the age-2 milestone set is the four Step021 dimensions again: pop 15,
 #     14 buildings, treasury 600, 5 techs. No plank project, no lumber camp.

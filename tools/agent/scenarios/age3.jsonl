@@ -13,8 +13,8 @@
 #   1. There is no market any more, so the colony cannot sell a surplus: the
 #      growth target is the next EXACT balance, pop 22 = 7 farms (7*3 + 1)
 #      = 11 wells (2 each) = 22. A 24-colonist line would produce 24 and eat
-#      23, pin the granary at 120/120 and read `critical` on the storage
-#      warning alone (measured before this re-anchor).
+#      23, pin the granary at 120/120 and destroy the surplus (measured before
+#      this re-anchor; the storage line is information, never a warning).
 #   2. A workshop pays its keep unstaffed: commerce is staffing-independent
 #      (2 + 1 per tradeRoutes), so a third workshop adds +3/tick for 1 upkeep.
 #      It is the cheapest revenue, and at 21 workplaces for 22 colonists it

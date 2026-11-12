@@ -184,22 +184,27 @@ export function getAlerts(
     });
   }
 
-  // Storage pressure (Step031): stock pinned at capacity while the
-  // balance stays positive means production is wasted each tick.
-  // States the cause only — the fix (warehouse / fewer producers) is
-  // the player's call.
+  // Storage pressure (Step031, severity Step066): stock pinned at capacity
+  // while the balance stays positive means production is not stored each
+  // tick. This is INFORMATION, not a warning: since the market removal
+  // (Step065) nothing sinks a surplus, so a full granary is a reachable
+  // steady state of a colony that is otherwise fine — and every warning
+  // turns the cockpit verdict `critical`, which read as a fault the player
+  // could only clear by demolishing farms (2026-11-12 audit, F2). States
+  // the state only — the fix (warehouse / fewer producers) is the player's
+  // call.
   const foodCap = foodCapacity(state);
   if (summaries.food.balancePerTick > 0 && state.resources.food >= foodCap) {
     alerts.push({
-      severity: "warning",
-      message: `Food storage full (${Math.floor(state.resources.food)}/${foodCap}) · +${summaries.food.balancePerTick}/tick wasted`,
+      severity: "info",
+      message: `Food storage full (${Math.floor(state.resources.food)}/${foodCap}) · +${summaries.food.balancePerTick}/tick not stored`,
     });
   }
   const waterCap = waterCapacity(state);
   if (summaries.water.balancePerTick > 0 && state.resources.water >= waterCap) {
     alerts.push({
-      severity: "warning",
-      message: `Water storage full (${Math.floor(state.resources.water)}/${waterCap}) · +${summaries.water.balancePerTick}/tick wasted`,
+      severity: "info",
+      message: `Water storage full (${Math.floor(state.resources.water)}/${waterCap}) · +${summaries.water.balancePerTick}/tick not stored`,
     });
   }
 
