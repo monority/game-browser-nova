@@ -15,7 +15,12 @@ export default defineConfig({
     screenshot: "only-on-failure",
   },
   webServer: {
-    command: "pnpm dev --port 5273 --strictPort",
+    // Call vite through Node instead of `pnpm dev`: the dev server is a local
+    // dependency, and a broken pnpm on the machine (missing shared library in a
+    // container) must not be able to block every E2E run with "webServer failed
+    // to start". Same command on CI, where `pnpm install` has populated
+    // node_modules before this step.
+    command: "node node_modules/vite/bin/vite.js --port 5273 --strictPort",
     url: "http://localhost:5273",
     reuseExistingServer: false,
     timeout: 30_000,

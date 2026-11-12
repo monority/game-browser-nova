@@ -9,6 +9,7 @@ import {
   collectRevenue,
   connectedMarkets,
   expectedMarketSales,
+  marketSafetyStock,
   sellMarketSurplus,
 } from "@/domain/economy/economy.js";
 import { getColonyStats } from "@/application/queries/stats.js";
@@ -19,7 +20,7 @@ import {
   produceWater,
 } from "@/domain/production/production.js";
 import { clampStorage, foodCapacity } from "@/domain/storage/storage.js";
-import { getResourceSummaries } from "@/application/queries/analysis.js";
+import { getAlerts, getResourceSummaries } from "@/application/queries/analysis.js";
 import { parseSave, serialize, SAVE_VERSION } from "@/application/persistence/save.js";
 import { BUILDING_PALETTE, createBuildingMeshes } from "@/renderer/shapes.js";
 import { adjacentFree, freeCell, mustOk, neighborsOf, stripToAnchor } from "./helpers.js";
@@ -83,7 +84,7 @@ describe("market placement gate", () => {
 });
 
 describe("market surplus sales", () => {
-  it("sells post-consumption leftovers: +2 money, -2 food, maintenance still due", () => {
+  it("sells the spare food above the safety stock: +2 money, -2 food, maintenance still due", () => {
     const state = freshState();
     placeConnectedMarket(state);
     placeConnectedFarm(state);
@@ -108,6 +109,64 @@ describe("market surplus sales", () => {
     expect(result.market).toBe(0);
     expect(expectedMarketSales(state)).toBe(0);
     expect(sellMarketSurplus(state)).toBe(0);
+  });
+
+  it("never empties the granary: one tick of food stays (Step062)", () => {
+    const state = freshState();
+    placeConnectedMarket(state);
+    placeConnectedFarm(state);
+    state.population = 3; // farm 2 + anchor trickle 1 = the 3 mouths exactly
+    state.resources.food = 50; // survive the warm-up (production 1 until staffed)
+    state.resources.water = 60;
+    stepTicks(state, 2); // farm staffed at end of tick 2, nobody lost
+    state.resources.food = 100;
+    state.resources.money = 100;
+    // A balanced colony (production == need) used to drain its granary
+    // 120 -> 0 and starve (Step061). Trade now stops at the safety stock.
+    stepTicks(state, 200);
+    expect(state.resources.food).toBe(marketSafetyStock(state)); // 3, never 0
+    expect(state.population).toBe(3); // nobody starved
+    expect(state.resources.money).toBeGreaterThan(100); // the buffer was sold
+  });
+
+  it("forecast equals the sale at every population and stock (Step062 invariant)", () => {
+    // The UI, the alerts and the tick all read the same promise: the number a
+    // player sees is what the sale will do. Grid covers the safety-stock floor
+    // (stock around population), an empty granary and a saturated one.
+    for (const pop of [0, 1, 3, 5, 20, 60]) {
+      for (const stock of [0, 1, 2, 3, 19, 20, 21, 24, 100, 119, 500]) {
+        const state = freshState();
+        placeConnectedMarket(state);
+        placeConnectedFarm(state);
+        state.population = 1;
+        stepTicks(state, 2); // farm staffed: 3 food/tick
+        state.population = pop;
+        state.resources.food = stock;
+        const forecast = expectedMarketSales(state);
+        // the tick's phases, up to the sale
+        produceFood(state);
+        produceWater(state);
+        consumeFood(state);
+        consumeWater(state);
+        clampStorage(state);
+        const sold = sellMarketSurplus(state);
+        expect({ pop, stock, sold: forecast }).toEqual({ pop, stock, sold });
+      }
+    }
+  });
+
+  it("explains an idle market instead of leaving a silent zero (Step062)", () => {
+    const state = freshState();
+    placeConnectedMarket(state);
+    state.population = 3;
+    state.resources.food = 3; // exactly the safety stock: nothing is spare
+    expect(getAlerts(state)).toContainEqual({
+      severity: "info",
+      message: "Market: 0/2 food sold · stock 3 covers the next meal",
+    });
+    // one spare food above the floor and the line disappears
+    state.resources.food = 40;
+    expect(getAlerts(state).some((a) => a.message.startsWith("Market:"))).toBe(false);
   });
 
   it("mothballed or unconnected markets sell nothing", () => {

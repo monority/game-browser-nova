@@ -3,6 +3,8 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
+import { addWater } from "@/domain/resource/resource.js";
+import { consumeWater, waterProductionPerTick } from "@/domain/production/production.js";
 import {
   getResourceSummaries,
   getAlerts,
@@ -125,6 +127,42 @@ describe("alerts (states, not instructions)", () => {
       severity: "warning",
       message: "Water: 1/2 colonists served",
     });
+  });
+
+  it("does not call colonists unserved while production covers the need (Step063)", () => {
+    const state = fedColony();
+    state.population = 2;
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(4, 0)] }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 3, y: 0 }));
+    stepTicks(state, 3); // well staffed and operational: 2 water/tick for 2 colonists
+    state.resources.water = 1; // the rest AFTER everyone drank, not a shortage
+    expect(state.resources.water).toBeLessThan(state.population);
+    expect(getAlerts(state).some((a) => a.message.startsWith("Water:"))).toBe(false);
+  });
+
+  it("water alert matches the service the tick delivers (Step063 invariant)", () => {
+    // The alert promises "N colonists served". The tick credits production
+    // (phase 2) before it drinks (phase 5), so the promise must equal what
+    // consumeWater really serves for the same stock — never the raw stock.
+    const wellColony = (water: number): GameState => {
+      const state = fedColony();
+      state.population = 2;
+      mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(4, 0)] }));
+      mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 3, y: 0 }));
+      stepTicks(state, 3); // well staffed and operational: 2 water/tick
+      state.resources.water = water;
+      return state;
+    };
+
+    for (const water of [0, 1, 2, 3, 4, 7]) {
+      const state = wellColony(water);
+      const warned = getAlerts(state).some((a) => a.message.startsWith("Water:"));
+      const probe = wellColony(water);
+      addWater(probe.resources, waterProductionPerTick(probe)); // phase 2
+      const served = consumeWater(probe); // phase 5
+      expect(warned).toBe(served < probe.population);
+      expect(served).toBe(Math.min(water + 2, probe.population));
+    }
   });
 
   it("warns when the treasury is frozen at 0 with a negative net", () => {
