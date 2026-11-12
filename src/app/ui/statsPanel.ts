@@ -46,7 +46,6 @@ export function createStatsPanel(callbacks: {
     revenue: liveStatRow("Revenue/tick"),
     taxes: liveStatRow("  taxes"),
     commerce: liveStatRow("  commerce"),
-    market: liveStatRow("  market"),
     maintenance: liveStatRow("Maintenance/tick"),
     net: liveStatRow("Net money/tick"),
   };
@@ -100,7 +99,6 @@ export function createStatsPanel(callbacks: {
     statRows.revenue.set(String(stats.revenuePerTick));
     statRows.taxes.set(String(stats.taxesPerTick));
     statRows.commerce.set(String(stats.commercePerTick));
-    statRows.market.set(String(stats.marketPerTick));
     statRows.maintenance.set(String(stats.maintenancePerTick));
     statRows.net.set(
       String(stats.netMoneyPerTick),

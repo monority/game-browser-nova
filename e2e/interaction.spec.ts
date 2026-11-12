@@ -441,17 +441,13 @@ test.describe("NOVA interaction flows", () => {
     expect(errors).toEqual([]);
   });
 
-  test("staffing visibility: age-locked market, workforce alert, mothball lever", async ({ page }) => {
+  test("staffing visibility: workforce alert, mothball lever", async ({ page }) => {
     await page.goto("/");
     await pause(page);
     await stripToAnchor(page);
 
-    // Age 1: the Market palette entry is visible, disabled and labeled with
-    // its unlock condition instead of being silently hidden (Step025).
-    const marketButton = page.locator("button[data-build-type='market']");
-    await expect(marketButton).toBeVisible();
-    await expect(marketButton).toBeDisabled();
-    await expect(marketButton).toContainText("requires Age 2");
+    // Step065: the market is gone, so the palette carries no age-locked entry.
+    await expect(page.locator("button[data-build-type='market']")).toHaveCount(0);
 
     // Farm A via canvas click; farm B placed so it sorts BEFORE A in the
     // canonical staffing order (y,x,id) — B gets the single worker.

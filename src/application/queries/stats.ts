@@ -1,11 +1,8 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import {
   commercePerTick,
-  connectedMarkets,
   connectedWorkshops,
-  expectedMarketSales,
   maintenancePerTick,
-  MONEY_PER_FOOD_SOLD,
   operationalBuildingCount,
   taxesPerTick,
 } from "@/domain/economy/economy.js";
@@ -40,12 +37,10 @@ export interface ColonyStats {
   pollutionTicksToAdmissionBlock: number | null;
   taxesPerTick: number;
   commercePerTick: number;
-  marketPerTick: number;
   revenuePerTick: number;
   maintenancePerTick: number;
   netMoneyPerTick: number;
   connectedWorkshops: number;
-  connectedMarkets: number;
   operationalBuildings: number;
 }
 
@@ -54,7 +49,6 @@ export function getColonyStats(state: GameState): ColonyStats {
   // economy functions, so the UI can never drift from the simulation.
   const taxes = taxesPerTick(state);
   const commerce = commercePerTick(state, plankThroughput(state));
-  const market = expectedMarketSales(state) * MONEY_PER_FOOD_SOLD;
   const maintenance = maintenancePerTick(state);
   const pollution = pollutionFlows(state);
   const staffing = getStaffingOverview(state);
@@ -75,12 +69,10 @@ export function getColonyStats(state: GameState): ColonyStats {
     pollutionTicksToAdmissionBlock: pollutionTicksToAdmissionBlock(state),
     taxesPerTick: taxes,
     commercePerTick: commerce,
-    marketPerTick: market,
-    revenuePerTick: taxes + commerce + market,
+    revenuePerTick: taxes + commerce,
     maintenancePerTick: maintenance,
-    netMoneyPerTick: taxes + commerce + market - maintenance,
+    netMoneyPerTick: taxes + commerce - maintenance,
     connectedWorkshops: connectedWorkshops(state),
-    connectedMarkets: connectedMarkets(state),
     operationalBuildings: operationalBuildingCount(state),
   };
 }

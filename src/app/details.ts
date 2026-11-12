@@ -6,11 +6,10 @@ export const BUILDING_DETAIL: Record<BuildingType, string> = {
   residence: "Houses 1 colonist",
   farm: "+2 food/tick when staffed (tech adds more)",
   well: "+2 water/tick when staffed",
-  workshop: "+2 commerce/tick connected · +1/tick when producing planks · 2 Wood → 1 Plank",
+  workshop: "+2 commerce/tick when staffed and connected · +1/tick when producing planks · 2 Wood → 1 Plank",
   lumberCamp: "+2 Wood/tick from adjacent deposits (staffed)",
   quarry: "+2 Stone/tick from adjacent deposits (staffed; tech adds more) · emits pollution",
   park: "Absorbs 2 pollution/tick, regrows 1 adjacent wood/tick",
-  market: "Sells up to 2 food/tick for 1 money each, keeping one tick of food in the granary (Age 2), connected",
   warehouse: "+60 food / +40 water storage (base 120/80) · unstaffed",
   colonyCenter: "+1 Wood/tick · always active · cannot be removed or mothballed",
 };

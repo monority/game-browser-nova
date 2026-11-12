@@ -2,25 +2,34 @@ import type { GameState } from "@/domain/simulation/state.js";
 import { isAdjacentToRoad } from "@/domain/network/network.js";
 import { countActiveOfType, isActive } from "@/domain/building/building.js";
 import type { BuildingType } from "@/content/buildings.js";
-import { addMoney, deductFood } from "@/domain/resource/resource.js";
-import { foodProductionPerTick, FOOD_PER_COLONIST_PER_TICK } from "@/domain/production/production.js";
+import { addMoney } from "@/domain/resource/resource.js";
 import { techLevel } from "@/domain/progression/progression.js";
 import { isEventActive } from "@/domain/events/events.js";
 
 /**
- * Step001 money model (validated baseline):
- * revenue = 1 tax/inhabitant + 2 commerce per road-CONNECTED operational
- * Workshop (staffing-independent — vacant workshops still earn);
- * maintenance = 1 per operational building (roads excluded).
+ * Step001 money model: revenue = 1 tax/inhabitant + 2 commerce per
+ * road-connected operational Workshop; maintenance = 1 per operational
+ * building (roads excluded).
  * The treasury is uncapped, clamped >= 0 (accounted, not stored goods).
  * Same-tick revenue lands during the tick, before subsequent commands.
+ *
+ * Step065 (owner decision): the market — the Age 2 food-for-money trade —
+ * is REMOVED. Money now comes from taxes and from the settlement's trade
+ * (workshop commerce + the plank throughput bonus), never from selling the
+ * granary.
+ *
+ * Commerce stays staffing-independent on purpose: it is the settlement's
+ * trade volume, not a workshop's output (Step001 calibration). Making it
+ * require staffing was measured as an alternative (Step065 probe) and
+ * rejected: the D2 opening (10 workers / 12 workplaces) would fall to
+ * -2/tick and freeze the treasury at t=120 — it needs a D2 re-anchor first.
  */
 
 export const TAX_PER_INHABITANT_PER_TICK = 1;
 export const COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK = 2;
 /**
  * Throughput bonus (D3/D6 re-anchoring, Step012): +1 per plank actually
- * produced this tick — commerce now grows with real transformation work.
+ * produced this tick — commerce grows with real transformation work.
  * The 2/tick connection base is unchanged (vacant workshops still earn
  * their calibrated floor).
  */
@@ -47,81 +56,6 @@ function countConnectedOfType(state: GameState, type: BuildingType): number {
 
 export function connectedWorkshops(state: GameState): number {
   return countConnectedOfType(state, "workshop");
-}
-
-/**
- * Age 2 market economy (Phase 9, MVP market/basic commerce): each
- * operational road-connected Market sells up to 2 food per tick at 1 money
- * each — food the colony can SPARE, meaning whatever the granary holds above
- * one tick of consumption. Sales run inside revenue collection, after
- * consumption, admission and the Step031 clamp.
- *
- * Step062 decision (measured bug, Step061): the old rule took whatever stock
- * existed, so a colony at food balance 0 drained its granary (120 → 0 in 60
- * ticks, 20 colonists unfed) and starved — contradicting this module's
- * "never starve colonists" contract. The safety stock fixes that at the
- * cause: trade can spend the buffer, never the next meal. Markets stay a
- * real income line (food stock → money, refilled by overproduction); a
- * "flow surplus only" alternative was measured and rejected because a
- * market then earns nothing unless a worker farms purely to sell (2/tick vs
- * a workshop's 3/tick), which made the whole Age 2 building dominated.
- */
-export const FOOD_SOLD_PER_MARKET_PER_TICK = 2;
-export const MONEY_PER_FOOD_SOLD = 1;
-
-export function connectedMarkets(state: GameState): number {
-  return countConnectedOfType(state, "market");
-}
-
-/**
- * Food the colony must keep to feed itself next tick. A market never sells
- * below it: trade can drain the granary, never empty it.
- */
-export function marketSafetyStock(state: GameState): number {
-  return state.population * FOOD_PER_COLONIST_PER_TICK;
-}
-
-/**
- * Sellable food right now: what the granary holds above the safety stock.
- * Read on post-consumption state (phase 9) it is exactly what the market may
- * sell; shared with the forecast so the two cannot drift.
- */
-export function marketableFood(state: GameState): number {
-  return Math.max(0, state.resources.food - marketSafetyStock(state));
-}
-
-/**
- * Pure forecast of market sales (food units, before pricing).
- * Read on pre-tick state it equals what the market will sell this tick;
- * read on post-tick state it projects next-tick sales. The UI calls it
- * post-tick, so the drain shown is next tick's.
- *
- * Mirrors the tick phases (production, consumption, Step031 clamp, then the
- * sale): the market sells what survives the meal and the safety stock. No
- * storage-cap term — a sale can never exceed the stock it leaves behind.
- */
-export function expectedMarketSales(state: GameState): number {
-  const markets = connectedMarkets(state);
-  if (markets === 0) return 0;
-  const need = marketSafetyStock(state); // the colonists who eat this tick
-  const afterMeal = state.resources.food + foodProductionPerTick(state) - need;
-  return Math.min(
-    Math.max(0, afterMeal - need), // keep as much, sell the rest
-    markets * FOOD_SOLD_PER_MARKET_PER_TICK,
-  );
-}
-
-/**
- * Tick-phase market sales: deducts sold food, returns units sold. Pricing
- * lands in collectRevenue (single money inflow, no double count).
- */
-export function sellMarketSurplus(state: GameState): number {
-  const markets = connectedMarkets(state);
-  if (markets === 0) return 0;
-  return deductFood(
-    state.resources,
-    Math.min(marketableFood(state), markets * FOOD_SOLD_PER_MARKET_PER_TICK),
-  );
 }
 
 /**
@@ -165,13 +99,11 @@ export function maintenancePerTick(state: GameState): number {
 export function collectRevenue(
   state: GameState,
   planksProducedThisTick = 0,
-): { taxes: number; commerce: number; market: number } {
+): { taxes: number; commerce: number } {
   const taxes = taxesPerTick(state);
   const commerce = commercePerTick(state, planksProducedThisTick);
-  const marketFood = sellMarketSurplus(state);
-  const market = marketFood * MONEY_PER_FOOD_SOLD;
-  addMoney(state.resources, taxes + commerce + market);
-  return { taxes, commerce, market };
+  addMoney(state.resources, taxes + commerce);
+  return { taxes, commerce };
 }
 
 export function operationalBuildingCount(state: GameState): number {

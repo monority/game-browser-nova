@@ -6,12 +6,8 @@ import {
   waterProductionPerTick,
 } from "@/domain/production/production.js";
 import {
-  FOOD_SOLD_PER_MARKET_PER_TICK,
   commercePerTick,
-  connectedMarkets,
-  expectedMarketSales,
   maintenancePerTick,
-  marketSafetyStock,
   taxesPerTick,
 } from "@/domain/economy/economy.js";
 import { compareCellCoords } from "@/domain/shared/cells.js";
@@ -46,26 +42,12 @@ export interface ResourceForecast {
 export function getResourceSummaries(state: GameState): Record<SurvivalResource, ResourceForecast> {
   const pop = state.population;
   const foodProduction = foodProductionPerTick(state);
-  // Markets liquidate post-consumption surplus (Phase 9): the forecast balance
-  // must show the drain, or ticks-remaining would lie while markets sell.
-  const marketDrain = expectedMarketSales(state);
   const waterProduction = waterProductionPerTick(state);
   const foodConsumption = pop * FOOD_PER_COLONIST_PER_TICK;
   // Forecast consumption is the need, not the served amount (F12): showing
   // min(stock, need) turned a shortage into a fake surplus. The served amount
   // remains the shortage signal in getAlerts.
   const waterConsumption = pop * WATER_PER_SERVED_COLONIST_PER_TICK;
-
-  // Market sales are neither production nor consumption: apply the drain to the
-  // food balance so ticks-remaining stays honest while markets sell (Step017).
-  const withMarketDrain = (forecast: ResourceForecast, drain: number): ResourceForecast => {
-    const balance = forecast.balancePerTick - drain;
-    return {
-      ...forecast,
-      balancePerTick: balance,
-      ticksRemaining: balance < 0 ? Math.floor(forecast.stock / -balance) : null,
-    };
-  };
 
   const summarize = (
     resource: SurvivalResource,
@@ -85,7 +67,7 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
   };
 
   return {
-    food: withMarketDrain(summarize("food", foodProduction, foodConsumption, state.resources.food), marketDrain),
+    food: summarize("food", foodProduction, foodConsumption, state.resources.food),
     water: summarize("water", waterProduction, waterConsumption, state.resources.water),
   };
 }
@@ -218,22 +200,6 @@ export function getAlerts(
     alerts.push({
       severity: "warning",
       message: `Water storage full (${Math.floor(state.resources.water)}/${waterCap}) · +${summaries.water.balancePerTick}/tick wasted`,
-    });
-  }
-
-  // Market throttled by the safety stock (Step062): without this line a
-  // market earning 0 looks broken, while it is simply holding the next meal
-  // back. States the two facts (throughput, stock) and nothing else.
-  const markets = connectedMarkets(state);
-  if (
-    markets > 0 &&
-    expectedMarketSales(state) === 0 &&
-    state.resources.food > 0 &&
-    state.resources.food >= marketSafetyStock(state)
-  ) {
-    alerts.push({
-      severity: "info",
-      message: `Market: 0/${markets * FOOD_SOLD_PER_MARKET_PER_TICK} food sold · stock ${Math.floor(state.resources.food)} covers the next meal`,
     });
   }
 

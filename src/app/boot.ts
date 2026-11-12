@@ -48,7 +48,7 @@ const DEFAULT_CONFIG = {
   stoneDeposits: [{ x: 7, y: 18, amount: 50 }],
 };
 
-// Palette unlocks follow building ages (Phase 9: Market appears in Age 2);
+// Palette unlocks follow building ages (requiredAge on the content entries);
 // order comes from the single PALETTE_TYPES source in ui/kit.
 
 export function boot(root: HTMLElement): { stop(): void } {
@@ -284,8 +284,8 @@ export function boot(root: HTMLElement): { stop(): void } {
 
   // Boot-time paint (Step028 corrective): palette age gates, stats and
   // progression must be correct from the first frame — without this, a
-  // game booted (or paused) at tick 0 showed the raw palette state, e.g.
-  // the Market enabled in Age 1 until the first tick refreshed the UI.
+  // game booted (or paused) at tick 0 showed the raw palette state, e.g. an
+  // age-gated entry enabled in Age 1 until the first tick refreshed the UI.
   refreshStats();
 
   attachDiagnostics({

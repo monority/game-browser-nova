@@ -46,7 +46,7 @@ describe("revenue", () => {
     stripToAnchor(state);
     state.population = 5;
     const before = state.resources.money;
-    expect(collectRevenue(state)).toEqual({ taxes: 5, commerce: 0, market: 0 });
+    expect(collectRevenue(state)).toEqual({ taxes: 5, commerce: 0 });
     expect(state.resources.money).toBe(before + 5);
   });
 
@@ -54,9 +54,9 @@ describe("revenue", () => {
     const state = freshState();
     placeConnectedWorkshop(state);
     state.population = 7;
-    expect(collectRevenue(state)).toEqual({ taxes: 7, commerce: 0, market: 0 });
+    expect(collectRevenue(state)).toEqual({ taxes: 7, commerce: 0 });
     state.population = 8;
-    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2, market: 0 });
+    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2 });
   });
 
   it("vacant workshops earn the base once unlocked (staffing-independent)", () => {
@@ -78,7 +78,7 @@ describe("revenue", () => {
     expect(staffed).toBe(8);
     expect(connectedWorkshops(state)).toBe(9);
     // vacant earns: 9 x 2 base, no planks, no market
-    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 18, market: 0 });
+    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 18 });
   });
 
   it("unconnected or under-construction workshops earn no commerce", () => {
@@ -146,7 +146,7 @@ describe("maintenance", () => {
     mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: false }));
     mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: true }));
     // single revenue computation prices the active workshop exactly once
-    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2, market: 0 });
+    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2 });
   });
 
   it("clamps at zero: partial payment, never negative", () => {

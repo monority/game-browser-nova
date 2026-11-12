@@ -13,7 +13,6 @@ export type BuildingType =
   | "lumberCamp"
   | "quarry"
   | "park"
-  | "market"
   | "warehouse"
   | "colonyCenter";
 
@@ -117,18 +116,6 @@ export const BUILDING_DEFINITIONS: Record<BuildingType, BuildingDefinition> = {
     // absorbs pollution (environment system, Step014)
     jobCapacity: 0,
     housingCapacity: 0,
-  },
-  market: {
-    type: "market",
-    displayName: "Market",
-    constructionTicks: 2,
-    moneyCost: 50,
-    plankCost: 2,
-    waterCost: 0,
-    // Age 2 commerce building (Phase 9): sells surplus food, no jobs.
-    jobCapacity: 0,
-    housingCapacity: 0,
-    requiredAge: 2,
   },
   warehouse: {
     type: "warehouse",

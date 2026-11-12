@@ -19,7 +19,7 @@ export const SPEED_SETTINGS: SpeedSetting[] = [
   { id: "8x", ticksPerSecond: 16 },
 ];
 
-/** Base palette order; market unlocks at Age 2 via setAgeLocked. */
+/** Base palette order (palette entries carry their own age gates). */
 export const PALETTE_TYPES: BuildingType[] = [
   "residence",
   "farm",
@@ -29,7 +29,6 @@ export const PALETTE_TYPES: BuildingType[] = [
   "quarry",
   "park",
   "warehouse",
-  "market",
 ];
 
 /** Themed absolutely positioned panel; position/layout rules live in CSS (#stats etc.). */

@@ -33,9 +33,8 @@ export function waterCapacity(state: GameState): number {
 
 /**
  * Tick-phase clamp: runs after consumption, so only the true surplus is
- * lost — the clamp never eats what colonists would have consumed, and
- * market sales (later in the tick) see the capped stock. Famine and
- * sales semantics otherwise unchanged.
+ * lost — the clamp never eats what colonists would have consumed. Famine
+ * semantics unchanged.
  */
 export function clampStorage(state: GameState): { foodWasted: number; waterWasted: number } {
   const foodCap = foodCapacity(state);

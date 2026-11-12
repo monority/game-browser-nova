@@ -31,8 +31,6 @@ interface RunMetrics {
   events: false | EventFrequency;
   age2Tick: number | null;
   pop12Tick: number | null;
-  marketBuiltTick: number | null;
-  marketSaleTick: number | null;
   finalTick: number;
   finalPop: number;
   finalMoney: number;
@@ -61,7 +59,6 @@ function runGrid(
     false,
     14,
     24,
-    true,
     events,
     (s: GameState) => {
       const kinds = s.events.map((e) => e.kind).join("+");
@@ -114,8 +111,6 @@ function runGrid(
       events,
       age2Tick: tickOf("age2"),
       pop12Tick: tickOf("pop12"),
-      marketBuiltTick: tickOf("market-built"),
-      marketSaleTick: tickOf("market-sale"),
       finalTick: state.tick,
       finalPop: state.population,
       finalMoney: Math.floor(state.resources.money),
@@ -146,12 +141,12 @@ it("Step048 volet A: events grid pacing measurement", () => {
   console.log("Step048 report JSON:\n" + JSON.stringify(report));
 
   const header =
-    "| run | age2@ | pop12@ | mkt-built@ | mkt-sale@ | final t | pop | money | evDrawn | evTicks | byKind | minMoney>50 |\n" +
-    "|---|---|---|---|---|---|---|---|---|---|---|---|\n";
+    "| run | age2@ | pop12@ | final t | pop | money | evDrawn | evTicks | byKind | minMoney>50 |\n" +
+    "|---|---|---|---|---|---|---|---|---|---|\n";
   const rows = runs
     .map((r) => {
       const m = r.metrics;
-      return `| ${m.label} | ${m.age2Tick} | ${m.pop12Tick} | ${m.marketBuiltTick} | ${m.marketSaleTick} | ${m.finalTick} | ${m.finalPop} | ${m.finalMoney} | ${m.eventsDrawn} | ${m.ticksWithActiveEvent} | ${JSON.stringify(m.eventsByKind)} | ${m.minMoneyAfter50} |`;
+      return `| ${m.label} | ${m.age2Tick} | ${m.pop12Tick} | ${m.finalTick} | ${m.finalPop} | ${m.finalMoney} | ${m.eventsDrawn} | ${m.ticksWithActiveEvent} | ${JSON.stringify(m.eventsByKind)} | ${m.minMoneyAfter50} |`;
     })
     .join("\n");
   console.log("Step048 measurement grid:\n" + header + rows);
