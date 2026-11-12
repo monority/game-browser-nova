@@ -24,10 +24,6 @@ import { compareCellsWithId } from "@/domain/shared/cells.js";
 export const WOOD_PER_PLANK_BATCH = 2;
 export const PLANKS_PER_WORKSHOP_PER_TICK = 1;
 
-export function staffedWorkshops(state: GameState): number {
-  return transformingCandidates(state).length;
-}
-
 /** Staffed operational workshops, canonical order (y, x, id). */
 function transformingCandidates(state: GameState): Building[] {
   return Object.values(state.buildings)
