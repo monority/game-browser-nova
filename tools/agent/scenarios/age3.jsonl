@@ -17,10 +17,13 @@
 #      to 24: 8 farms = 25 food (24 eaten + 1 sold) and 12 wells = 24 water
 #      = 24 served. The granary settles on the Step062 safety stock (24) —
 #      a food balance of 0 that no longer starves anyone.
-#   4. Do NOT add a fourth workshop: each one pollutes, and 4 workshops put
-#      pollution at 100 with only 2 parks, closing admission and starving the
-#      colony (measured: pop 22/24, food 0, verdict CRITICAL). Three is enough
-#      because the operational count already clears 30 with the extra farm/wells.
+#   4. A fourth workshop no longer pollutes: since Step064 an emitter only
+#      pollutes while STAFFED, and the colony has 24 colonists for 24 jobs, so
+#      the new one idles (workforce 24/25, pollution stays 0). It is therefore
+#      pure revenue (+2/tick measured, t=1101 → 1141) and three are kept only
+#      because the operational count already clears 30 without it. The price of
+#      Step064 is that idling industry is now money with no environmental cost
+#      — see docs/STATE.md (open decision).
 # Measured: HEALTHY at t=1100 with pop 24/24, money 2441 (net +7/tick),
 # age-2 milestones all done, 0 rejected command; advanceAge then opens
 # Age 3 with its own set already satisfied.
