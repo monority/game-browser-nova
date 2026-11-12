@@ -51,7 +51,3 @@ export async function pause(page: Page): Promise<void> {
   await page.getByRole("button", { name: "pause", exact: true }).click();
 }
 
-/** The stats panel as readable text (UI-contract assertions). */
-export async function statsText(page: Page): Promise<string> {
-  return page.locator("#stats").innerText();
-}
