@@ -31,26 +31,24 @@ function placeConnectedWorkshop(state: GameState): void {
   stepTicks(state, 2); // operational
 }
 
-describe("constants", () => {
-  it("matches the validated Step001 baseline plus the Step021 commerce gate", () => {
-    expect(TAX_PER_INHABITANT_PER_TICK).toBe(1);
-    expect(COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK).toBe(2);
-    expect(MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK).toBe(1);
-    expect(MIN_POP_FOR_COMMERCE).toBe(8);
-  });
-});
-
 describe("revenue", () => {
-  it("taxes scale with population", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 5;
-    const before = state.resources.money;
-    expect(collectRevenue(state)).toEqual({ taxes: 5, commerce: 0 });
-    expect(state.resources.money).toBe(before + 5);
+  it("matches the validated Step001 baseline plus the Step021 commerce gate", () => {
+    expect([
+      TAX_PER_INHABITANT_PER_TICK,
+      COMMERCE_PER_CONNECTED_WORKSHOP_PER_TICK,
+      MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK,
+      MIN_POP_FOR_COMMERCE,
+    ]).toEqual([1, 2, 1, 8]);
+
+    const taxing = freshState();
+    stripToAnchor(taxing);
+    taxing.population = 5;
+    const before = taxing.resources.money;
+    expect(collectRevenue(taxing)).toEqual({ taxes: 5, commerce: 0 });
+    expect(taxing.resources.money).toBe(before + 5);
   });
 
-  it("base commerce floor is locked below pop 8, open at pop 8", () => {
+  it("locks the base commerce floor below pop 8 and opens it at 8", () => {
     const state = freshState();
     placeConnectedWorkshop(state);
     state.population = 7;
@@ -59,7 +57,7 @@ describe("revenue", () => {
     expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2 });
   });
 
-  it("vacant workshops earn the base once unlocked (staffing-independent)", () => {
+  it("pays the base to vacant workshops once unlocked (staffing-independent)", () => {
     const state = freshState();
     stripToAnchor(state);
     state.resources.money = 1000;
@@ -74,14 +72,12 @@ describe("revenue", () => {
     stepTicks(state, 2);
     state.population = 8;
     stepTicks(state, 1); // staffing assigns 8 of 9
-    const staffed = Object.values(state.buildings).filter((b) => b.staffed).length;
-    expect(staffed).toBe(8);
+    expect(Object.values(state.buildings).filter((b) => b.staffed)).toHaveLength(8);
     expect(connectedWorkshops(state)).toBe(9);
-    // vacant earns: 9 x 2 base, no planks, no market
-    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 18 });
+    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 18 }); // 9 × 2 base
   });
 
-  it("unconnected or under-construction workshops earn no commerce", () => {
+  it("pays no commerce for unconnected or unfinished workshops", () => {
     const state = freshState();
     stripToAnchor(state);
     state.resources.water = 1;
@@ -94,113 +90,95 @@ describe("revenue", () => {
 });
 
 describe("maintenance", () => {
-  it("charges 1 per operational non-exempt building; residences are exempt", () => {
+  it("charges 1 per operational non-exempt building, exempts residences, and clamps at 0", () => {
     const state = freshState();
     placeConnectedWorkshop(state); // 1 workshop + roads
     const home = freeCell(state);
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: home.x, y: home.y }));
     stepTicks(state, 2); // residence operational too
     const before = state.resources.money;
-    // workshop pays, residence does not (Step021 housing-is-infrastructure)
-    expect(payMaintenance(state)).toBe(1);
+    expect(payMaintenance(state)).toBe(1); // housing is infrastructure (Step021)
     expect(state.resources.money).toBe(before - 1);
-  });
 
-  it("a residence-only colony pays no maintenance", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    for (let i = 0; i < 3; i++) {
-      const spot = freeCell(state);
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
-    }
-    stepTicks(state, 2);
-    const before = state.resources.money;
-    expect(payMaintenance(state)).toBe(0);
-    expect(state.resources.money).toBe(before);
-  });
-
-  it("residence spam cannot farm upkeep or income (exploit guard)", () => {
-    const state = freshState();
-    placeConnectedWorkshop(state);
-    state.population = 8;
-    state.resources.money = 500; // test-level funding for the spam itself
-    stepTicks(state, 2);
-    for (let i = 0; i < 5; i++) {
-      const spot = freeCell(state);
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
-    }
-    stepTicks(state, 3); // all operational
-    // upkeep still 1 (workshop): residences are exempt, so spam is pure cost
-    expect(payMaintenance(state)).toBe(1);
-    const m0 = state.resources.money;
-    stepTicks(state, 1);
-    expect(state.resources.money).toBe(m0 + 9); // +8 taxes +2 commerce -1 upkeep
-  });
-
-  it("deactivate-reactivate cycling cannot double-earn commerce (exploit guard)", () => {
-    const state = freshState();
-    placeConnectedWorkshop(state);
-    state.population = 8;
-    const id = Object.keys(state.buildings).find((k) => state.buildings[k]?.type === "workshop");
-    if (!id) throw new Error("workshop missing");
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: false }));
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: true }));
-    // single revenue computation prices the active workshop exactly once
-    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2 });
-  });
-
-  it("clamps at zero: partial payment, never negative", () => {
-    const state = freshState();
-    placeConnectedWorkshop(state);
-    state.resources.money = 0; // drained treasury
+    state.resources.money = 0;
     payMaintenance(state);
-    expect(state.resources.money).toBe(0); // never negative
+    expect(state.resources.money).toBe(0); // partial payment, never negative
+
+    const homes = freshState();
+    stripToAnchor(homes);
+    for (let i = 0; i < 3; i++) {
+      const spot = freeCell(homes);
+      mustOk(applyCommand(homes, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
+    }
+    stepTicks(homes, 2);
+    const m = homes.resources.money;
+    expect(payMaintenance(homes)).toBe(0);
+    expect(homes.resources.money).toBe(m);
+
+    const building = freshState();
+    stripToAnchor(building);
+    const other = freeCell(building);
+    mustOk(applyCommand(building, { kind: "placeBuilding", type: "residence", x: other.x, y: other.y }));
+    const n = building.resources.money;
+    expect(payMaintenance(building)).toBe(0); // under construction
+    expect(building.resources.money).toBe(n);
   });
 
-  it("under-construction buildings pay no maintenance", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    const spot = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
-    const before = state.resources.money;
-    expect(payMaintenance(state)).toBe(0);
-    expect(state.resources.money).toBe(before);
+  it("cannot be farmed by residence spam or deactivate-reactivate cycling", () => {
+    const spam = freshState();
+    placeConnectedWorkshop(spam);
+    spam.population = 8;
+    spam.resources.money = 500; // test-level funding for the spam itself
+    stepTicks(spam, 2);
+    for (let i = 0; i < 5; i++) {
+      const spot = freeCell(spam);
+      mustOk(applyCommand(spam, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
+    }
+    stepTicks(spam, 3); // all operational
+    expect(payMaintenance(spam)).toBe(1); // residences stay exempt: spam is pure cost
+    const m0 = spam.resources.money;
+    stepTicks(spam, 1);
+    expect(spam.resources.money).toBe(m0 + 9); // +8 taxes +2 commerce −1 upkeep
+
+    const cycling = freshState();
+    placeConnectedWorkshop(cycling);
+    cycling.population = 8;
+    const id = Object.keys(cycling.buildings).find((k) => cycling.buildings[k]?.type === "workshop");
+    if (!id) throw new Error("workshop missing");
+    mustOk(applyCommand(cycling, { kind: "setBuildingActive", id, active: false }));
+    mustOk(applyCommand(cycling, { kind: "setBuildingActive", id, active: true }));
+    // a single revenue computation prices the active workshop exactly once
+    expect(collectRevenue(cycling)).toEqual({ taxes: 8, commerce: 2 });
   });
 });
 
 describe("full-tick economy", () => {
-  it("revenue lands before maintenance in the same tick", () => {
+  it("lands revenue before maintenance, and stays net-negative for non-exempt shapes", () => {
     const state = freshState();
     placeConnectedWorkshop(state);
     state.population = 8; // unlocks the commerce floor
     const before = state.resources.money;
     stepTicks(state, 1);
-    // +8 taxes +2 commerce -1 maintenance (workshop is the only upkeep building)
+    // +8 taxes +2 commerce −1 maintenance (the workshop is the only upkeep building)
     expect(state.resources.money).toBe(before + 9);
-  });
 
-  it("net-negative shape persists for non-exempt compositions (D1 finding)", () => {
-    const state = freshState();
-    placeConnectedWorkshop(state);
-    // test-level treasury injection for the unfundable composition
-    state.resources.money = 300;
+    const negative = freshState();
+    placeConnectedWorkshop(negative);
+    negative.resources.money = 300; // test-level funding for the unfundable shape
     for (let i = 0; i < 4; i++) {
-      const spot = freeCell(state);
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: spot.x, y: spot.y }));
-      stepTicks(state, 2);
+      const spot = freeCell(negative);
+      mustOk(applyCommand(negative, { kind: "placeBuilding", type: "farm", x: spot.x, y: spot.y }));
+      stepTicks(negative, 2);
     }
-    state.population = 2;
-    // buffer the food so the population is fed: this test isolates the money
-    // model, and since Step055 option B an unfed tick costs one colonist
-    state.resources.food = 10;
-    const before = state.resources.money;
-    stepTicks(state, 1);
-    // revenue 2 (2 taxes, commerce locked below pop 8) - maintenance 5
-    // (workshop + 4 farms; residences would be exempt) = -3/tick
-    expect(state.resources.money).toBe(before - 3);
+    negative.population = 2;
+    negative.resources.food = 10; // this test isolates the money model (Step055 B)
+    const m = negative.resources.money;
+    stepTicks(negative, 1);
+    // revenue 2 (commerce locked below pop 8) − upkeep 5 (workshop + 4 farms)
+    expect(negative.resources.money).toBe(m - 3);
   });
 
-  it("economy is deterministic", () => {
+  it("is deterministic", () => {
     const a = freshState();
     const b = freshState();
     for (const s of [a, b]) {

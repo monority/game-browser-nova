@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
+import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
@@ -32,258 +32,181 @@ function richState(): GameState {
   return state;
 }
 
+function mutating(
+  state: GameState,
+  edit: (doc: ReturnType<typeof serialize>) => void,
+): unknown {
+  const doc = serialize(state);
+  edit(doc);
+  return doc;
+}
+
 describe("save format", () => {
-  it("exposes SAVE_VERSION 18 with the v13 migratable chain", () => {
+  it("is SAVE_VERSION 18", () => {
     expect(SAVE_VERSION).toBe(18);
   });
 
-  it("round-trips canonical state losslessly", () => {
+  it("round-trips the canonical state losslessly, through JSON text too", () => {
     const state = richState();
-    const restored = parseSave(serialize(state));
-    expect(restored).toEqual(state);
+    expect(parseSave(serialize(state))).toEqual(state);
+    expect(parseSaveString(saveToString(state))).toEqual(state);
   });
 
-  it("round-trips through JSON text", () => {
-    const state = richState();
-    const restored = parseSaveString(saveToString(state));
-    expect(restored).toEqual(state);
-  });
-
-  it("persisted mutated deposits, not seeds", () => {
-    const state = richState();
-    state.woodDeposits[cellKey(3, 3)] = { remaining: 4, capacity: 10 };
-    const restored = parseSave(serialize(state));
-    expect(restored.woodDeposits[cellKey(3, 3)]?.remaining).toBe(4);
-  });
-
-  it("serialize detaches deposit cells (doc mutation leaves state intact)", () => {
+  it("persists mutated deposits (not seeds) and never aliases them", () => {
     const state = richState();
     const key = cellKey(3, 3);
-    const before = state.woodDeposits[key]?.remaining;
+    state.woodDeposits[key] = { remaining: 4, capacity: 10 };
     const doc = serialize(state);
     const cell = doc.deposits.wood[key];
     if (!cell) throw new Error("missing deposit cell in save doc");
-    cell.remaining = (before ?? 0) + 999;
-    expect(state.woodDeposits[key]?.remaining).toBe(before);
-  });
-
-  it("regenerates identical terrain from the seed (config-only persistence)", () => {
-    const state = richState();
-    const restored = parseSave(serialize(state));
-    expect(restored.world).toEqual(state.world);
+    cell.remaining = 999; // mutating the document must leave the state alone
+    expect(state.woodDeposits[key]?.remaining).toBe(4);
+    expect(parseSave(serialize(state)).woodDeposits[key]?.remaining).toBe(4);
   });
 
   it("continues deterministically after load", () => {
     const state = richState();
-    const restored = parseSave(serialize(state));
+    const fromDoc = parseSave(serialize(state));
+    const fromText = parseSaveString(saveToString(state));
     stepTicks(state, 20);
-    stepTicks(restored, 20);
-    expect(restored).toEqual(state);
+    stepTicks(fromDoc, 20);
+    stepTicks(fromText, 20);
+    expect(fromDoc).toEqual(state);
+    expect(fromText).toEqual(state);
   });
 
-  it("deterministic continuation survives a JSON text round-trip", () => {
-    const state = richState();
-    const restored = parseSaveString(saveToString(state));
-    stepTicks(state, 12);
-    stepTicks(restored, 12);
-    expect(restored).toEqual(state);
-  });
-
-  // Tier1: inclusive bounds stay loadable — regression for the new guards.
-  it("accepts a deposit at exactly remaining == capacity", () => {
+  it("accepts the documented inclusive bounds", () => {
     const state = richState();
     const key = cellKey(3, 3);
-    const doc = serialize(state);
-    const cell = doc.deposits.wood[key];
-    if (!cell) throw new Error("missing deposit cell in save doc");
-    cell.remaining = cell.capacity;
-    const restored = parseSave(doc);
-    expect(restored.woodDeposits[key]?.remaining).toBe(cell.capacity);
-  });
-
-  it("accepts pollution at both documented bounds (0 and 100)", () => {
-    const state = richState();
+    const atCapacity = mutating(state, (doc) => {
+      const cell = doc.deposits.wood[key];
+      if (!cell) throw new Error("missing deposit cell in save doc");
+      cell.remaining = cell.capacity;
+    });
+    expect(parseSave(atCapacity).woodDeposits[key]?.remaining).toBe(10);
     for (const pollution of [0, 100]) {
-      const restored = parseSave({ ...serialize(state), pollution });
-      expect(restored.pollution).toBe(pollution);
+      expect(parseSave({ ...serialize(state), pollution }).pollution).toBe(pollution);
     }
   });
 });
 
 describe("save rejection (corrupt data never loads as valid)", () => {
-  it("rejects wrong version", () => {
-    const doc = serialize(richState());
-    expect(() => parseSave({ ...doc, formatVersion: 12 })).toThrow(SaveValidationError);
-  });
+  const state = richState();
 
-  it("rejects invalid JSON text", () => {
-    expect(() => parseSaveString("{not json")).toThrow(SaveValidationError);
-  });
-
-  it("rejects negative resources", () => {
-    const doc = serialize(richState());
-    const resources = { ...doc.resources, money: -1 };
-    expect(() => parseSave({ ...doc, resources })).toThrow(/resources\.money/);
-  });
-
-  it("rejects unknown building types", () => {
-    const doc = serialize(richState());
-    const buildings = [...doc.buildings, {
-      id: "building-99",
-      type: "teleporter",
-      x: 1,
-      y: 1,
-      status: "operational",
-      constructionTicksLeft: 0,
-      staffed: false,
-    }];
-    expect(() => parseSave({ ...doc, buildings })).toThrow(/unknown building type/);
-  });
-
-  it("rejects a missing Colony Center anchor", () => {
-    const doc = serialize(richState());
-    const buildings = doc.buildings.filter((b) => b.id !== "colony-center");
-    expect(() => parseSave({ ...doc, buildings })).toThrow(/Colony Center/);
-  });
-
-  it("rejects invalid cell keys in roads", () => {
-    const doc = serialize(richState());
-    const roads = [{ id: "road-x", cells: ["bogus"] }];
-    expect(() => parseSave({ ...doc, roads })).toThrow(/invalid cell key/);
-  });
-
-  it("rejects negative deposit amounts", () => {
-    const doc = serialize(richState());
-    const deposits = { ...doc.deposits, wood: { [cellKey(3, 3)]: { remaining: -5 } } };
-    expect(() => parseSave({ ...doc, deposits })).toThrow(/remaining/);
-  });
-
-  it("rejects non-integer tick", () => {
-    const doc = serialize(richState());
-    expect(() => parseSave({ ...doc, tick: 1.5 })).toThrow(/tick/);
-  });
-
-  // Tier1: deposit ceiling + pollution range are corrupt, not plausible state.
-  it("rejects a deposit whose remaining exceeds its capacity", () => {
-    const doc = serialize(richState());
-    const key = cellKey(3, 3);
-    const cell = doc.deposits.wood[key];
-    if (!cell) throw new Error("missing deposit cell in save doc");
-    const deposits = {
-      ...doc.deposits,
-      wood: { ...doc.deposits.wood, [key]: { ...cell, remaining: cell.capacity + 1 } },
-    };
-    expect(() => parseSave({ ...doc, deposits })).toThrow(/remaining exceeds capacity/);
-  });
-
-  it("rejects pollution above the documented maximum (100)", () => {
-    const doc = serialize(richState());
-    expect(() => parseSave({ ...doc, pollution: 101 })).toThrow(/pollution must be <= 100/);
-  });
-
-  it("rejects negative pollution (range floor is 0)", () => {
-    const doc = serialize(richState());
-    expect(() => parseSave({ ...doc, pollution: -1 })).toThrow(/pollution/);
-  });
-
-  // Layout guards: a loaded save must describe a world the simulation
-  // could have produced, not just well-typed fields.
-  it("rejects a building outside the world bounds", () => {
-    const doc = serialize(richState());
-    const buildings = doc.buildings.map((b) =>
-      b.type === "residence" ? { ...b, x: doc.world.width, y: 0 } : b,
-    );
-    expect(() => parseSave({ ...doc, buildings })).toThrow(/out of bounds/);
-  });
-
-  it("rejects two buildings on the same cell", () => {
-    const doc = serialize(richState());
+  it("rejects every malformed document with its own diagnosis", () => {
+    const doc = serialize(state);
+    const road = doc.roads[0];
+    if (!road) throw new Error("road missing");
+    const center = doc.buildings.find((b) => b.id === "colony-center");
+    if (!center) throw new Error("center missing");
     const workshop = doc.buildings.find((b) => b.type === "workshop");
     if (!workshop) throw new Error("workshop missing");
-    const buildings = doc.buildings.map((b) =>
-      b.type === "residence" ? { ...b, x: workshop.x, y: workshop.y } : b,
-    );
-    expect(() => parseSave({ ...doc, buildings })).toThrow(/same cell/);
+    const relocateResidence = (x: number, y: number) =>
+      doc.buildings.map((b) => (b.type === "residence" ? { ...b, x, y } : b));
+
+    const cases: { name: string; doc: unknown; error: RegExp }[] = [
+      { name: "wrong version", doc: { ...doc, formatVersion: 12 }, error: /unsupported save version/ },
+      { name: "invalid JSON text", doc: "{not json", error: /JSON/ },
+      {
+        name: "negative resources",
+        doc: { ...doc, resources: { ...doc.resources, money: -1 } },
+        error: /resources\.money/,
+      },
+      {
+        name: "unknown building type",
+        doc: {
+          ...doc,
+          buildings: [
+            ...doc.buildings,
+            { id: "building-99", type: "teleporter", x: 1, y: 1, status: "operational", constructionTicksLeft: 0, staffed: false },
+          ],
+        },
+        error: /unknown building type/,
+      },
+      {
+        name: "missing Colony Center",
+        doc: { ...doc, buildings: doc.buildings.filter((b) => b.id !== "colony-center") },
+        error: /Colony Center/,
+      },
+      {
+        name: "invalid cell key",
+        doc: { ...doc, roads: [{ id: "road-x", cells: ["bogus"] }] },
+        error: /invalid cell key/,
+      },
+      {
+        name: "negative deposit",
+        doc: { ...doc, deposits: { ...doc.deposits, wood: { [cellKey(3, 3)]: { remaining: -5 } } } },
+        error: /remaining/,
+      },
+      { name: "non-integer tick", doc: { ...doc, tick: 1.5 }, error: /integer/ },
+      {
+        name: "deposit above capacity",
+        doc: mutating(state, (d) => {
+          const cell = d.deposits.wood[cellKey(3, 3)];
+          if (!cell) throw new Error("missing deposit cell in save doc");
+          cell.remaining = cell.capacity + 1;
+        }),
+        error: /remaining exceeds capacity/,
+      },
+      { name: "pollution above 100", doc: { ...doc, pollution: 101 }, error: /pollution/ },
+      { name: "negative pollution", doc: { ...doc, pollution: -1 }, error: /pollution/ },
+      { name: "building out of bounds", doc: { ...doc, buildings: relocateResidence(doc.world.width, 0) }, error: /out of bounds/ },
+      {
+        name: "two buildings on one cell",
+        doc: { ...doc, buildings: relocateResidence(workshop.x, workshop.y) },
+        error: /same cell/,
+      },
+      { name: "building on a deposit", doc: { ...doc, buildings: relocateResidence(3, 3) }, error: /deposit/ },
+      { name: "construction state inconsistent", doc: { ...doc, buildings: doc.buildings.map((b) => (b.type === "residence" ? { ...b, constructionTicksLeft: 1 } : b)) }, error: /construction time/ },
+      {
+        name: "road out of bounds",
+        doc: { ...doc, roads: [{ ...road, cells: [`${doc.world.width},0`] }] },
+        error: /out of bounds/,
+      },
+      {
+        name: "duplicate road cell",
+        doc: { ...doc, roads: [...doc.roads, { id: "road-99", cells: [road.cells[0] ?? "0,0"] }] },
+        error: /duplicate road cell/,
+      },
+      {
+        name: "road over a building",
+        doc: { ...doc, roads: [{ id: "road-99", cells: [cellKey(center.x, center.y)] }] },
+        error: /overlaps a building/,
+      },
+      {
+        name: "deposit seed out of bounds",
+        doc: { ...doc, world: { ...doc.world, woodDeposits: [{ x: 99, y: 0, amount: 1 }] } },
+        error: /out of bounds/,
+      },
+      {
+        name: "blocked cell out of bounds",
+        doc: { ...doc, world: { ...doc.world, blockedCells: ["99,0"] } },
+        error: /out of bounds/,
+      },
+      {
+        name: "persisted deposit out of bounds",
+        doc: { ...doc, deposits: { ...doc.deposits, wood: { "99,0": { remaining: 1, capacity: 1 } } } },
+        error: /out-of-bounds cell/,
+      },
+    ];
+
+    for (const { name, doc: corrupt, error } of cases) {
+      const load = () => (typeof corrupt === "string" ? parseSaveString(corrupt) : parseSave(corrupt));
+      expect(load, name).toThrow(SaveValidationError);
+      expect(load, name).toThrow(error);
+    }
   });
 
   it("rejects a building on a blocked terrain cell", () => {
-    const state = richState();
-    const doc = serialize(state);
-    const key = Object.keys(state.world.blockedCells).find(
-      (cell) => !doc.buildings.some((b) => cellKey(b.x, b.y) === cell),
+    const blockKey = Object.keys(state.world.blockedCells).find(
+      (cell) => !serialize(state).buildings.some((b) => cellKey(b.x, b.y) === cell),
     );
-    if (!key) throw new Error("no free blocked cell");
-    const { x, y } = parseCellKey(key);
-    const buildings = doc.buildings.map((b) =>
-      b.type === "residence" ? { ...b, x, y } : b,
-    );
-    expect(() => parseSave({ ...doc, buildings })).toThrow(/blocked cell/);
-  });
-
-  it("rejects a building on a deposit", () => {
-    const doc = serialize(richState());
-    const buildings = doc.buildings.map((b) =>
-      b.type === "residence" ? { ...b, x: 3, y: 3 } : b,
-    );
-    expect(() => parseSave({ ...doc, buildings })).toThrow(/deposit/);
-  });
-
-  it("rejects a road cell outside the world bounds", () => {
-    const doc = serialize(richState());
-    const road = doc.roads[0];
-    if (!road) throw new Error("road missing");
+    if (!blockKey) throw new Error("no free blocked cell");
+    const { x, y } = { x: Number(blockKey.split(",")[0]), y: Number(blockKey.split(",")[1]) };
     expect(() =>
-      parseSave({ ...doc, roads: [{ ...road, cells: [`${doc.world.width},0`] }] }),
-    ).toThrow(/out of bounds/);
-  });
-
-  it("rejects duplicate road cells across roads", () => {
-    const doc = serialize(richState());
-    const road = doc.roads[0];
-    if (!road) throw new Error("road missing");
-    expect(() =>
-      parseSave({
-        ...doc,
-        roads: [...doc.roads, { id: "road-99", cells: [road.cells[0] ?? "0,0"] }],
-      }),
-    ).toThrow(/duplicate road cell/);
-  });
-
-  it("rejects a road overlapping a building", () => {
-    const doc = serialize(richState());
-    const center = doc.buildings.find((b) => b.id === "colony-center");
-    if (!center) throw new Error("center missing");
-    expect(() =>
-      parseSave({ ...doc, roads: [{ id: "road-99", cells: [cellKey(center.x, center.y)] }] }),
-    ).toThrow(/overlaps a building/);
-  });
-
-  it("rejects inconsistent construction state", () => {
-    const doc = serialize(richState());
-    const buildings = doc.buildings.map((b) =>
-      b.type === "residence" ? { ...b, constructionTicksLeft: 1 } : b,
-    );
-    expect(() => parseSave({ ...doc, buildings })).toThrow(/construction time/);
-  });
-
-  it("rejects an out-of-bounds deposit seed", () => {
-    const doc = serialize(richState());
-    const world = { ...doc.world, woodDeposits: [{ x: 99, y: 0, amount: 1 }] };
-    expect(() => parseSave({ ...doc, world })).toThrow(/deposit is out of bounds/);
-  });
-
-  it("rejects an out-of-bounds blocked cell in the world config", () => {
-    const doc = serialize(richState());
-    const world = { ...doc.world, blockedCells: ["99,0"] };
-    expect(() => parseSave({ ...doc, world })).toThrow(/blockedCells is out of bounds/);
-  });
-
-  it("rejects an out-of-bounds persisted deposit cell", () => {
-    const doc = serialize(richState());
-    const deposits = {
-      ...doc.deposits,
-      wood: { ...doc.deposits.wood, "99,0": { remaining: 1, capacity: 1 } },
-    };
-    expect(() => parseSave({ ...doc, deposits })).toThrow(/out-of-bounds cell/);
+      parseSave(mutating(state, (doc) => {
+        doc.buildings = doc.buildings.map((b) => (b.type === "residence" ? { ...b, x, y } : b));
+      })),
+    ).toThrow(/blocked cell/);
   });
 });

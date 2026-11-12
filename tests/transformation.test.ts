@@ -30,171 +30,131 @@ function placeStaffedWorkshop(state: GameState): string {
   return id;
 }
 
-describe("transformation invariants (Step006)", () => {
-  it("constants match the documented recipe", () => {
-    expect(WOOD_PER_PLANK_BATCH).toBe(2);
-    expect(PLANKS_PER_WORKSHOP_PER_TICK).toBe(1);
-  });
+/** Add a road-connected, funded workshop; returns its id. */
+function addWorkshop(state: GameState): string {
+  const road = freeCell(state);
+  mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+  const adj = adjacentFree(state, road.x, road.y);
+  state.resources.water = Math.max(state.resources.water, 1);
+  mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
+  return `building-${state.buildingCounter - 1}`;
+}
 
-  it("normal staffed transformation: -2 wood, +1 plank", () => {
+describe("transformation invariants (Step006)", () => {
+  it("follows the documented recipe: −2 wood, +1 plank per staffed workshop", () => {
+    expect([WOOD_PER_PLANK_BATCH, PLANKS_PER_WORKSHOP_PER_TICK]).toEqual([2, 1]);
     const state = freshState();
     placeStaffedWorkshop(state);
     state.resources.wood = 10;
-    const beforeWood = state.resources.wood;
-    const beforePlanks = state.resources.planks;
+    const wood = state.resources.wood;
+    const planks = state.resources.planks;
     stepTicks(state, 1);
-    expect(state.resources.wood).toBe(beforeWood - 2);
-    expect(state.resources.planks).toBe(beforePlanks + 1);
+    expect(state.resources.wood).toBe(wood - 2);
+    expect(state.resources.planks).toBe(planks + 1);
   });
 
-  it("unstaffed workshop transforms nothing; base commerce needs pop 8 (Step021 gate)", () => {
+  it("transforms nothing without a worker or without a full batch (all-or-nothing)", () => {
+    const idle = freshState();
+    stripToAnchor(idle);
+    idle.population = 0; // D2 ships pop 10: zero it before maturation staffing
+    const road = freeCell(idle);
+    mustOk(applyCommand(idle, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
+    const adj = adjacentFree(idle, road.x, road.y);
+    idle.resources.water = 1;
+    mustOk(applyCommand(idle, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
+    stepTicks(idle, 2);
+    expect(idle.population).toBe(0);
+    idle.resources.wood = 10;
+    const money = idle.resources.money;
+    stepTicks(idle, 1);
+    expect(idle.resources.wood).toBe(10); // no transformation, no plank bonus
+    expect(idle.resources.money).toBe(money - 1); // gate closed: upkeep only
+    expect(idle.resources.planks).toBe(0);
+
+    const short = freshState();
+    placeStaffedWorkshop(short);
+    short.resources.wood = 1;
+    stepTicks(short, 1);
+    expect(short.resources).toMatchObject({ wood: 1, planks: 0 });
+
+    const empty = freshState();
+    placeStaffedWorkshop(empty);
+    stepTicks(empty, 1); // wood 0
+    expect(empty.resources).toMatchObject({ wood: 0, planks: 0 });
+  });
+
+  it("two staffed workshops consume 4 wood for 2 planks", () => {
     const state = freshState();
-    stripToAnchor(state);
-    state.population = 0; // D2 ships pop 10: zero it before maturation staffing
-    const road = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-    const adj = adjacentFree(state, road.x, road.y);
-    state.resources.water = 1;
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
+    placeStaffedWorkshop(state);
+    addWorkshop(state);
     stepTicks(state, 2);
-    expect(state.population).toBe(0); // still unstaffed: no colonists to assign
-    state.resources.wood = 10;
-    const beforeMoney = state.resources.money;
-    const beforeWood = state.resources.wood;
+    state.population = 2;
+    stepTicks(state, 1); // re-assignment with 2 colonists
+    state.resources.wood = 20;
     stepTicks(state, 1);
-    expect(state.resources.wood).toBe(beforeWood); // no transformation
-    // gate closed at pop 0: no commerce, -1 maintenance
-    expect(state.resources.money).toBe(beforeMoney - 1);
+    expect(state.resources).toMatchObject({ wood: 16, planks: 2 });
   });
 
-  it("vacant workshop earns the base once unlocked (Step012, staffing-independent)", () => {
+  it("a wood shortfall stops only the workshops it cannot feed (Step039)", () => {
+    const state = freshState();
+    placeStaffedWorkshop(state);
+    addWorkshop(state);
+    addWorkshop(state);
+    stepTicks(state, 2);
+    state.population = 3;
+    stepTicks(state, 1); // all three staffed
+    expect(
+      Object.values(state.buildings).filter((b) => b.type === "workshop" && b.staffed),
+    ).toHaveLength(3);
+    state.resources.wood = 4;
+    const planks = state.resources.planks;
+    stepTicks(state, 1);
+    expect(state.resources.wood).toBe(0); // two batches consumed
+    expect(state.resources.planks).toBe(planks + 2); // not 0, not 3
+  });
+
+  it("a vacant connected workshop earns the base floor but no plank bonus (Step012)", () => {
     const state = freshState();
     stripToAnchor(state);
     state.resources.money = 1000;
     state.resources.water = 20;
     // 9 connected workshops, 8 colonists: 8 staffed, 1 vacant by construction
-    for (let i = 0; i < 9; i++) {
-      const road = freeCell(state);
-      mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-      const adj = adjacentFree(state, road.x, road.y);
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
-    }
+    for (let i = 0; i < 9; i++) addWorkshop(state);
     stepTicks(state, 2);
     state.population = 8;
-    stepTicks(state, 1); // staffing assigns 8 of 9
-    const staffed = Object.values(state.buildings).filter((b) => b.staffed).length;
-    expect(staffed).toBe(8);
+    stepTicks(state, 1);
+    expect(Object.values(state.buildings).filter((b) => b.staffed)).toHaveLength(8);
     state.resources.wood = 100;
-    const beforeMoney = state.resources.money;
+    const money = state.resources.money;
     stepTicks(state, 1);
-    // 8 staffed transform (8 planks from 16 wood); commerce 9x2 + 8x1 = 26;
-    // taxes 8; maintenance 9 ? net +25
+    // 8 staffed transform (8 planks from 16 wood); commerce 9×2 + 8×1 = 26;
+    // taxes 8; upkeep 9 → net +25
     expect(state.resources.planks).toBe(8);
-    expect(state.resources.money).toBe(beforeMoney + 25);
+    expect(state.resources.money).toBe(money + 25);
   });
 
-  it("missing input ? nothing (all-or-nothing, no partial batch)", () => {
-    const state = freshState();
-    placeStaffedWorkshop(state);
-    state.resources.wood = 1; // less than one batch
-    stepTicks(state, 1);
-    expect(state.resources.wood).toBe(1);
-    expect(state.resources.planks).toBe(0);
-  });
+  it("commerce is throughput-anchored: base floor plus one per plank produced", () => {
+    const withWood = freshState();
+    placeStaffedWorkshop(withWood);
+    withWood.population = 8; // unlocks the base floor (Step021)
+    withWood.resources.wood = 10;
+    const m0 = withWood.resources.money;
+    stepTicks(withWood, 1);
+    // +8 taxes +3 commerce (2 base + 1 plank bonus) −1 upkeep
+    expect(withWood.resources.money).toBe(m0 + 10);
 
-  it("a wood shortfall stops only the workshops it cannot feed (Step039)", () => {
-    // Documented contract is per workshop: a workshop with no full batch
-    // produces nothing, but a shortfall must not zero the whole chain.
-    // 3 staffed workshops, 4 wood -> 2 workshops transform (2 batches).
-    const state = freshState();
-    placeStaffedWorkshop(state);
-    for (let i = 0; i < 2; i++) {
-      const road = freeCell(state);
-      mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-      const adj = adjacentFree(state, road.x, road.y);
-      state.resources.water = Math.max(state.resources.water, 1);
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
-    }
-    stepTicks(state, 2);
-    state.population = 3;
-    stepTicks(state, 1); // all three staffed
-    const staffed = Object.values(state.buildings).filter((b) => b.type === "workshop" && b.staffed).length;
-    expect(staffed).toBe(3);
-    state.resources.wood = 4;
-    const beforePlanks = state.resources.planks;
-    stepTicks(state, 1);
-    expect(state.resources.wood).toBe(0); // two batches consumed
-    expect(state.resources.planks).toBe(beforePlanks + 2); // not 0, not 3
-  });
-
-  it("zero input ? nothing", () => {
-    const state = freshState();
-    placeStaffedWorkshop(state);
-    stepTicks(state, 1);
-    expect(state.resources.planks).toBe(0);
-    expect(state.resources.wood).toBe(0);
-  });
-
-  it("two staffed workshops consume 4 wood, produce 2 planks", () => {
-    const state = freshState();
-    placeStaffedWorkshop(state);
-    const road = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-    const adj = adjacentFree(state, road.x, road.y);
-    state.resources.water = Math.max(state.resources.water, 1);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
-    stepTicks(state, 2); // both staffed (population 1 fills capacity 1 each? no � pop 1)
-    state.population = 2;
-    stepTicks(state, 1); // re-assignment with 2 colonists
-    state.resources.wood = 20;
-    const beforeWood = state.resources.wood;
-    stepTicks(state, 1);
-    expect(state.resources.wood).toBe(beforeWood - 4);
-    expect(state.resources.planks).toBe(2);
-  });
-
-  it("commerce is throughput-anchored: staffed workshop with wood earns base + bonus", () => {
-    const state = freshState();
-    placeStaffedWorkshop(state);
-    state.population = 8; // unlocks the base floor (Step021)
-    state.resources.wood = 10;
-    const beforeMoney = state.resources.money;
-    stepTicks(state, 1);
-    // +8 taxes +3 commerce (2 base + 1 plank bonus) -1 maintenance
-    expect(state.resources.money).toBe(beforeMoney + 10);
-  });
-
-  it("staffed workshop without wood earns the 2/tick base only", () => {
-    const state = freshState();
-    placeStaffedWorkshop(state);
-    state.population = 8; // unlocks the base floor (Step021)
-    // wood stays 0 ? no transformation ? no bonus
-    const beforeMoney = state.resources.money;
-    stepTicks(state, 1);
-    expect(state.resources.planks).toBe(0);
-    expect(state.resources.money).toBe(beforeMoney + 9); // +8 taxes +2 commerce -1 maint
-  });
-
-  it("vacant connected workshop with wood in stock earns no bonus", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 0; // D2 ships pop 10: zero it before maturation staffing
-    const road = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-    const adj = adjacentFree(state, road.x, road.y);
-    state.resources.water = 1;
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
-    stepTicks(state, 2); // operational, unstaffed (no colonists)
-    state.resources.wood = 10; // wood alone is not enough
-    const beforeMoney = state.resources.money;
-    stepTicks(state, 1);
-    expect(state.resources.planks).toBe(0);
-    expect(state.resources.money).toBe(beforeMoney - 1); // gate closed: -1 maint
+    const withoutWood = freshState();
+    placeStaffedWorkshop(withoutWood);
+    withoutWood.population = 8;
+    const m1 = withoutWood.resources.money;
+    stepTicks(withoutWood, 1);
+    expect(withoutWood.resources.planks).toBe(0);
+    expect(withoutWood.resources.money).toBe(m1 + 9); // +8 taxes +2 commerce −1 upkeep
   });
 });
 
 describe("quarry plank gate (Step006)", () => {
-  it("quarry construction requires 5 planks", () => {
+  it("requires 5 planks in stock, deducts them atomically, and never accepts money instead", () => {
     const state = freshState();
     stripToAnchor(state);
     const spot = freeCell(state);
@@ -202,29 +162,26 @@ describe("quarry plank gate (Step006)", () => {
     expect(
       applyCommand(state, { kind: "placeBuilding", type: "quarry", x: spot.x, y: spot.y }),
     ).toEqual({ ok: false, reason: "insufficientPlanks" });
+
     state.resources.planks = 5;
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "quarry", x: spot.x, y: spot.y }));
-    expect(state.resources.planks).toBe(0); // atomic deduction
-    expect(state.resources.money).toBe(100 - 25);
-  });
+    expect(state.resources.planks).toBe(0);
+    expect(state.resources.money).toBe(75);
 
-  it("other buildings cost no planks", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.resources.planks = 2;
-    const spot = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
-    expect(state.resources.planks).toBe(2);
-  });
-
-  it("plank check is direct stock (never masked by same-tick revenue)", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.resources.money = 1000; // money cannot substitute for planks
-    const spot = freeCell(state);
+    const rich = freshState();
+    stripToAnchor(rich);
+    rich.resources.money = 1000; // money cannot substitute for planks
+    const other = freeCell(rich);
     expect(
-      applyCommand(state, { kind: "placeBuilding", type: "quarry", x: spot.x, y: spot.y }),
+      applyCommand(rich, { kind: "placeBuilding", type: "quarry", x: other.x, y: other.y }),
     ).toEqual({ ok: false, reason: "insufficientPlanks" });
+
+    const free = freshState();
+    stripToAnchor(free);
+    free.resources.planks = 2;
+    const home = freeCell(free);
+    mustOk(applyCommand(free, { kind: "placeBuilding", type: "residence", x: home.x, y: home.y }));
+    expect(free.resources.planks).toBe(2); // other buildings cost no planks
   });
 });
 
