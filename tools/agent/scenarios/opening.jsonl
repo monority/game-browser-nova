@@ -1,0 +1,7 @@
+# Default opening scenario: observe the shipped colony, then a first arc.
+{"cmd":"init"}
+{"cmd":"report"}
+{"cmd":"tick","n":120}
+{"cmd":"assess"}
+{"cmd":"tick","n":180}
+{"cmd":"assess"}

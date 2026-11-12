@@ -32,6 +32,17 @@ export interface PerfStats {
   avgUpdateMs: number;
 }
 
+/** Camera facts for diagnostics (framing evaluation without reading pixels). */
+export interface CameraView {
+  position: { x: number; y: number; z: number };
+  target: { x: number; y: number; z: number };
+  radius: number;
+  phi: number;
+  theta: number;
+  fov: number;
+  aspect: number;
+}
+
 export interface Renderer {
   update(state: GameState): void;
   /** Active analysis overlay (recolors buildings on the next update). */
@@ -44,6 +55,8 @@ export interface Renderer {
   setHover(cell: { x: number; y: number } | null, valid: boolean): void;
   /** Profiling counters (Step027): render cost + allocation steady-state. */
   perfStats(): PerfStats;
+  /** Orbit camera facts (Step060): lets diagnostics judge framing without pixels. */
+  cameraView(): CameraView;
   dispose(): void;
 }
 
@@ -213,7 +226,19 @@ export function createRenderer(container: HTMLElement, state: GameState): Render
 
   update(state);
 
-  return { update, setOverlay, currentOverlay: () => overlayMode, pickCell, setHover, dispose, perfStats };
+  function cameraView(): CameraView {
+    return {
+      position: { x: camera.position.x, y: camera.position.y, z: camera.position.z },
+      target: { x: orbit.target.x, y: orbit.target.y, z: orbit.target.z },
+      radius: orbit.radius,
+      phi: orbit.phi,
+      theta: orbit.theta,
+      fov: camera.fov,
+      aspect: camera.aspect,
+    };
+  }
+
+  return { update, setOverlay, currentOverlay: () => overlayMode, pickCell, setHover, dispose, perfStats, cameraView };
 }
 
 // --- scene builders --------------------------------------------------------

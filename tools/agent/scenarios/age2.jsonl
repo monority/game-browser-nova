@@ -1,0 +1,84 @@
+# Age 2 from the shipped opening (Step061 play session).
+#
+# Lines 1-25 are exactly balanced.jsonl (the age-1 arc: cropRotation, parks
+# before growth, water before housing, purchases spread) and end at t=660 with
+# pop 16/16, pollution 0, money 587, net +3/tick, verdict HEALTHY.
+#
+# Everything after that was measured, and two measurements changed the plan:
+#   1. tech3 — the pending age-1 milestone is "3 technologies"; masonry and
+#      tradeRoutes (50$ each) are the only age-1 techs left. tradeRoutes is no
+#      filler: +1 commerce per connected workshop, 4 -> 6 /tick.
+#   2. advanceAge — pop 16 >= 8, 34 buildings >= 8, treasury >= 200, 3 techs.
+#   3. market1 needs 2 PLANKS and the colony owns none, so the milestone runs
+#      through real industry: a lumber camp on the (4,4) wood deposit feeds the
+#      two existing workshops. `plan` proved the ORDER matters — 15 jobs for 16
+#      colonists leaves exactly one spare worker, so the camp is staffed only if
+#      built BEFORE the extra workshops (staffing is positional, y then x: a
+#      row-3 shop is hired before a row-4 camp and would take that worker).
+#      Measured: 36 wood mined in 20 ticks -> 18 planks, ~+10 money/tick.
+#   4. A market sells 2 food/tick from the granary but never below one tick of
+#      consumption (Step062 safety stock: trade drains the buffer, never the
+#      next meal). A food balance of 0 is therefore survivable — the granary
+#      just settles on its floor and the market stops earning. Producing
+#      EXACTLY (mouths + 2) is what keeps the granary level AND the 2
+#      money/tick; more fills the granary and wastes the overflow (the
+#      "storage full" warning is a critical verdict).
+#   5. Water must match too: 2 water per well, so the population has to be even.
+#      With irrigation (4/farm) five farms give 21 = 19 mouths + 2 sold, and 19
+#      is odd — no well count reaches it (measured: 10 wells at pop 19 wasted
+#      +1 water/tick, verdict CRITICAL). Without irrigation seven farms give
+#      7*3 + 1 anchor = 22 = 20 mouths + 2 sold, and 10 wells = 20 exactly.
+#      Irrigation is therefore NOT researched here; the fifth tech is wheelbarrow.
+# 20 ticks after the last build the state is an exact balance, not a happy
+# accident: food 22 produced = 20 eaten + 2 sold, water 20 = 20, jobs 20 = 20
+# workers, pollution 0 with 2 parks against 2 workshops.
+{"cmd":"init"}
+{"cmd":"tick","n":120}
+{"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
+{"cmd":"build","type":"park","x":11,"y":1}
+{"cmd":"build","type":"park","x":15,"y":1}
+{"cmd":"tick","n":300}
+{"cmd":"report"}
+{"cmd":"do","command":{"kind":"placeRoads","cells":["19,2","21,2"]}}
+{"cmd":"build","type":"well","x":18,"y":2,"road":false}
+{"cmd":"build","type":"well","x":20,"y":2,"road":false}
+{"cmd":"build","type":"well","x":22,"y":2,"road":false}
+{"cmd":"build","type":"residence","x":13,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":17,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":19,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":21,"y":1,"road":false}
+{"cmd":"tick","n":60}
+{"cmd":"report"}
+{"cmd":"build","type":"residence","x":23,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":12,"y":2,"road":false}
+{"cmd":"tick","n":60}
+{"cmd":"assess"}
+{"cmd":"tick","n":120}
+{"cmd":"assess"}
+# --- age-1 milestones close, age 2 opens ---
+{"cmd":"do","command":{"kind":"researchTech","techId":"masonry"}}
+{"cmd":"do","command":{"kind":"researchTech","techId":"tradeRoutes"}}
+{"cmd":"do","command":{"kind":"advanceAge"}}
+# --- industry: camp before the extra workplaces, or the last worker goes elsewhere ---
+{"cmd":"build","type":"lumberCamp","x":5,"y":4}
+{"cmd":"tick","n":20}
+# --- the milestone that needs planks ---
+{"cmd":"build","type":"market","x":21,"y":3,"road":false}
+# --- the exact-balance package, bought in one batch so construction overlaps:
+#     2 farms (food = 22), 4 residences (pop 20), 2 wells (water = 20) ---
+{"cmd":"build","type":"farm","x":2,"y":3}
+{"cmd":"build","type":"farm","x":4,"y":3}
+{"cmd":"build","type":"residence","x":0,"y":3,"road":false}
+{"cmd":"build","type":"residence","x":1,"y":3,"road":false}
+{"cmd":"build","type":"residence","x":6,"y":3,"road":false}
+{"cmd":"build","type":"residence","x":10,"y":3,"road":false}
+{"cmd":"build","type":"well","x":13,"y":3}
+{"cmd":"build","type":"well","x":16,"y":3}
+{"cmd":"tick","n":120}
+{"cmd":"assess"}
+# --- tech5: wheelbarrow, not irrigation (see 5. above) ---
+{"cmd":"do","command":{"kind":"researchTech","techId":"deepMining"}}
+{"cmd":"do","command":{"kind":"researchTech","techId":"wheelbarrow"}}
+{"cmd":"tick","n":60}
+{"cmd":"assess"}
+{"cmd":"report"}

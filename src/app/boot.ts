@@ -295,6 +295,7 @@ export function boot(root: HTMLElement): { stop(): void } {
     milestones: () => evaluateMilestones(state, state.age),
     canAdvanceAge: () => canAdvanceAge(state),
     perf: () => renderer.perfStats(),
+    cameraView: () => renderer.cameraView(),
     overlay: () => renderer.currentOverlay(),
   });
 

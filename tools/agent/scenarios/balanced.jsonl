@@ -1,0 +1,42 @@
+# A complete, winning age-1 arc from the shipped opening (Step060 test).
+#
+# The opening as shipped is blocked: two active workshops emit +2 pollution
+# per tick with no park to absorb it, so quality hits 0, the admission gate
+# closes and population stays pinned at 10/10 (measured: critical at t=120
+# and t=300 in scenarios/opening.jsonl).
+#
+# The fix, in the order the arithmetic demands:
+#   1. cropRotation (age 1, 50$) makes a farm yield 3/tick. That is what
+#      breaks the age-1 infeasibility — with one worker per building slot,
+#      f + w + 2 workshops = P cannot satisfy both 2f+1 >= P and 2w >= P.
+#      At 3/tick, five farms feed 16 colonists and housing may grow.
+#   2. Parks absorb 4/tick against the workshops' 2/tick, so pollution falls
+#      2/tick and quality is back above the gate long before growth starts.
+#   3. Capacity is bought in the order that gates admission: water first,
+#      then housing. Money is the tight constraint (~232$ on hand), so one
+#      road cell is shared by two wells and the last two residences wait for
+#      the tax of the first four to land.
+# End state: pop 16/16, food 16 = 16, water 16 = 16, pollution 0, net +3/tick.
+{"cmd":"init"}
+{"cmd":"tick","n":120}
+{"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
+{"cmd":"build","type":"park","x":11,"y":1}
+{"cmd":"build","type":"park","x":15,"y":1}
+{"cmd":"tick","n":300}
+{"cmd":"report"}
+{"cmd":"do","command":{"kind":"placeRoads","cells":["19,2","21,2"]}}
+{"cmd":"build","type":"well","x":18,"y":2,"road":false}
+{"cmd":"build","type":"well","x":20,"y":2,"road":false}
+{"cmd":"build","type":"well","x":22,"y":2,"road":false}
+{"cmd":"build","type":"residence","x":13,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":17,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":19,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":21,"y":1,"road":false}
+{"cmd":"tick","n":60}
+{"cmd":"report"}
+{"cmd":"build","type":"residence","x":23,"y":1,"road":false}
+{"cmd":"build","type":"residence","x":12,"y":2,"road":false}
+{"cmd":"tick","n":60}
+{"cmd":"assess"}
+{"cmd":"tick","n":120}
+{"cmd":"assess"}
