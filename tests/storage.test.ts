@@ -98,12 +98,21 @@ describe("storage capacity (Step031)", () => {
     expect(grown.resources.water).toBeLessThanOrEqual(waterCapacity(grown));
   });
 
-  it("alerts on pinned stock with a positive balance, silent below the cap", () => {
+  it("reports pinned stock with a positive balance as information, silent below the cap", () => {
     const state = freshState();
     stripToAnchor(state);
     state.population = 0;
     state.resources.food = 120;
-    expect(getAlerts(state).some((a) => a.message.startsWith("Food storage full"))).toBe(true);
+    const alerts = getAlerts(state);
+    // A full granary is a reachable state of a healthy colony (no sink for a
+    // surplus since Step065), so it must not escalate the verdict: information
+    // only, and the copy states the loss instead of judging it (rule §7).
+    expect(alerts.find((a) => a.message.startsWith("Food storage full"))).toEqual({
+      severity: "info",
+      message: "Food storage full (120/120) · +1/tick not stored",
+    });
+    expect(alerts.filter((a) => a.severity === "warning")).toEqual([]);
+
     state.resources.food = 10;
     expect(getAlerts(state).some((a) => a.message.startsWith("Food storage full"))).toBe(false);
   });
