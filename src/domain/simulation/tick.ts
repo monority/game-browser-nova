@@ -25,7 +25,9 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *       would have consumed this tick)
  *   7. updatePopulation (gradual starvation + admission)
  *   8. assignJobs (next tick's staffing)
- *   9. collectRevenue → payMaintenance (money model, same-tick inflow)
+ *   9. collectRevenue → payMaintenance (money model, same-tick inflow;
+ *       market sales keep the Step062 safety stock — the granary is never
+ *       emptied by trade)
  *   10. updateEnvironment (pollution flows + park wood regrowth)
  *   11. resolveEvents (Step047: expire + seeded draws; canonical phase 12
  *       of 05-SIMULATION §3 — active events feed the NEXT tick's

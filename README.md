@@ -66,6 +66,7 @@ src/renderer/     Three.js presentation
 src/app/          UI, input and bootstrap
 e2e/              Playwright browser journeys
 tests/            Vitest unit and self-play tests
+tools/agent/      Headless play + evaluation cockpit (JSONL over the real rules)
 ```
 
 ## Validation
@@ -73,3 +74,10 @@ tests/            Vitest unit and self-play tests
 `pnpm verify` replays the whole CI gate locally (typecheck, lint, unit, build, browser
 journeys); `pnpm check` and `pnpm test:e2e` run the same steps separately. CI runs the
 chain on every push and pull request to `main`.
+
+The browser journeys need Playwright's Chromium (`pnpm exec playwright install chromium`, or
+`./node_modules/.bin/playwright install chromium` when `pnpm` itself is broken).
+Playwright starts the dev server itself, and calls Vite through `node` rather than `pnpm`,
+so a broken `pnpm` cannot block the suite. On a bare Linux container Chromium still needs
+the usual shared libraries — point `LD_LIBRARY_PATH` at them if the run dies with
+`error while loading shared libraries`.

@@ -6,9 +6,12 @@ import {
   waterProductionPerTick,
 } from "@/domain/production/production.js";
 import {
+  FOOD_SOLD_PER_MARKET_PER_TICK,
   commercePerTick,
+  connectedMarkets,
   expectedMarketSales,
   maintenancePerTick,
+  marketSafetyStock,
   taxesPerTick,
 } from "@/domain/economy/economy.js";
 import { compareCellCoords } from "@/domain/shared/cells.js";
@@ -183,7 +186,15 @@ export function getAlerts(
     });
   }
 
-  const waterServed = Math.min(state.resources.water, state.population);
+  // Served count, not the residual stock: the tick drinks from stock +
+  // production, so a granary rest of 22 with a production of 24 serves all
+  // 24 colonists. Comparing the post-consumption stock reported a shortage
+  // in every colony whose reserve sat below its population (Step063:
+  // measured on the age-3 line, 12 wells, water 22/80, pop 24, full service).
+  const waterServed = Math.min(
+    state.resources.water + waterProductionPerTick(state),
+    state.population,
+  );
   if (state.population > 0 && waterServed < state.population) {
     alerts.push({
       severity: "warning",
@@ -207,6 +218,22 @@ export function getAlerts(
     alerts.push({
       severity: "warning",
       message: `Water storage full (${Math.floor(state.resources.water)}/${waterCap}) · +${summaries.water.balancePerTick}/tick wasted`,
+    });
+  }
+
+  // Market throttled by the safety stock (Step062): without this line a
+  // market earning 0 looks broken, while it is simply holding the next meal
+  // back. States the two facts (throughput, stock) and nothing else.
+  const markets = connectedMarkets(state);
+  if (
+    markets > 0 &&
+    expectedMarketSales(state) === 0 &&
+    state.resources.food > 0 &&
+    state.resources.food >= marketSafetyStock(state)
+  ) {
+    alerts.push({
+      severity: "info",
+      message: `Market: 0/${markets * FOOD_SOLD_PER_MARKET_PER_TICK} food sold · stock ${Math.floor(state.resources.food)} covers the next meal`,
     });
   }
 

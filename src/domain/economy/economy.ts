@@ -4,7 +4,6 @@ import { countActiveOfType, isActive } from "@/domain/building/building.js";
 import type { BuildingType } from "@/content/buildings.js";
 import { addMoney, deductFood } from "@/domain/resource/resource.js";
 import { foodProductionPerTick, FOOD_PER_COLONIST_PER_TICK } from "@/domain/production/production.js";
-import { foodCapacity } from "@/domain/storage/storage.js";
 import { techLevel } from "@/domain/progression/progression.js";
 import { isEventActive } from "@/domain/events/events.js";
 
@@ -52,9 +51,20 @@ export function connectedWorkshops(state: GameState): number {
 
 /**
  * Age 2 market economy (Phase 9, MVP market/basic commerce): each
- * operational road-connected Market sells up to 2 surplus food per tick
- * at 1 money each. Sales run inside revenue collection, after consumption
- * and admission, so markets liquidate leftovers and never starve colonists.
+ * operational road-connected Market sells up to 2 food per tick at 1 money
+ * each — food the colony can SPARE, meaning whatever the granary holds above
+ * one tick of consumption. Sales run inside revenue collection, after
+ * consumption, admission and the Step031 clamp.
+ *
+ * Step062 decision (measured bug, Step061): the old rule took whatever stock
+ * existed, so a colony at food balance 0 drained its granary (120 → 0 in 60
+ * ticks, 20 colonists unfed) and starved — contradicting this module's
+ * "never starve colonists" contract. The safety stock fixes that at the
+ * cause: trade can spend the buffer, never the next meal. Markets stay a
+ * real income line (food stock → money, refilled by overproduction); a
+ * "flow surplus only" alternative was measured and rejected because a
+ * market then earns nothing unless a worker farms purely to sell (2/tick vs
+ * a workshop's 3/tick), which made the whole Age 2 building dominated.
  */
 export const FOOD_SOLD_PER_MARKET_PER_TICK = 2;
 export const MONEY_PER_FOOD_SOLD = 1;
@@ -64,34 +74,54 @@ export function connectedMarkets(state: GameState): number {
 }
 
 /**
+ * Food the colony must keep to feed itself next tick. A market never sells
+ * below it: trade can drain the granary, never empty it.
+ */
+export function marketSafetyStock(state: GameState): number {
+  return state.population * FOOD_PER_COLONIST_PER_TICK;
+}
+
+/**
+ * Sellable food right now: what the granary holds above the safety stock.
+ * Read on post-consumption state (phase 9) it is exactly what the market may
+ * sell; shared with the forecast so the two cannot drift.
+ */
+export function marketableFood(state: GameState): number {
+  return Math.max(0, state.resources.food - marketSafetyStock(state));
+}
+
+/**
  * Pure forecast of market sales (food units, before pricing).
  * Read on pre-tick state it equals what the market will sell this tick;
  * read on post-tick state it projects next-tick sales. The UI calls it
  * post-tick, so the drain shown is next tick's.
  *
- * Mirrors the exact phase semantics (tick 2/5/6/9): the market sells from
- * the stock LEFT AFTER consumption, and the Step031 clamp caps that stock —
- * so the cap bounds the post-consumption surplus, not the gross stock.
+ * Mirrors the tick phases (production, consumption, Step031 clamp, then the
+ * sale): the market sells what survives the meal and the safety stock. No
+ * storage-cap term — a sale can never exceed the stock it leaves behind.
  */
 export function expectedMarketSales(state: GameState): number {
   const markets = connectedMarkets(state);
   if (markets === 0) return 0;
-  const requirement = state.population * FOOD_PER_COLONIST_PER_TICK;
-  const surplus = Math.max(
-    0,
-    state.resources.food + foodProductionPerTick(state) - requirement,
+  const need = marketSafetyStock(state); // the colonists who eat this tick
+  const afterMeal = state.resources.food + foodProductionPerTick(state) - need;
+  return Math.min(
+    Math.max(0, afterMeal - need), // keep as much, sell the rest
+    markets * FOOD_SOLD_PER_MARKET_PER_TICK,
   );
-  return Math.min(surplus, foodCapacity(state), markets * FOOD_SOLD_PER_MARKET_PER_TICK);
 }
 
 /**
- * Tick-phase market sales: deducts sold food, returns units sold.
- * Pricing lands in collectRevenue (single money inflow, no double count).
+ * Tick-phase market sales: deducts sold food, returns units sold. Pricing
+ * lands in collectRevenue (single money inflow, no double count).
  */
 export function sellMarketSurplus(state: GameState): number {
   const markets = connectedMarkets(state);
   if (markets === 0) return 0;
-  return deductFood(state.resources, markets * FOOD_SOLD_PER_MARKET_PER_TICK);
+  return deductFood(
+    state.resources,
+    Math.min(marketableFood(state), markets * FOOD_SOLD_PER_MARKET_PER_TICK),
+  );
 }
 
 /**

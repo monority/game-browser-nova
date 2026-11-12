@@ -289,6 +289,105 @@ test.describe("NOVA economy", () => {
     expect(marketRow, "stats market row").not.toBeNull();
     expect(Number(marketRow![1])).toBeGreaterThanOrEqual(1);
   });
+  test("market safety floor: a market drains the buffer, never the next meal (Step062)", async ({ page }) => {
+    // docs/STATE.md economy row: a market sells up to 2 food/tick but never
+    // below one tick of consumption. Proven end to end on a tiny colony where
+    // the arithmetic is exact: pop 1 eats 1/tick and the Colony Center trickle
+    // produces 1/tick, so the granary holds its level unless the market sells.
+    await page.goto("/");
+    await pause(page);
+
+    const setup = await page.evaluate(() => {
+      const h = window.__nova!;
+      const s = h.getState();
+      // isolate the mechanic: only the Colony Center, one market, one road
+      for (const id of Object.keys(s.buildings)) {
+        if (id === "colony-center") continue;
+        const r = h.command({ kind: "removeBuilding", id });
+        if (!r.ok) throw new Error("strip failed: " + r.reason);
+      }
+      for (const road of Object.values(s.roads)) {
+        const r = h.command({ kind: "removeRoads", cells: [...road.cells] });
+        if (!r.ok) throw new Error("strip roads failed: " + r.reason);
+      }
+      s.age = 2; // the market is the Age 2 commerce building
+      s.resources.money = 500;
+      s.resources.planks = 5;
+      s.resources.water = 20;
+      s.population = 1; // older than the housing, so no admission: pop is pinned
+      s.resources.food = 1; // exactly one tick of consumption = the floor
+
+      const key = (x: number, y: number) => `${x},${y}`;
+      const free = (x: number, y: number) => {
+        if (x < 0 || y < 0 || x >= s.world.width || y >= s.world.height) return false;
+        const k = key(x, y);
+        if (s.world.blockedCells[k] || s.woodDeposits[k] || s.stoneDeposits[k]) return false;
+        if (Object.values(s.buildings).some((b) => b.x === x && b.y === y)) return false;
+        return !Object.values(s.roads).some((r) => r.cells.includes(k));
+      };
+
+      let placed = false;
+      for (let y = 0; y < s.world.height && !placed; y++) {
+        for (let x = 0; x < s.world.width && !placed; x++) {
+          if (!free(x, y)) continue;
+          const road = [key(x + 1, y), key(x - 1, y), key(x, y + 1), key(x, y - 1)]
+            .find((k) => {
+              const [rx, ry] = k.split(",").map(Number);
+              return free(rx!, ry!);
+            });
+          if (!road) continue;
+          const b = h.command({ kind: "placeBuilding", type: "market", x, y });
+          if (!b.ok) continue;
+          const r = h.command({ kind: "placeRoads", cells: [road] });
+          if (!r.ok) continue;
+          placed = true;
+        }
+      }
+      if (!placed) throw new Error("no spot for a road-connected market");
+      return { population: s.population, food: s.resources.food };
+    });
+    expect(setup).toEqual({ population: 1, food: 1 });
+
+    // --- phase 1: at the floor, the market sells nothing ---
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await waitForTick(page, 12);
+    await pause(page);
+    const atFloor = await page.evaluate(() => {
+      const s = window.__nova!.getState();
+      const market = Object.values(s.buildings).find((b) => b.type === "market");
+      if (!market) throw new Error("market lost");
+      return {
+        food: s.resources.food,
+        population: s.population,
+        operational: market.status === "operational",
+        tick: s.tick,
+      };
+    });
+    expect(atFloor.operational).toBe(true);
+    // production 1 = consumption 1: a stock still at 1 proves no sale happened
+    expect(atFloor.food).toBe(1);
+    expect(atFloor.population).toBe(1);
+
+    // --- phase 2: a buffer above the floor is drained down to the floor ---
+    await page.evaluate(() => {
+      window.__nova!.getState().resources.food = 6;
+    });
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await waitForTick(page, atFloor.tick + 14);
+    await pause(page);
+    const drained = await page.evaluate(() => {
+      const s = window.__nova!.getState();
+      return { food: s.resources.food, population: s.population, tick: s.tick };
+    });
+    // the 5-food buffer was sold (production cannot explain a drop) and the
+    // market stopped exactly on one tick of consumption instead of starving
+    expect(drained.population).toBe(1);
+    expect(drained.food).toBe(1);
+    // and the UI says why it stopped: the granary is the next meal, not stock
+    expect(await statsText(page)).toContain(
+      "Market: 0/2 food sold · stock 1 covers the next meal",
+    );
+  });
   test("UI stat surface reflects the money-era contract", async ({ page }) => {
     await page.goto("/");
     await waitForTick(page, 1);
