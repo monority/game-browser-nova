@@ -8,7 +8,6 @@ import {
   foodProductionPerTick,
   waterProductionPerTick,
 } from "@/domain/production/production.js";
-import { expectedMarketSales } from "@/domain/economy/economy.js";
 import {
   ENV_QUALITY_ALERT_THRESHOLD,
   environmentalQuality,
@@ -41,7 +40,7 @@ export interface OverlayCell {
 /** Food balance the colony currently runs on (same math as the forecast). */
 function foodBalance(state: GameState): number {
   const consumption = state.population * FOOD_PER_COLONIST_PER_TICK;
-  return foodProductionPerTick(state) - consumption - expectedMarketSales(state);
+  return foodProductionPerTick(state) - consumption;
 }
 
 /** Water balance: staffed active wells (drought-aware, Step047) vs. the whole population's need. */

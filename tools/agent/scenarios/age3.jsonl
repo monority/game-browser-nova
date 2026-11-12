@@ -1,66 +1,33 @@
-# Age 3 from the completed age-2 line (Step063 play session).
+# Age 3 from the completed age-2 line (Step063 play session, re-anchored Step065).
 #
-# This file is exactly age2.jsonl (its header still explains the age-1 arc and
-# the age-2 balance: 2 food sold/tick, 7 farms + 10 wells for 20 colonists)
-# plus the push to the Age of Prosperity.
+# This file is exactly age2.jsonl (its header explains the age-1 arc and the
+# four-dimension age-2 set; the market removal is Step065) plus the push to the
+# Age of Prosperity.
 #
 # The age-3 milestone set is pop 20, treasury 1500, 30 operational buildings,
-# 20 residences and 3 workshops. At t=860 the line already has pop 20, 20
-# residences and 891 money (+5/tick), so the only gaps are money, workshops
-# and the operational count. Measured decisions:
-#   1. A WORKSHOP pays its keep unstaffed: commerce is staffing-independent
-#      (2 + 1 per tradeRoutes), so a third workshop adds +3/tick for 1 upkeep
-#      even with every worker already placed. It is the cheapest revenue.
-#   2. Residences are upkeep-exempt (Step021): 4 of them add operational
-#      buildings, raise housing to 24 and cost nothing per tick.
-#   3. One farm (+3 food) and two wells (+4 water) carry the growth from 20
-#      to 24: 8 farms = 25 food (24 eaten + 1 sold) and 12 wells = 24 water
-#      = 24 served. The granary settles on the Step062 safety stock (24) —
-#      a food balance of 0 that no longer starves anyone.
-#   4. A fourth workshop no longer pollutes: since Step064 an emitter only
-#      pollutes while STAFFED, and the colony has 24 colonists for 24 jobs, so
-#      the new one idles (workforce 24/25, pollution stays 0). It is therefore
-#      pure revenue (+2/tick measured, t=1101 → 1141) and three are kept only
-#      because the operational count already clears 30 without it. The price of
-#      Step064 is that idling industry is now money with no environmental cost
-#      — see docs/STATE.md (open decision).
-# Measured: HEALTHY at t=1100 with pop 24/24, money 2441 (net +7/tick),
-# age-2 milestones all done, 0 rejected command; advanceAge then opens
-# Age 3 with its own set already satisfied.
-# Age 2 from the shipped opening (Step061 play session).
-#
-# Lines 1-25 are exactly balanced.jsonl (the age-1 arc: cropRotation, parks
-# before growth, water before housing, purchases spread) and end at t=660 with
-# pop 16/16, pollution 0, money 587, net +3/tick, verdict HEALTHY.
-#
-# Everything after that was measured, and two measurements changed the plan:
-#   1. tech3 — the pending age-1 milestone is "3 technologies"; masonry and
-#      tradeRoutes (50$ each) are the only age-1 techs left. tradeRoutes is no
-#      filler: +1 commerce per connected workshop, 4 -> 6 /tick.
-#   2. advanceAge — pop 16 >= 8, 34 buildings >= 8, treasury >= 200, 3 techs.
-#   3. market1 needs 2 PLANKS and the colony owns none, so the milestone runs
-#      through real industry: a lumber camp on the (4,4) wood deposit feeds the
-#      two existing workshops. `plan` proved the ORDER matters — 15 jobs for 16
-#      colonists leaves exactly one spare worker, so the camp is staffed only if
-#      built BEFORE the extra workshops (staffing is positional, y then x: a
-#      row-3 shop is hired before a row-4 camp and would take that worker).
-#      Measured: 36 wood mined in 20 ticks -> 18 planks, ~+10 money/tick.
-#   4. A market sells 2 food/tick from the granary but never below one tick of
-#      consumption (Step062 safety stock: trade drains the buffer, never the
-#      next meal). A food balance of 0 is therefore survivable — the granary
-#      just settles on its floor and the market stops earning. Producing
-#      EXACTLY (mouths + 2) is what keeps the granary level AND the 2
-#      money/tick; more fills the granary and wastes the overflow (the
-#      "storage full" warning is a critical verdict).
-#   5. Water must match too: 2 water per well, so the population has to be even.
-#      With irrigation (4/farm) five farms give 21 = 19 mouths + 2 sold, and 19
-#      is odd — no well count reaches it (measured: 10 wells at pop 19 wasted
-#      +1 water/tick, verdict CRITICAL). Without irrigation seven farms give
-#      7*3 + 1 anchor = 22 = 20 mouths + 2 sold, and 10 wells = 20 exactly.
-#      Irrigation is therefore NOT researched here; the fifth tech is wheelbarrow.
-# 20 ticks after the last build the state is an exact balance, not a happy
-# accident: food 22 produced = 20 eaten + 2 sold, water 20 = 20, jobs 20 = 20
-# workers, pollution 0 with 2 parks against 2 workshops.
+# 20 residences and 3 workshops. At t=780 the line has pop 16, 16 residences,
+# 34 buildings, 2 workshops and 787 money (+5/tick), and it is an EXACT
+# balance: 5 farms (3 each, cropRotation) + the anchor's 1 = 16 food for 16
+# mouths, 8 wells = 16 water, 15 workplaces = 15 workers, pollution 0 with 2
+# parks against 2 workshops. Measured decisions for this push:
+#   1. There is no market any more, so the colony cannot sell a surplus: the
+#      growth target is the next EXACT balance, pop 22 = 7 farms (7*3 + 1)
+#      = 11 wells (2 each) = 22. A 24-colonist line would produce 24 and eat
+#      23, pin the granary at 120/120 and read `critical` on the storage
+#      warning alone (measured before this re-anchor).
+#   2. A workshop pays its keep unstaffed: commerce is staffing-independent
+#      (2 + 1 per tradeRoutes), so a third workshop adds +3/tick for 1 upkeep.
+#      It is the cheapest revenue, and at 21 workplaces for 22 colonists it
+#      is in fact staffed here.
+#   3. Residences are upkeep-exempt (Step021): the 6 new ones raise housing to
+#      22 and cost nothing per tick.
+# Measured: HEALTHY at t=1140 with pop 22/22, money 3319 (net +8/tick), 46
+# buildings, food and water at +0/tick, 21 jobs for 22 colonists, pollution 0
+# (2 parks against 3 staffed workshops, net -1); every age-2 milestone done,
+# advanceAge then opens Age 3 (t=1141, money 3327, verdict HEALTHY) with its
+# own set already satisfied. The old line banked more (2441) because the market
+# turned 2 food/tick into money; the treasury is now pure tax + commerce,
+# which is why the push waits longer before the 1500 threshold.
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
@@ -84,46 +51,33 @@
 {"cmd":"assess"}
 {"cmd":"tick","n":120}
 {"cmd":"assess"}
-# --- age-1 milestones close, age 2 opens ---
+# --- age-1 milestones close, age 2 opens (four dimensions, no market) ---
 {"cmd":"do","command":{"kind":"researchTech","techId":"masonry"}}
 {"cmd":"do","command":{"kind":"researchTech","techId":"tradeRoutes"}}
 {"cmd":"do","command":{"kind":"advanceAge"}}
-# --- industry: camp before the extra workplaces, or the last worker goes elsewhere ---
-{"cmd":"build","type":"lumberCamp","x":5,"y":4}
-{"cmd":"tick","n":20}
-# --- the milestone that needs planks ---
-{"cmd":"build","type":"market","x":21,"y":3,"road":false}
-# --- the exact-balance package, bought in one batch so construction overlaps:
-#     2 farms (food = 22), 4 residences (pop 20), 2 wells (water = 20) ---
-{"cmd":"build","type":"farm","x":2,"y":3}
-{"cmd":"build","type":"farm","x":4,"y":3}
-{"cmd":"build","type":"residence","x":0,"y":3,"road":false}
-{"cmd":"build","type":"residence","x":1,"y":3,"road":false}
-{"cmd":"build","type":"residence","x":6,"y":3,"road":false}
-{"cmd":"build","type":"residence","x":10,"y":3,"road":false}
-{"cmd":"build","type":"well","x":13,"y":3}
-{"cmd":"build","type":"well","x":16,"y":3}
-{"cmd":"tick","n":120}
-{"cmd":"assess"}
-# --- tech5: wheelbarrow, not irrigation (see 5. above) ---
+# --- tech5: the two age-2 techs ---
 {"cmd":"do","command":{"kind":"researchTech","techId":"deepMining"}}
 {"cmd":"do","command":{"kind":"researchTech","techId":"wheelbarrow"}}
-{"cmd":"tick","n":60}
+{"cmd":"tick","n":120}
 {"cmd":"assess"}
-{"cmd":"report"}
-
-# --- age 3: revenue and the missing workplaces (see 1-3 above) ---
+# --- growth to the next exact balance: pop 22 = 7 farms = 11 wells, 22
+#     residences, a third workshop for revenue (see 1-3 above) ---
 {"cmd":"build","type":"farm","x":2,"y":5}
-{"cmd":"build","type":"well","x":4,"y":5}
+{"cmd":"build","type":"farm","x":4,"y":5}
 {"cmd":"build","type":"well","x":6,"y":5}
+{"cmd":"build","type":"well","x":8,"y":5}
+{"cmd":"build","type":"well","x":10,"y":5}
 {"cmd":"build","type":"workshop","x":8,"y":4}
 {"cmd":"build","type":"residence","x":12,"y":4,"road":false}
 {"cmd":"build","type":"residence","x":14,"y":4,"road":false}
 {"cmd":"build","type":"residence","x":16,"y":4,"road":false}
 {"cmd":"build","type":"residence","x":18,"y":4,"road":false}
-{"cmd":"tick","n":60}
+{"cmd":"build","type":"residence","x":20,"y":4,"road":false}
+{"cmd":"build","type":"residence","x":22,"y":4,"road":false}
+{"cmd":"tick","n":120}
+{"cmd":"assess"}
 {"cmd":"report"}
-{"cmd":"tick","n":180}
+{"cmd":"tick","n":240}
 {"cmd":"assess"}
 {"cmd":"report"}
 # --- all age-2 milestones done: open the Age of Prosperity ---

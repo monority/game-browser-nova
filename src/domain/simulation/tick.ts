@@ -30,8 +30,7 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *       tick, Step064) — an idling workshop emits nothing
  *   9. assignJobs (next tick's staffing)
  *   10. collectRevenue → payMaintenance (money model, same-tick inflow;
- *       market sales keep the Step062 safety stock — the granary is never
- *       emptied by trade)
+ *       commerce comes only from staffed workshops, Step065)
  *   11. resolveEvents (Step047: expire + seeded draws; canonical phase 12
  *       of 05-SIMULATION §3 — active events feed the NEXT tick's
  *       production/commerce phases, same timing contract as staffing)

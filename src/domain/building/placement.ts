@@ -36,7 +36,7 @@ export function validatePlacement(
   // The Colony Center anchor is never player-placed (day-0 bootstrap).
   if (type === "colonyCenter") return { ok: false, reason: "colonyCenterExists" };
 
-  // Age-gated buildings (Phase 9: Market unlocks in Age 2).
+  // Age-gated buildings (requiredAge on the content entry).
   if ((definition.requiredAge ?? 1) > state.age) {
     return { ok: false, reason: "ageLocked" };
   }

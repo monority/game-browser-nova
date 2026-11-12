@@ -254,7 +254,6 @@ describe("per-building pollution contribution (Step056)", () => {
     expect(pollutionContributionPerTick("residence")).toBe(0);
     expect(pollutionContributionPerTick("lumberCamp")).toBe(0);
     expect(pollutionContributionPerTick("warehouse")).toBe(0);
-    expect(pollutionContributionPerTick("market")).toBe(0);
     expect(pollutionContributionPerTick("colonyCenter")).toBe(0);
   });
 

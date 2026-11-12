@@ -26,7 +26,7 @@ function bare(): GameState {
 /** Road-connected operational workplace row along y=2 (world has no blocked cells there). */
 function workplaceRow(
   state: GameState,
-  types: Array<"farm" | "well" | "workshop" | "lumberCamp" | "quarry" | "park" | "market">,
+  types: Array<"farm" | "well" | "workshop" | "lumberCamp" | "quarry" | "park">,
 ): void {
   state.resources.money = 500;
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 3), cellKey(1, 3), cellKey(2, 3)] }));

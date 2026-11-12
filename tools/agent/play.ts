@@ -82,7 +82,6 @@ const GLYPHS: Record<string, string> = {
   workshop: "s",
   park: "p",
   warehouse: "h",
-  market: "m",
   lumberCamp: "c",
   quarry: "q",
 };
@@ -645,6 +644,6 @@ function formatMap(state: GameState): string {
     }
     rows.push(String(y).padStart(3, " ") + " " + row);
   }
-  rows.push(`x=lane (column), y=row · A anchor · r residence · f farm · w well · s workshop · p park · h warehouse · m market · c camp · q quarry · + road · # deposit · ^ terrain`);
+  rows.push(`x=lane (column), y=row · A anchor · r residence · f farm · w well · s workshop · p park · h warehouse · c camp · q quarry · + road · # deposit · ^ terrain`);
   return rows.join("\n");
 }

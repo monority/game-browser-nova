@@ -39,9 +39,8 @@ export const AGE_MILESTONES: Record<number, MilestoneDefinition[]> = {
     { id: "bld14", label: "14 operational buildings", dimension: "buildings", threshold: 14 },
     { id: "tre600", label: "Treasury 600", dimension: "treasury", threshold: 600 },
     { id: "tech5", label: "5 technologies researched", dimension: "techs", threshold: 5 },
-    // Step024: Age-2 trade footprint. Count form (not cumulative sales)
-    // so the milestone derives from buildings state with no migration.
-    { id: "market1", label: "1 operational market", dimension: "buildings", threshold: 1, buildingType: "market" },
+    // Step065: the market milestone went with the market itself. Age 2 is
+    // again the four Step021 dimensions (pop / buildings / treasury / techs).
   ],
   // Step035: Age-3 prosperity. Thresholds from the measured sustained
   // endgame (pop24, money4000+, 56 buildings incl. 24 res / 12 farm /
@@ -49,7 +48,7 @@ export const AGE_MILESTONES: Record<number, MilestoneDefinition[]> = {
   // housing and workshop counts, which never flap under mothball
   // cycling (farms/wells do — proven by manageMothballs rest logic).
   // No techs dimension: all 5 techs are already required by Age 2.
-  // No market/warehouse: plank-starved endgames cannot guarantee them.
+  // No warehouse: plank-starved endgames cannot guarantee it.
   3: [
     { id: "pop20", label: "Population 20", dimension: "population", threshold: 20 },
     { id: "tre1500", label: "Treasury 1500", dimension: "treasury", threshold: 1500 },

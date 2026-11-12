@@ -8,7 +8,6 @@ import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js"
 import { foodPerFarm } from "@/domain/production/production.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
 import { canAdvanceAge } from "@/domain/progression/progression.js";
-import { getColonyStats } from "@/application/queries/stats.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { freeCell, mustOk } from "./helpers.js";
@@ -19,8 +18,11 @@ import type { EventFrequency } from "@/domain/events/events.js";
  * Self-play governor (Step021, extracted Step048): a scripted governor
  * plays the D2 day-0 colony headlessly through the full MVP loop -
  * Foundation surplus, Specialization techs, Age-1 milestones, transition,
- * Age-2 market sales - asserting global invariants every tick. Shared by
+ * Age-2 growth - asserting global invariants every tick. Shared by
  * selfplay.test.ts (gates) and measure.test.ts (Step048 trajectories).
+ *
+ * Step065: the Age-2 market (and the Step021 project mode that existed
+ * only to afford its 2 planks) is gone with the market itself.
  *
  * Verified governor doctrine (do not reorder without evidence, Step020):
  * bank-to-400 before the tech run; workshops compound while banking;
@@ -55,11 +57,24 @@ function countType(state: GameState, type: BuildingType): number {
 
 /** Producer/parks rest at high stocks (no maintenance) and wake at low stocks. */
 function manageMothballs(state: GameState): void {
-  if (projectModeActive(state)) {
-    runProjectMode(state);
-    return;
-  }
   const pop = state.population;
+  // Water triage (Step065): with no market draining the granary, food sits
+  // high, so the food triage below never fires and the workforce ends up in
+  // workshops while the cistern empties. Rest industry first — it is the only
+  // workplace that earns without keeping anyone alive — then revive it once
+  // the cistern is comfortable again.
+  const workshops = Object.values(state.buildings)
+    .filter((b) => b.type === "workshop")
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  if (state.resources.water < pop) {
+    for (const b of workshops) {
+      if (b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
+    }
+  } else if (state.resources.water > pop * 2) {
+    for (const b of workshops) {
+      if (!b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: true });
+    }
+  }
   for (const b of Object.values(state.buildings)) {
     // Food triage first: rest water/wood/stone getters so workers flow
     // deterministically to farms next tick. Workshops keep earning and
@@ -113,49 +128,6 @@ function manageMothballs(state: GameState): void {
   }
 }
 
-/**
- * Project mode (Step021): to build the Age-2 market the colony needs 2
- * planks = 1 staffed camp-tick + staffed workshop transform ticks. Staffing
- * is greedy over sort order, so the governor mothballs down to
- * eligible <= workers: then EVERYONE staffed, deterministically, whatever
- * the order. Enters only with food/water buffers for the ~4-tick project;
- * exits by building the market (caller reactivates shops after).
- */
-function projectModeActive(state: GameState): boolean {
-  const pop = state.population;
-  return (
-    state.age >= 2 &&
-    countType(state, "market") < 1 &&
-    state.resources.planks < 2 &&
-    pop >= 10 &&
-    state.resources.food > pop * 5 &&
-    state.resources.water > 20
-  );
-}
-
-function runProjectMode(state: GameState): void {
-  const byType = (t: BuildingType) =>
-    Object.values(state.buildings)
-      .filter((b) => b.type === t)
-      .sort((a, b) => a.y - b.y || a.x - b.x);
-  const keep = (t: BuildingType, n: number): void => {
-    const list = byType(t);
-    for (const b of list.slice(0, n)) {
-      if (!b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: true });
-    }
-    for (const b of list.slice(n)) {
-      if (b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
-    }
-  };
-  // 4 farms (12 food w/ tech) + 4 wells (8 water, buffered) + camp + shop:
-  // 10 eligible <= pop 10 charges the whole chain deterministically.
-  keep("farm", 4);
-  keep("well", 4);
-  keep("lumberCamp", 1);
-  keep("workshop", 1);
-  keep("quarry", 0);
-}
-
 export function checkInvariants(state: GameState): void {
   for (const k of ["food", "water", "money", "wood", "stone", "planks"] as const) {
     const v = state.resources[k];
@@ -184,7 +156,6 @@ export function playGame(
   stopEarly = true,
   housingCap = 14,
   growthCap?: number,
-  buildMarket = true,
   events: false | EventFrequency = false,
   onTick?: (state: GameState) => void,
   config: WorldConfig = SELFPLAY_CONFIG,
@@ -288,10 +259,9 @@ export function playGame(
     const pop = state.population;
     const money = state.resources.money;
     const housing = countType(state, "residence");
-    // Step035: phased housing cap — run the proven early path (market
-    // secured while planks exist), then open growth after market-sale.
-    // Undefined growthCap (all existing callers) = legacy behavior.
-    const capNow = growthCap !== undefined && seen.has("market-sale") ? growthCap : housingCap;
+    // Step035: phased housing cap — run the proven early path (Age 1 to
+    // Age 2), then open growth. Undefined growthCap = legacy behavior.
+    const capNow = growthCap !== undefined && seen.has("age2") ? growthCap : housingCap;
     manageMothballs(state);
 
     // Step031: storage pressure — a pinned stock means the surplus
@@ -332,12 +302,6 @@ export function playGame(
       [!banking && countType(state, "lumberCamp") < 1 && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
       [!banking && countType(state, "quarry") < 1 && state.resources.planks >= 5 && money > 60, () => tryBuildNearDeposit("quarry", state.stoneDeposits, true, 20)],
       [!banking && countType(state, "park") < 1 && (state.pollution > 25 || money > 200) && money > 60, () => tryBuildNearDeposit("park", state.woodDeposits, false, 20)],
-      // Step035: the market drain pins food stock, which the triage below
-      // reads as permanent crisis and mothballs water getters (water 0
-      // endgame). Tests measuring growth+water without the market system
-      // opt out explicitly; market coverage lives in the market, main-loop
-      // and age-3 tests. Default true preserves all existing behavior.
-      [buildMarket && state.age >= 2 && countType(state, "market") < 1 && money > 100 && state.resources.food > pop * 2, () => tryBuild("market", true, 20)],
     ];
     for (const [cond, fn] of options) {
       if (cond && fn()) break;
@@ -363,9 +327,10 @@ export function playGame(
       const restored = parseSave(serialize(state));
       expect(restored).toEqual(state);
     }
-    if (state.age >= 2 && countType(state, "market") >= 1) mark("market-built");
-    if (state.age >= 2 && getColonyStats(state).marketPerTick > 0) mark("market-sale");
-    if (stopEarly && seen.has("market-sale")) {
+    // Stop once the whole MVP loop is proven: Age 2 AND growth past the
+    // opening's housing cap (pop 12). Stopping at age2 alone would cut the
+    // run before the pop12 gate is observable (Step065).
+    if (stopEarly && seen.has("pop12")) {
       const restored = parseSave(serialize(state));
       expect(restored).toEqual(state);
       mark("save-mid");
