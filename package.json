@@ -18,7 +18,10 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:selfplay": "vitest run tests/selfplay.test.ts"
+    "test:selfplay": "vitest run tests/selfplay.test.ts",
+    "play": "node tools/agent/run.mjs",
+    "observe": "node tools/agent/observe.mjs",
+    "evaluate": "node tools/agent/evaluate.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"

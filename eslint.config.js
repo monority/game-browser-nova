@@ -19,6 +19,21 @@ export default tseslint.config(
     },
   },
   {
+    files: ["tools/agent/*.mjs"],
+    languageOptions: {
+      globals: {
+        process: "readonly",
+        console: "readonly",
+        fetch: "readonly",
+        AbortSignal: "readonly",
+        setTimeout: "readonly",
+        clearTimeout: "readonly",
+        window: "readonly",
+        document: "readonly",
+      },
+    },
+  },
+  {
     files: ["vite.config.ts", "eslint.config.js"],
     rules: {
       "@typescript-eslint/no-require-imports": "off",

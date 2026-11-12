@@ -13,6 +13,7 @@ playtest/artifacts/
 AGENTS.md
 TASK.md
 .unipi/
+.agents/
 playtest/
 docs/*
 !docs/STATE.md
