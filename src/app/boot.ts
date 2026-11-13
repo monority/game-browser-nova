@@ -1,5 +1,5 @@
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
-import { stepSimulation } from "@/domain/simulation/tick.js";
+import { emptyTickFlows, stepSimulation, type TickFlows } from "@/domain/simulation/tick.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { createRenderer, type Renderer } from "@/renderer/renderer.js";
 import type { OverlayMode } from "@/renderer/overlay.js";
@@ -53,6 +53,9 @@ const DEFAULT_CONFIG = {
 
 export function boot(root: HTMLElement): { stop(): void } {
   let state: GameState = createInitialState(DEFAULT_CONFIG);
+  // Session reading of what the last tick moved (Step067). Presentation data,
+  // not state: it is never saved and never feeds the simulation.
+  let flows: TickFlows = emptyTickFlows();
   let renderer: Renderer = createRenderer(root, state);
   let ui: Ui | null = null;
   let ticksPerSecond = 2; // 1x
@@ -62,6 +65,9 @@ export function boot(root: HTMLElement): { stop(): void } {
 
   function swapState(next: GameState): void {
     state = next;
+    // A loaded colony has not run a tick in this session: its losses are
+    // unknown, not zero-by-assumption
+    flows = emptyTickFlows();
     renderer.dispose();
     renderer = createRenderer(root, state);
     // Keep the scene and the UI consistent: a fresh renderer starts with no
@@ -72,7 +78,7 @@ export function boot(root: HTMLElement): { stop(): void } {
 
   function refreshStats(): void {
     if (!ui) return;
-    ui.updateStats(getColonyStats(state));
+    ui.updateStats(getColonyStats(state, flows));
     ui.setAvailableBuildings(
       PALETTE_TYPES.filter((t) => (BUILDING_DEFINITIONS[t].requiredAge ?? 1) <= state.age),
     );
@@ -269,7 +275,7 @@ export function boot(root: HTMLElement): { stop(): void } {
   // fixed-timestep loop (ADR-002): one sim tick per step, render + stats refresh
   const loop = startFixedTimestepLoop(
     () => {
-      stepSimulation(state);
+      stepSimulation(state, flows);
       renderer.update(state);
       refreshStats();
     },
@@ -290,7 +296,7 @@ export function boot(root: HTMLElement): { stop(): void } {
 
   attachDiagnostics({
     getState: () => state,
-    stats: () => getColonyStats(state),
+    stats: () => getColonyStats(state, flows),
     command: (command: Parameters<typeof applyCommand>[1]) => applyCommand(state, command),
     milestones: () => evaluateMilestones(state, state.age),
     canAdvanceAge: () => canAdvanceAge(state),

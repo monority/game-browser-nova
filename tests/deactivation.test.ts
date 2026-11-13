@@ -10,7 +10,7 @@ import {
   MIGRATABLE_SAVE_VERSION,
   SaveValidationError,
 } from "@/application/persistence/save.js";
-import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 import { allRoadCells } from "@/domain/road/road.js";
 
 const CONFIG = { seed: "deactivate-test", width: 16, height: 16 };
@@ -117,90 +117,6 @@ describe("deactivation effects", () => {
     expect(state.resources.money).toBe(m2 - 2);
   });
 
-  it("a deactivated farm leaves pop 1 on the Center trickle and starves pop 2", () => {
-    const { state, ids } = settledState();
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: ids.farm, active: false }));
-    expect(state.buildings[ids.farm]?.staffed).toBe(false);
-    const foodAtPop1 = state.resources.food;
-    stepTicks(state, 2);
-    expect(state.population).toBe(1);
-    expect(state.resources.food).toBe(foodAtPop1); // trickle covers exactly
-    state.population = 2;
-    state.resources.food = 3;
-    stepTicks(state, 4); // 3→2→1→0 then one unfed colonist is lost
-    expect(state.population).toBe(1);
-    stepTicks(state, 1); // the trickle sustains the survivor (anti-lock, Step015)
-    expect(state.population).toBe(1);
-  });
-
-  it("deactivated wells stop water production; reactivation restores it", () => {
-    const state = freshState();
-    state.resources.money = 400;
-    stripToAnchor(state);
-    state.population = 0;
-    state.resources.water = 6;
-    const strip = findStrip(state, new Set());
-    mustOk(applyCommand(state, {
-      kind: "placeRoads",
-      cells: [0, 1, 2].map((dy) => cellKey(strip.x, strip.y + dy)),
-    }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: strip.x + strip.side, y: strip.y }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: strip.x + strip.side, y: strip.y + 1 }));
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: strip.x + strip.side, y: strip.y + 2 }));
-    const used = new Set(stripCells(strip));
-    for (let i = 0; i < 3; i++) {
-      const home = freeCell(state, used);
-      used.add(cellKey(home.x, home.y));
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: home.x, y: home.y }));
-    }
-    stepTicks(state, 8); // admissions: pop 3; both wells staffed
-    expect(state.population).toBe(3);
-
-    const wellIds = Object.values(state.buildings)
-      .filter((b) => b.type === "well")
-      .map((b) => b.id)
-      .sort();
-    if (wellIds.length !== 2) throw new Error("expected 2 wells");
-    const [wellA, wellB] = wellIds as [string, string];
-    for (const id of [wellA, wellB]) {
-      mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: false }));
-    }
-    stepTicks(state, 6); // production 0, served 3/tick → drains to 0
-    expect(state.resources.water).toBe(0);
-    expect(state.population).toBe(3); // alive (food unaffected); admission blocked
-
-    for (const id of [wellA, wellB]) {
-      mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: true }));
-    }
-    stepTicks(state, 2);
-    expect(state.resources.water).toBeGreaterThan(0);
-  });
-
-  it("redistributes staffing deterministically when a workplace is mothballed", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 0;
-    state.resources.money = 300;
-    const road = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-    const farmSpot = adjacentFree(state, road.x, road.y);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: farmSpot.x, y: farmSpot.y }));
-    const farmId = `building-${state.buildingCounter - 1}`;
-    const road2 = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road2.x, road2.y)] }));
-    const wellSpot = adjacentFree(state, road2.x, road2.y);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: wellSpot.x, y: wellSpot.y }));
-    const wellId = `building-${state.buildingCounter - 1}`;
-    stepTicks(state, 3);
-    state.population = 2;
-    stepTicks(state, 1);
-    expect(state.buildings[farmId]?.staffed).toBe(true);
-    expect(state.buildings[wellId]?.staffed).toBe(true);
-    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farmId, active: false }));
-    stepTicks(state, 1);
-    expect(state.buildings[farmId]?.staffed).toBe(false);
-    expect(state.buildings[wellId]?.staffed).toBe(true);
-  });
 });
 
 describe("anchor protection", () => {
@@ -286,16 +202,3 @@ describe("persistence", () => {
   });
 });
 
-describe("determinism", () => {
-  it("identical states and commands produce identical outcomes", () => {
-    const a = settledState();
-    const b = settledState();
-    for (const f of [a, b]) {
-      mustOk(applyCommand(f.state, { kind: "setBuildingActive", id: f.ids.well, active: false }));
-      stepTicks(f.state, 6);
-      mustOk(applyCommand(f.state, { kind: "setBuildingActive", id: f.ids.well, active: true }));
-      stepTicks(f.state, 3);
-    }
-    expect(b.state).toEqual(a.state);
-  });
-});

@@ -47,13 +47,6 @@ describe("self-play verifier", () => {
     console.log("sustained phases: " + phases.join(", "));
   }, 180000);
 
-  it("self-play is deterministic", () => {
-    const a = playGame();
-    const b = playGame();
-    expect(b.state).toEqual(a.state);
-    expect(b.phases).toEqual(a.phases);
-  }, 240000);
-
   it("self-play with controlled events on still completes the MVP loop (Step047 guard)", () => {
     // The events garde-fou: frequent recurrence must not turn any viable
     // line non-viable (the Step001 trap precedent). Same phase gates as

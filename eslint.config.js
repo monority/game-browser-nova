@@ -19,7 +19,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["tools/agent/*.mjs"],
+    files: ["tools/agent/*.mjs", "tools/testing/*.mjs"],
     languageOptions: {
       globals: {
         process: "readonly",

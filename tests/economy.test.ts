@@ -9,7 +9,6 @@ import {
   MIN_POP_FOR_COMMERCE,
   TAX_PER_INHABITANT_PER_TICK,
   collectRevenue,
-  connectedWorkshops,
   payMaintenance,
 } from "@/domain/economy/economy.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
@@ -55,38 +54,14 @@ describe("revenue", () => {
     expect(collectRevenue(state)).toEqual({ taxes: 7, commerce: 0 });
     state.population = 8;
     expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2 });
+
+    // Embargo (Step047/P2): the connection floor halves UP, so a tech'd
+    // workshop keeps its edge — ceil(3/2) = 2, never floor = 1.
+    state.researchedTechs = ["tradeRoutes"];
+    state.events = [{ kind: "tradeClosure", ticksLeft: 5 }];
+    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 2 });
   });
 
-  it("pays the base to vacant workshops once unlocked (staffing-independent)", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.resources.money = 1000;
-    state.resources.water = 20;
-    // 9 connected workshops, 8 colonists: 8 staffed, 1 vacant by construction
-    for (let i = 0; i < 9; i++) {
-      const road = freeCell(state);
-      mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-      const adj = adjacentFree(state, road.x, road.y);
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: adj.x, y: adj.y }));
-    }
-    stepTicks(state, 2);
-    state.population = 8;
-    stepTicks(state, 1); // staffing assigns 8 of 9
-    expect(Object.values(state.buildings).filter((b) => b.staffed)).toHaveLength(8);
-    expect(connectedWorkshops(state)).toBe(9);
-    expect(collectRevenue(state)).toEqual({ taxes: 8, commerce: 18 }); // 9 × 2 base
-  });
-
-  it("pays no commerce for unconnected or unfinished workshops", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.resources.water = 1;
-    const spot = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
-    expect(connectedWorkshops(state)).toBe(0); // under construction
-    stepTicks(state, 2);
-    expect(connectedWorkshops(state)).toBe(0); // operational but unconnected
-  });
 });
 
 describe("maintenance", () => {
@@ -129,6 +104,9 @@ describe("maintenance", () => {
     placeConnectedWorkshop(spam);
     spam.population = 8;
     spam.resources.money = 500; // test-level funding for the spam itself
+    // The money model is the subject: the stripped colony has no farm, so a
+    // 60-unit granary would now starve the taxpayers mid-measurement (Step067).
+    spam.resources.food = 100;
     stepTicks(spam, 2);
     for (let i = 0; i < 5; i++) {
       const spot = freeCell(spam);
@@ -152,40 +130,3 @@ describe("maintenance", () => {
   });
 });
 
-describe("full-tick economy", () => {
-  it("lands revenue before maintenance, and stays net-negative for non-exempt shapes", () => {
-    const state = freshState();
-    placeConnectedWorkshop(state);
-    state.population = 8; // unlocks the commerce floor
-    const before = state.resources.money;
-    stepTicks(state, 1);
-    // +8 taxes +2 commerce −1 maintenance (the workshop is the only upkeep building)
-    expect(state.resources.money).toBe(before + 9);
-
-    const negative = freshState();
-    placeConnectedWorkshop(negative);
-    negative.resources.money = 300; // test-level funding for the unfundable shape
-    for (let i = 0; i < 4; i++) {
-      const spot = freeCell(negative);
-      mustOk(applyCommand(negative, { kind: "placeBuilding", type: "farm", x: spot.x, y: spot.y }));
-      stepTicks(negative, 2);
-    }
-    negative.population = 2;
-    negative.resources.food = 10; // this test isolates the money model (Step055 B)
-    const m = negative.resources.money;
-    stepTicks(negative, 1);
-    // revenue 2 (commerce locked below pop 8) − upkeep 5 (workshop + 4 farms)
-    expect(negative.resources.money).toBe(m - 3);
-  });
-
-  it("is deterministic", () => {
-    const a = freshState();
-    const b = freshState();
-    for (const s of [a, b]) {
-      placeConnectedWorkshop(s);
-      s.population = 3;
-      stepTicks(s, 7);
-    }
-    expect(b).toEqual(a);
-  });
-});

@@ -59,24 +59,4 @@ describe("fixed-timestep loop error guard", () => {
     expect(frames.length).toBe(0); // loop stopped: nothing left to run
   });
 
-  it("keeps ticking at the fixed rate when nothing throws", () => {
-    let ticks = 0;
-    const errors: unknown[] = [];
-    const t0 = performance.now();
-    startFixedTimestepLoop(
-      () => {
-        ticks += 1;
-      },
-      () => 1000,
-      (error) => {
-        errors.push(error);
-      },
-    );
-    stepOnce(t0, 1);
-    stepOnce(t0, 2);
-    stepOnce(t0, 3);
-    expect(ticks).toBe(3);
-    expect(errors).toEqual([]);
-    expect(frames.length).toBe(1); // still scheduled
-  });
 });

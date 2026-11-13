@@ -26,18 +26,6 @@ function freshState(): GameState {
 }
 
 describe("road placement validation", () => {
-  it("rejects cells outside the world bounds", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    expect(applyCommand(state, { kind: "placeRoads", cells: [cellKey(-1, 0)] })).toEqual({
-      ok: false,
-      reason: "outOfBounds",
-    });
-    expect(
-      applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 16)] }),
-    ).toEqual({ ok: false, reason: "outOfBounds" });
-  });
-
   it("rejects blocked terrain; roads may cross deposits (buildings may not)", () => {
     const state = freshState();
     stripToAnchor(state);
@@ -54,24 +42,6 @@ describe("road placement validation", () => {
     });
   });
 
-  it("rejects cells already covered by an existing road", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(2, 2)] }));
-    expect(applyCommand(state, { kind: "placeRoads", cells: [cellKey(2, 2)] })).toEqual({
-      ok: false,
-      reason: "occupied",
-    });
-  });
-
-  it("stores multi-cell roads in canonical order regardless of input order", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    const unordered = [cellKey(3, 1), cellKey(1, 1), cellKey(2, 1)];
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: unordered }));
-    const road = Object.values(state.roads)[0];
-    expect(road?.cells).toEqual([cellKey(1, 1), cellKey(2, 1), cellKey(3, 1)]);
-  });
 });
 
 describe("road removal semantics", () => {

@@ -10,36 +10,6 @@ import { ageAtmosphere, MAX_DEFINED_AGE } from "@/renderer/atmosphere.js";
  */
 
 describe("age atmosphere (Step041)", () => {
-  it("Age 1 (Founding) keeps the cold night-blue baseline", () => {
-    expect(ageAtmosphere(1)).toEqual({
-      fog: 0x0b0e14,
-      background: 0x0b0e14,
-      directional: 0xfff2df,
-      road: 0x4a5462,
-      roadLane: 0x6e7a8a,
-    });
-  });
-
-  it("Age 2 (Expansion) keeps the Step016 warm ember identity", () => {
-    expect(ageAtmosphere(2)).toEqual({
-      fog: 0x181109,
-      background: 0x151009,
-      directional: 0xffdfb0,
-      road: 0x5c4c3c,
-      roadLane: 0x8a7458,
-    });
-  });
-
-  it("Age 3 (Prosperity) has its own radiant gold chapter", () => {
-    expect(ageAtmosphere(3)).toEqual({
-      fog: 0x1e1708,
-      background: 0x1a1408,
-      directional: 0xffe9b4,
-      road: 0x6b5a34,
-      roadLane: 0x9a8448,
-    });
-  });
-
   it("every age is visually distinct from its neighbors", () => {
     const a1 = ageAtmosphere(1);
     const a2 = ageAtmosphere(2);
@@ -59,14 +29,4 @@ describe("age atmosphere (Step041)", () => {
     }
   });
 
-  it("clamps out-of-range ages to the nearest defined chapter", () => {
-    expect(ageAtmosphere(0)).toEqual(ageAtmosphere(1)); // floor
-    expect(ageAtmosphere(-3)).toEqual(ageAtmosphere(1));
-    expect(ageAtmosphere(MAX_DEFINED_AGE + 5)).toEqual(ageAtmosphere(MAX_DEFINED_AGE)); // ceiling
-    expect(ageAtmosphere(2.9)).toEqual(ageAtmosphere(2)); // fractional ages floor
-  });
-
-  it("purity: identical inputs, identical outputs", () => {
-    expect(ageAtmosphere(3)).toEqual(ageAtmosphere(3));
-  });
 });

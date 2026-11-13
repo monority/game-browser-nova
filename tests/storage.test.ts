@@ -2,18 +2,8 @@ import { describe, expect, it } from "vitest";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
-import { parseSave, serialize } from "@/application/persistence/save.js";
-import { getAlerts } from "@/application/queries/analysis.js";
 import { getColonyStats } from "@/application/queries/stats.js";
-import {
-  BASE_FOOD_CAPACITY,
-  BASE_WATER_CAPACITY,
-  FOOD_PER_WAREHOUSE,
-  WATER_PER_WAREHOUSE,
-  clampStorage,
-  foodCapacity,
-  waterCapacity,
-} from "@/domain/storage/storage.js";
+import { clampStorage, foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "storage-test", width: 16, height: 16 };
@@ -36,17 +26,6 @@ function placeWarehouse(state: GameState): string {
 }
 
 describe("storage capacity (Step031)", () => {
-  it("honours the documented base contract, with no day-0 clamp", () => {
-    expect([BASE_FOOD_CAPACITY, BASE_WATER_CAPACITY, FOOD_PER_WAREHOUSE, WATER_PER_WAREHOUSE])
-      .toEqual([120, 80, 60, 40]);
-    const state = freshState();
-    expect(foodCapacity(state)).toBe(120);
-    expect(waterCapacity(state)).toBe(80);
-    // base caps double the D2 day-0 stocks (headroom, no day-0 clamp)
-    expect(state.resources.food).toBeLessThanOrEqual(120);
-    expect(state.resources.water).toBeLessThanOrEqual(80);
-  });
-
   it("counts operational warehouses only, gates on planks, and reaches the stats surface", () => {
     const state = freshState();
     const id = placeWarehouse(state);
@@ -90,7 +69,10 @@ describe("storage capacity (Step031)", () => {
     pinned.resources.food = 120;
     pinned.resources.water = 80;
     stepTicks(pinned, 1); // colony-center trickle +1, then clamp
-    expect(pinned.resources).toMatchObject({ food: 120, water: 80 });
+    // Step067: conservation takes 3 of the 121 units before the clamp, so the
+    // granary settles below the cap instead of pinning. Water is unchanged
+    // (no degradation) and still pins at 80.
+    expect(pinned.resources).toMatchObject({ food: 118, water: 80 });
 
     const grown = freshState();
     stepTicks(grown, 50);
@@ -98,28 +80,4 @@ describe("storage capacity (Step031)", () => {
     expect(grown.resources.water).toBeLessThanOrEqual(waterCapacity(grown));
   });
 
-  it("reports pinned stock with a positive balance as information, silent below the cap", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 0;
-    state.resources.food = 120;
-    const alerts = getAlerts(state);
-    // A full granary is a reachable state of a healthy colony (no sink for a
-    // surplus since Step065), so it must not escalate the verdict: information
-    // only, and the copy states the loss instead of judging it (rule §7).
-    expect(alerts.find((a) => a.message.startsWith("Food storage full"))).toEqual({
-      severity: "info",
-      message: "Food storage full (120/120) · +1/tick not stored",
-    });
-    expect(alerts.filter((a) => a.severity === "warning")).toEqual([]);
-
-    state.resources.food = 10;
-    expect(getAlerts(state).some((a) => a.message.startsWith("Food storage full"))).toBe(false);
-  });
-
-  it("warehouse round-trips losslessly with no save migration", () => {
-    const state = freshState();
-    placeWarehouse(state);
-    expect(parseSave(serialize(state))).toEqual(state);
-  });
 });

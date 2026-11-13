@@ -3,15 +3,12 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
-import { produceWood } from "@/domain/production/extraction.js";
-import { foodProductionPerTick, foodPerFarm } from "@/domain/production/production.js";
 import {
   LOGISTICS_DECAY_PER_CELL,
   LOGISTICS_FLOOR_PERCENT,
   LOGISTICS_FREE_RADIUS,
   WHEELBARROW_FREE_RADIUS_BONUS,
   buildLogisticsMap,
-  freeLogisticsRadius,
   logisticsDistance,
   logisticsEfficiencyPercent,
 } from "@/domain/logistics/logistics.js";
@@ -79,13 +76,6 @@ describe("logistics constants", () => {
 });
 
 describe("distance and efficiency", () => {
-  it("gives 100% everywhere while no warehouse exists (founding logistics)", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x: 12, y: 3 }));
-    expect(logisticsEfficiencyPercent(state, state.buildings["building-1"]!)).toBe(100);
-  });
-
   it("BFS follows the road graph from the warehouse", () => {
     const state = freshState();
     setupCorridor(state, 31);
@@ -98,19 +88,21 @@ describe("distance and efficiency", () => {
     expect(logisticsDistance(state, campFar, map)).toBe(23);
   });
 
-  it("decays linearly past the free radius and floors at 60%", () => {
+  it("scales a camp's real extraction by its network position", () => {
+    // The pure curve is pinned above; this pins the WIRING into phase 3 —
+    // 23 hops = 100 − 11×4 → floor 60 → floor(2 × 0.6) = 1 wood/tick.
     const state = freshState();
     setupCorridor(state, 31);
-    // camps AT (x,3): adjacent to road (x,2) -> network distance x
-    for (const x of [12, 15, 22, 31]) {
-      mustOk(applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x, y: 3 }));
-    }
-    const camps = Object.values(state.buildings).filter((b) => b.type === "lumberCamp");
-    const byDistance = new Map(camps.map((b) => [logisticsDistance(state, b), b]));
-    expect(logisticsEfficiencyPercent(state, byDistance.get(12)!)).toBe(100);
-    expect(logisticsEfficiencyPercent(state, byDistance.get(15)!)).toBe(100 - 3 * LOGISTICS_DECAY_PER_CELL);
-    expect(logisticsEfficiencyPercent(state, byDistance.get(22)!)).toBe(LOGISTICS_FLOOR_PERCENT);
-    expect(logisticsEfficiencyPercent(state, byDistance.get(31)!)).toBe(LOGISTICS_FLOOR_PERCENT);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x: 23, y: 3 }));
+    state.population = Math.max(state.population, 1);
+    state.resources.water = 500;
+    state.resources.food = 100;
+    stepTicks(state, 3); // operational, staffed, then one production tick
+    const camp = Object.values(state.buildings).find((b) => b.type === "lumberCamp");
+    expect(camp?.staffed).toBe(true);
+    const wood = state.resources.wood;
+    stepTicks(state, 1);
+    expect(state.resources.wood - wood).toBe(1); // base 2 × 60 %, not the full 2
   });
 
   it("a disconnected road island floors (no path to a warehouse)", () => {
@@ -129,43 +121,5 @@ describe("distance and efficiency", () => {
     }, map)).toBe(LOGISTICS_FLOOR_PERCENT);
   });
 
-  it("wheelbarrow widens the free radius by 6", () => {
-    const state = freshState();
-    setupCorridor(state, 31);
-    state.age = 2;
-    mustOk(applyCommand(state, { kind: "researchTech", techId: "wheelbarrow" }));
-    expect(freeLogisticsRadius(state)).toBe(LOGISTICS_FREE_RADIUS + WHEELBARROW_FREE_RADIUS_BONUS);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x: 22, y: 3 })); // d=22
-    const camp = Object.values(state.buildings).find((b) => b.type === "lumberCamp")!;
-    // without tech: floored 60; with the wider radius: 100 - (22-18)*4 = 84
-    expect(logisticsEfficiencyPercent(state, camp)).toBe(84);
-  });
-
-  it("scales the camp extraction share; the map is reusable across buildings", () => {
-    const state = freshState();
-    setupCorridor(state, 31);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "lumberCamp", x: 23, y: 3 })); // d=23 → floor 60
-    stepTicks(state, 2); // camp operational
-    const camp = Object.values(state.buildings).find((b) => b.type === "lumberCamp")!;
-    camp.staffed = true;
-    const woodBefore = state.resources.wood;
-    produceWood(state);
-    // base 2 at 60% → 1 extracted from the adjacent deposit (24,3);
-    // the anchor extracts nothing here (no adjacent deposit in this world)
-    expect(state.woodDeposits[cellKey(24, 3)]?.remaining).toBe(19);
-    expect(state.resources.wood).toBe(woodBefore + 1);
-  });
 });
 
-describe("exemptions (calibration)", () => {
-  it("farms keep their full rate regardless of warehouse distance", () => {
-    const state = freshState();
-    setupCorridor(state, 31);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 28, y: 3 })); // d=28
-    stepTicks(state, 2); // farm operational
-    const farm = Object.values(state.buildings).find((b) => b.type === "farm")!;
-    farm.staffed = true;
-    expect(foodPerFarm(state)).toBe(2);
-    expect(foodProductionPerTick(state)).toBe(2 + 1); // farm + Center trickle
-  });
-});

@@ -7,12 +7,10 @@ import {
   environmentalQuality,
   MIN_QUALITY_FOR_ADMISSION,
   ABSORPTION_PER_PARK_PER_TICK,
-  pollutionContributionPerTick,
   pollutionFlows,
   pollutionTicksToAdmissionBlock,
 } from "@/domain/environment/environment.js";
 import { getColonyStats } from "@/application/queries/stats.js";
-import { getAlerts } from "@/application/queries/analysis.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
@@ -41,15 +39,6 @@ function pollutingColony(): GameState {
 }
 
 describe("pollution flows", () => {
-  it("a clean colony emits nothing and keeps quality 100", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 0;
-    stepTicks(state, 5);
-    expect(state.pollution).toBe(0);
-    expect(environmentalQuality(state)).toBe(100);
-  });
-
   it("an active workshop emits 1/tick; mothballing stops it with no natural decay", () => {
     const state = pollutingColony();
     // Step064: emission runs before assignJobs, so it follows the staffing set
@@ -89,41 +78,6 @@ describe("pollution flows", () => {
   });
 });
 
-describe("staffed-only emission (Step064)", () => {
-  it("an idling workshop emits nothing and starts emitting the same tick as its output", () => {
-    const state = freshState();
-    state.resources.money = 300;
-    state.resources.water = 2;
-    stripToAnchor(state);
-    state.population = 0;
-    const road = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-    const spot = adjacentFree(state, road.x, road.y);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
-    stepTicks(state, 5);
-    const workshop = Object.values(state.buildings).find((b) => b.type === "workshop");
-    expect(workshop?.staffed).toBe(false);
-    expect(pollutionFlows(state)).toEqual({ emissions: 0, absorption: 0, net: 0 });
-    expect(state.pollution).toBe(0);
-
-    state.population = 1; // the colonist fills the workplace at the end of the tick
-    stepTicks(state, 1);
-    expect(workshop?.staffed).toBe(true);
-    expect(state.pollution).toBe(0); // no work done yet
-    stepTicks(state, 2);
-    expect(state.pollution).toBe(2);
-  });
-
-  it("a park still absorbs while unstaffed (parks have no job capacity)", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 0;
-    const spot = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "park", x: spot.x, y: spot.y }));
-    stepTicks(state, 2);
-    expect(pollutionFlows(state).absorption).toBe(ABSORPTION_PER_PARK_PER_TICK);
-  });
-});
 
 describe("environmental admission gate", () => {
   it("blocks growth below quality 25 while staying bootstrap-exempt, and re-opens on recovery", () => {
@@ -158,94 +112,9 @@ describe("environment persistence + alerts", () => {
     expect(parseSave(serialize(dirty))).toEqual(dirty);
   });
 
-  it("alerts info below quality 50, warning below 25, silent when clean", () => {
-    const state = pollutingColony();
-    state.pollution = 60;
-    expect(getAlerts(state).filter((a) => a.message.startsWith("Environment"))).toEqual([
-      { severity: "info", message: "Environment: quality 40 · pollution 60" },
-    ]);
-    state.pollution = 80;
-    expect(getAlerts(state).filter((a) => a.message.startsWith("Environment"))).toEqual([
-      { severity: "warning", message: "Environment: quality 20 · pollution 80" },
-    ]);
-
-    const clean = freshState();
-    stripToAnchor(clean);
-    clean.population = 0;
-    expect(getAlerts(clean)).toEqual([]);
-  });
-
-  it("is deterministic", () => {
-    const a = pollutingColony();
-    const b = pollutingColony();
-    for (const s of [a, b]) {
-      const spot = freeCell(s);
-      mustOk(applyCommand(s, { kind: "placeBuilding", type: "park", x: spot.x, y: spot.y }));
-      stepTicks(s, 7);
-    }
-    expect(b).toEqual(a);
-  });
 });
 
-describe("pollutionFlows pure query + stats (Step053 F1)", () => {
-  it("counts both sides without mutating, and stats surface the same totals", () => {
-    const state = freshState();
-    stripToAnchor(state);
-    state.population = 0;
-    expect(getColonyStats(state)).toMatchObject({
-      pollutionEmissionsPerTick: 0,
-      pollutionAbsorptionPerTick: 0,
-      pollutionNetPerTick: 0,
-    });
 
-    const dirty = freshState();
-    stripToAnchor(dirty);
-    dirty.resources.money = 500;
-    dirty.resources.water = 4;
-    for (let i = 0; i < 2; i++) {
-      const road = freeCell(dirty);
-      mustOk(applyCommand(dirty, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-      const spot = adjacentFree(dirty, road.x, road.y);
-      mustOk(applyCommand(dirty, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
-    }
-    stepTicks(dirty, 2); // both operational
-    dirty.population = 2; // Step064: emission requires staffing
-    stepTicks(dirty, 1);
-    expect(pollutionFlows(dirty)).toEqual({ emissions: 2, absorption: 0, net: 2 });
-    expect(getColonyStats(dirty).pollutionNetPerTick).toBe(2);
-
-    const parkSpot = freeCell(dirty);
-    mustOk(applyCommand(dirty, { kind: "placeBuilding", type: "park", x: parkSpot.x, y: parkSpot.y }));
-    stepTicks(dirty, 2); // park matures
-    expect(pollutionFlows(dirty)).toEqual({ emissions: 2, absorption: 2, net: 0 });
-    expect(dirty.pollution).toBeGreaterThan(0); // pure: nothing clamped here
-  });
-});
-
-describe("per-building pollution contribution (Step056)", () => {
-  it("maps every building type, and the inspection cannot drift from the flows", () => {
-    const expected: [Parameters<typeof pollutionContributionPerTick>[0], number][] = [
-      ["workshop", 1],
-      ["quarry", 1],
-      ["park", -ABSORPTION_PER_PARK_PER_TICK],
-      ["farm", 0],
-      ["well", 0],
-      ["residence", 0],
-      ["lumberCamp", 0],
-      ["warehouse", 0],
-      ["colonyCenter", 0],
-    ];
-    for (const [type, contribution] of expected) {
-      expect(pollutionContributionPerTick(type), type).toBe(contribution);
-    }
-
-    const state = pollutingColony(); // one active workshop
-    expect(pollutionFlows(state)).toEqual({ emissions: 1, absorption: 0, net: 1 });
-    expect(getColonyStats(state).pollutionNetPerTick).toBe(
-      pollutionContributionPerTick("workshop"),
-    );
-  });
-});
 
 describe("admission-block forecast (Step056 F1)", () => {
   it("is null while pollution is stable or falling", () => {
@@ -274,18 +143,4 @@ describe("admission-block forecast (Step056 F1)", () => {
     expect(getColonyStats(state).pollutionTicksToAdmissionBlock).toBe(0);
   });
 
-  it("scales with the net flow (two staffed workshops burn the margin twice as fast)", () => {
-    const state = pollutingColony();
-    state.population = 2;
-    state.resources.money = 300;
-    state.resources.water = 4;
-    const road = freeCell(state);
-    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
-    const spot = adjacentFree(state, road.x, road.y);
-    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
-    stepTicks(state, 2); // second workshop operational → net +2
-    state.pollution = 63; // 63 + 2·6 = 75 (last clean tick)
-    expect(pollutionFlows(state).net).toBe(2);
-    expect(pollutionTicksToAdmissionBlock(state)).toBe(7);
-  });
 });

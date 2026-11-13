@@ -29,7 +29,7 @@ import type { WorldConfig } from "@/domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 18;
+export const SAVE_VERSION = 19;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 /** The single localStorage slot this game reads and writes. */
@@ -51,6 +51,8 @@ interface SaveDocument {
   researchedTechs: string[];
   tick: number;
   resources: ResourceStock;
+  /** Fractional remainder of the food conservation loss (Step067). */
+  foodSpoilCarry: number;
   population: number;
   buildings: Building[];
   roads: Road[];
@@ -89,6 +91,7 @@ export function serialize(state: GameState): SaveDocument {
     researchedTechs: [...state.researchedTechs],
     tick: state.tick,
     resources: { ...state.resources },
+    foodSpoilCarry: state.foodSpoilCarry,
     population: state.population,
     buildings: Object.values(state.buildings).map((b) => ({ ...b })),
     roads: Object.values(state.roads).map((r) => ({ id: r.id, cells: [...r.cells] })),
@@ -113,13 +116,14 @@ export function parseSave(input: unknown): GameState {
       `unsupported save version: ${String(version)} (expected ${SAVE_VERSION}, migratable from ${MIGRATABLE_SAVE_VERSION})`,
     );
   }
-  // sequential migration chain: v13 -> v14 -> v15 -> v16 -> v17 -> v18
+  // sequential migration chain: v13 -> v14 -> v15 -> v16 -> v17 -> v18 -> v19
   let doc: Record<string, unknown> = input;
   if (Number(doc.formatVersion) === 13) doc = migrateV13ToV14(doc);
   if (Number(doc.formatVersion) === 14) doc = migrateV14ToV15(doc);
   if (Number(doc.formatVersion) === 15) doc = migrateV15ToV16(doc);
   if (Number(doc.formatVersion) === 16) doc = migrateV16ToV17(doc);
   if (Number(doc.formatVersion) === 17) doc = migrateV17ToV18(doc);
+  if (Number(doc.formatVersion) === 18) doc = migrateV18ToV19(doc);
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
@@ -178,6 +182,14 @@ export function parseSave(input: unknown): GameState {
     stone: expectNonNegativeNumber(resources.stone, "resources.stone"),
     planks: expectNonNegativeNumber(resources.planks, "resources.planks"),
   };
+
+  // Food conservation (Step067): the carry is a fraction of a unit. Values at
+  // or above 1 would mean a whole unit was already spoiled, so they are
+  // corrupt data, not plausible state — reject instead of normalizing.
+  const foodSpoilCarry = expectNonNegativeNumber(doc.foodSpoilCarry, "foodSpoilCarry");
+  if (foodSpoilCarry >= 1) {
+    throw new SaveValidationError("save.foodSpoilCarry must be < 1");
+  }
 
   if (!Array.isArray(doc.buildings)) {
     throw new SaveValidationError("save.buildings must be an array");
@@ -323,6 +335,7 @@ export function parseSave(input: unknown): GameState {
     worldConfig: config,
     tick,
     resources: stock,
+    foodSpoilCarry,
     population,
     buildings,
     roads,
@@ -343,6 +356,21 @@ export function parseSave(input: unknown): GameState {
 
 export function saveToString(state: GameState): string {
   return JSON.stringify(serialize(state));
+}
+
+/**
+ * v18 -> v19 (Step067): add the food conservation carry, defaulting to 0.
+ * Value-preserving: no stock changes and no food is destroyed on load — a
+ * migrated colony behaves exactly as it would have with no carry so far
+ * (the fractional remainder at the moment of migration is unknowable, and
+ * inventing one would rewrite the player's granary).
+ */
+function migrateV18ToV19(document: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...document,
+    formatVersion: 19,
+    foodSpoilCarry: 0,
+  };
 }
 
 /**

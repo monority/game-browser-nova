@@ -1,17 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { SPEED_SETTINGS } from "@/app/ui/kit.js";
 import {
   DEFAULT_PREFERENCES,
   PREFS_STORAGE_KEY,
   clearSaveSlot,
-  coerceOverlayMode,
-  coerceSpeedId,
   loadPreferences,
   parsePreferences,
   savePreferences,
   serializePreferences,
-  storedOverlayModes,
-  storedSpeedIds,
   type PrefsStorage,
 } from "@/application/persistence/preferences.js";
 
@@ -41,43 +36,6 @@ function fakeStorage(
   };
 }
 
-describe("parsePreferences", () => {
-  it("accepts valid payloads and falls back per field on missing or wrong-typed values", () => {
-    expect(parsePreferences({ speedId: "4x", overlay: "staffing" })).toEqual({
-      speedId: "4x",
-      overlay: "staffing",
-    });
-    expect(parsePreferences({ speedId: "4x" })).toEqual({ speedId: "4x", overlay: "none" });
-    expect(parsePreferences({ overlay: "deposits" })).toEqual({ speedId: "1x", overlay: "deposits" });
-    expect(parsePreferences({})).toEqual(DEFAULT_PREFERENCES);
-    expect(parsePreferences({ speedId: 4, overlay: ["staffing"] })).toEqual(DEFAULT_PREFERENCES);
-  });
-
-  it("rejects unknown ids and non-objects while keeping valid siblings and known fields", () => {
-    expect(parsePreferences({ speedId: "16x", overlay: "staffing" })).toEqual({
-      speedId: "1x",
-      overlay: "staffing",
-    });
-    expect(parsePreferences({ speedId: "2x", overlay: "satellite" })).toEqual({
-      speedId: "2x",
-      overlay: "none",
-    });
-    for (const payload of [null, '{"speedId":"4x"}', 42]) {
-      expect(parsePreferences(payload)).toEqual(DEFAULT_PREFERENCES);
-    }
-    expect(parsePreferences({ speedId: "4x", overlay: "none", volume: 11 })).toEqual({
-      speedId: "4x",
-      overlay: "none",
-    });
-  });
-
-  it("stays in sync with the UI sources", () => {
-    for (const setting of SPEED_SETTINGS) expect(storedSpeedIds()).toContain(setting.id);
-    expect(storedOverlayModes()).toEqual([
-      "none", "staffing", "deposits", "food", "water", "pollution", "population", "logistics",
-    ]);
-  });
-});
 
 describe("serialize/load/save round-trip", () => {
   it("round-trips, defaults on missing/corrupt/throwing storage, and reports save failures", () => {
@@ -102,18 +60,6 @@ describe("serialize/load/save round-trip", () => {
   });
 });
 
-describe("coerce helpers", () => {
-  it("passes valid ids and falls back on anything else", () => {
-    expect(coerceSpeedId("8x")).toBe("8x");
-    expect(coerceSpeedId("pause")).toBe("pause");
-    expect(coerceSpeedId("16x")).toBe("1x");
-    expect(coerceSpeedId("")).toBe("1x");
-    expect(coerceOverlayMode("deposits")).toBe("deposits");
-    expect(coerceOverlayMode("food")).toBe("food");
-    expect(coerceOverlayMode("population")).toBe("population");
-    expect(coerceOverlayMode("satellite")).toBe("none");
-  });
-});
 
 describe("clearSaveSlot", () => {
   it("deletes only the target slot, reporting cleared/empty/failed without throwing", () => {

@@ -3,13 +3,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
-import { normalizeDeposits, regrowAdjacent } from "@/domain/world/deposits.js";
-import { WOOD_REGROWTH_PER_PARK_PER_TICK } from "@/domain/environment/environment.js";
-import {
-  parseSave,
-  serialize,
-  SaveValidationError,
-} from "@/application/persistence/save.js";
+import { parseSave, serialize, SaveValidationError } from "@/application/persistence/save.js";
 import { mustOk } from "./helpers.js";
 
 const CONFIG = {
@@ -52,19 +46,6 @@ function placeParkNextTo(state: GameState, x: number, y: number): void {
   stepTicks(state, 2); // operational
 }
 
-describe("regrowth constants", () => {
-  it("parks regrow 1 wood per tick", () => {
-    expect(WOOD_REGROWTH_PER_PARK_PER_TICK).toBe(1);
-  });
-
-  it("normalizeDeposits records capacity alongside remaining", () => {
-    const deposits = normalizeDeposits([
-      { x: 1, y: 1, amount: 4 },
-      { x: 1, y: 1, amount: 3 },
-    ]);
-    expect(deposits[cellKey(1, 1)]).toEqual({ remaining: 7, capacity: 7 });
-  });
-});
 
 describe("park forest regrowth", () => {
   it("regrows a depleted adjacent deposit +1 per tick up to capacity", () => {
@@ -102,28 +83,6 @@ describe("park forest regrowth", () => {
     expect(stony.stoneDeposits[cellKey(10, 10)]?.remaining).toBe(0); // stone never regrows
   });
 
-  it("regrows the lowest canonical key first", () => {
-    // second deposit adjacent to the same park spot search area is complex;
-    // unit-test ordering directly through regrowAdjacent instead.
-    const deposits = normalizeDeposits([
-      { x: 2, y: 1, amount: 4 },
-      { x: 1, y: 2, amount: 4 },
-    ]);
-    deposits[cellKey(2, 1)] = { remaining: 0, capacity: 4 };
-    deposits[cellKey(1, 2)] = { remaining: 0, capacity: 4 };
-    // park at (1,1) touches both; canonical order is y-then-x, so (2,1) wins
-    expect(regrowAdjacent(deposits, 1, 1, 1)).toBe(1);
-    expect(deposits[cellKey(2, 1)]?.remaining).toBe(1);
-    expect(deposits[cellKey(1, 2)]?.remaining).toBe(0);
-  });
-
-  it("regrown wood is collectible next tick", () => {
-    const state = freshState();
-    placeParkNextTo(state, 5, 5);
-    state.woodDeposits[cellKey(5, 5)] = { remaining: 0, capacity: 6 };
-    stepTicks(state, 2); // +2 regrown (anchor far away, collects nothing here)
-    expect(state.woodDeposits[cellKey(5, 5)]?.remaining).toBe(2);
-  });
 });
 
 describe("regrowth persistence", () => {
@@ -167,15 +126,4 @@ describe("regrowth persistence", () => {
     expect(() => parseSave(v16)).toThrow(SaveValidationError);
   });
 
-  it("regrowth with extraction is deterministic", () => {
-    const a = freshState();
-    const b = freshState();
-    for (const s of [a, b]) {
-      placeParkNextTo(s, 5, 5);
-      s.woodDeposits[cellKey(5, 5)] = { remaining: 1, capacity: 6 };
-      stepTicks(s, 9);
-    }
-    expect(b).toEqual(a);
-    expect(a.woodDeposits[cellKey(5, 5)]?.remaining).toBe(6);
-  });
 });

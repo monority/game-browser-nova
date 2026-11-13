@@ -8,6 +8,31 @@ import { resolveEvents } from "@/domain/events/events.js";
 import { produceStone, produceWood } from "@/domain/production/extraction.js";
 import { producePlanks } from "@/domain/production/transformation.js";
 import { clampStorage } from "@/domain/storage/storage.js";
+import { applyFoodSpoilage } from "@/domain/storage/spoilage.js";
+
+/**
+ * What the LAST tick actually moved (Step067). A reading of the transition
+ * that produced the current stocks — never persisted and never authoritative:
+ * `state` stays the only source of truth (same pattern as the money
+ * projections in economy.ts). Callers that need per-tick measurements (stats
+ * panel, benches) pass a mutable record in; the tick overwrites it.
+ */
+export interface TickFlows {
+  /** Food added by production this tick (harvest events excluded). */
+  foodProduced: number;
+  /** Food actually eaten this tick (the served amount, not the need). */
+  foodConsumed: number;
+  /** Food lost to conservation this tick (whole units; the fraction is carried). */
+  foodSpoiled: number;
+  /** Food destroyed by the storage cap at the end of the tick. */
+  foodWasted: number;
+  /** Water destroyed by the storage cap at the end of the tick. */
+  waterWasted: number;
+}
+
+export function emptyTickFlows(): TickFlows {
+  return { foodProduced: 0, foodConsumed: 0, foodSpoiled: 0, foodWasted: 0, waterWasted: 0 };
+}
 
 /**
  * Fixed deterministic simulation tick (ADR-002).
@@ -19,7 +44,10 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *   2. produceFood / produceWater (previous tick's staffing)
  *   3. produceWood / produceStone (extraction from finite deposits)
  *   4. producePlanks (Workshop transformation, 2 wood → 1 plank)
- *   5. consumeFood (partial feeding) / consumeWater
+ *   5a. applyFoodSpoilage (Step067: proportional conservation loss, runs
+ *       AFTER production and BEFORE consumption so colonists eat what
+ *       survived the granary instead of what was just harvested)
+ *   5b. consumeFood (partial feeding) / consumeWater
  *   6. clampStorage (Step031: food/water capped, true surplus lost —
  *       runs after consumption so the clamp never eats what colonists
  *       would have consumed this tick)
@@ -35,21 +63,27 @@ import { clampStorage } from "@/domain/storage/storage.js";
  *       of 05-SIMULATION §3 — active events feed the NEXT tick's
  *       production/commerce phases, same timing contract as staffing)
  */
-export function stepSimulation(state: GameState): GameState {
+export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
   state.tick += 1;
 
   advanceConstruction(state);
 
+  const foodBeforeHarvest = state.resources.food;
   produceFood(state);
+  const foodProduced = state.resources.food - foodBeforeHarvest;
   produceWater(state);
   produceWood(state);
   produceStone(state);
   const planksProduced = producePlanks(state);
 
+  const foodSpoiled = applyFoodSpoilage(state);
+
+  const foodBeforeConsumption = state.resources.food;
   const fedColonists = consumeFood(state);
+  const foodConsumed = foodBeforeConsumption - state.resources.food;
   consumeWater(state);
 
-  clampStorage(state);
+  const clamp = clampStorage(state);
 
   updatePopulation(state, fedColonists);
 
@@ -60,6 +94,16 @@ export function stepSimulation(state: GameState): GameState {
   collectRevenue(state, planksProduced);
   payMaintenance(state);
   resolveEvents(state);
+
+  if (flows) {
+    // Measured as stock deltas: the reported numbers are the quantities the
+    // phases really moved, never a re-derivation that could drift from them.
+    flows.foodProduced = foodProduced;
+    flows.foodConsumed = foodConsumed;
+    flows.foodSpoiled = foodSpoiled;
+    flows.foodWasted = clamp.foodWasted;
+    flows.waterWasted = clamp.waterWasted;
+  }
 
   return state;
 }
@@ -77,9 +121,9 @@ function advanceConstruction(state: GameState): void {
   }
 }
 
-export function stepTicks(state: GameState, count: number): GameState {
+export function stepTicks(state: GameState, count: number, flows?: TickFlows): GameState {
   for (let i = 0; i < count; i++) {
-    stepSimulation(state);
+    stepSimulation(state, flows);
   }
   return state;
 }

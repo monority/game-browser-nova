@@ -13,12 +13,15 @@ import {
 import { compareCellCoords } from "@/domain/shared/cells.js";
 import {
   ENV_QUALITY_ALERT_THRESHOLD,
+  admissionGate,
   environmentalQuality,
   MIN_QUALITY_FOR_ADMISSION,
 } from "@/domain/environment/environment.js";
 import { housingCapacity } from "@/domain/population/population.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
+import { foodTicksRemaining, projectFoodTick } from "@/domain/storage/spoilage.js";
+import { forecastFoodReserve, type FoodReserveForecast } from "@/domain/storage/reserve.js";
 import type { ActiveEvent } from "@/domain/events/events.js";
 import { getStaffingOverview } from "./staffing.js";
 
@@ -33,10 +36,37 @@ export interface ResourceForecast {
   resource: SurvivalResource;
   productionPerTick: number;
   consumptionPerTick: number;
+  /**
+   * Conservation loss the coming tick will apply (Step067, exact basis since
+   * Step069: computed on the post-harvest stock, as the phase does). 0 for
+   * water, which does not degrade.
+   */
+  spoilagePerTick: number;
+  /** production − consumption: the harness balance, spoilage excluded. */
   balancePerTick: number;
+  /**
+   * Exact stock change of the coming tick, in the pipeline's order
+   * (production → conservation → consumption → storage cap). Equals
+   * `balance − spoilage` while the colony eats its full need and is not at
+   * the cap; differs when it starves or wastes at the cap, and the exact
+   * value is the one the tick will show.
+   */
+  netPerTick: number;
   stock: number;
-  /** Ticks until the stock empties; null while balance >= 0. */
+  /**
+   * Ticks until the stock empties, under the law the tick actually applies
+   * (spoilage shrinks with the stock, so stock / (−net) would overstate it).
+   * null when the granary never empties: the law's fixed point is positive,
+   * which `production >= consumption` does NOT guarantee at 3%/tick.
+   */
   ticksRemaining: number | null;
+  /**
+   * Food only (Step069): the Step068 reserve doctrine applied to THIS
+   * colony — target, achievable reserve, autonomy and the deficit / thin /
+   * building / funded / storage-limited status. The cockpit reads this
+   * instead of re-deriving a forecast of its own.
+   */
+  reserve?: FoodReserveForecast;
 }
 
 export function getResourceSummaries(state: GameState): Record<SurvivalResource, ResourceForecast> {
@@ -54,21 +84,52 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
     production: number,
     consumption: number,
     stock: number,
+    spoilage: number,
+    net: number,
+    ticksRemaining: number | null,
+    reserve?: FoodReserveForecast,
   ): ResourceForecast => {
     const balance = production - consumption;
     return {
       resource,
       productionPerTick: production,
       consumptionPerTick: consumption,
+      spoilagePerTick: spoilage,
       balancePerTick: balance,
+      netPerTick: net,
       stock,
-      ticksRemaining: balance < 0 ? Math.floor(stock / -balance) : null,
+      ticksRemaining,
+      ...(reserve ? { reserve } : {}),
     };
   };
 
+  // Food goes through the tick's own projection (Step069): the harvest and the
+  // conservation loss of the coming tick are read in the pipeline's order, so
+  // the numbers shown are the numbers the tick will apply.
+  const foodTick = projectFoodTick(state);
+  const waterBalance = waterProduction - waterConsumption;
   return {
-    food: summarize("food", foodProduction, foodConsumption, state.resources.food),
-    water: summarize("water", waterProduction, waterConsumption, state.resources.water),
+    food: summarize(
+      "food",
+      foodProduction,
+      foodConsumption,
+      state.resources.food,
+      foodTick.spoiled,
+      foodTick.net,
+      foodTicksRemaining(state),
+      forecastFoodReserve(state),
+    ),
+    // Water does not degrade and 1/tick per colonist is exact, so a linear
+    // stock / deficit division IS the law here — no projection needed.
+    water: summarize(
+      "water",
+      waterProduction,
+      waterConsumption,
+      state.resources.water,
+      0,
+      waterBalance,
+      waterBalance < 0 ? Math.floor(state.resources.water / -waterBalance) : null,
+    ),
   };
 }
 
@@ -155,11 +216,16 @@ export function getAlerts(
     alerts.push({ severity: eventAlertSeverity(event.kind), message: eventAlertLine(event) });
   }
 
-  if (summaries.food.balancePerTick < 0) {
+  // The countdown, not the balance (Step067, tightened Step069): with
+  // conservation a colony whose harvest matches its need still drains its
+  // granary (measured: pop 19 with 19/tick empties in 46 ticks at a zero
+  // balance), so the alert follows the law the tick applies. `netPerTick` is
+  // that projection's own delta and the countdown walks the same law.
+  if (summaries.food.ticksRemaining !== null && summaries.food.stock > 0) {
     const ticks = summaries.food.ticksRemaining ?? 0;
     alerts.push({
       severity: "warning",
-      message: `Food: ${summaries.food.balancePerTick}/tick · stock ${Math.floor(summaries.food.stock)} → ${ticks} ticks`,
+      message: `Food: ${summaries.food.netPerTick}/tick · stock ${Math.floor(summaries.food.stock)} → ${ticks} ticks`,
     });
   } else if (state.population > 0 && state.resources.food === 0) {
     alerts.push({
@@ -193,13 +259,29 @@ export function getAlerts(
   // could only clear by demolishing farms (2026-11-12 audit, F2). States
   // the state only — the fix (warehouse / fewer producers) is the player's
   // call.
+  // Step067: the per-tick quantities of this loss (conservation vs storage
+  // cap) live in the stats panel, which measures them; the alert only states
+  // that the granary is at its cap. "not stored" was dropped because
+  // conservation frees headroom every tick — production is partly replaced,
+  // not systematically destroyed.
   const foodCap = foodCapacity(state);
   if (summaries.food.balancePerTick > 0 && state.resources.food >= foodCap) {
     alerts.push({
       severity: "info",
-      message: `Food storage full (${Math.floor(state.resources.food)}/${foodCap}) · +${summaries.food.balancePerTick}/tick not stored`,
+      message: `Food storage full (${Math.floor(state.resources.food)}/${foodCap})`,
     });
   }
+  // A target the granary cannot hold is a capacity limit, not a production
+  // deficit (Step069): saying "production" here would sell the player a farm
+  // that only fills the cap faster. Information, never a warning.
+  const reserve = summaries.food.reserve;
+  if (reserve && reserve.capacityShort) {
+    alerts.push({
+      severity: "info",
+      message: `Food reserve: target ${reserve.target} > capacity ${reserve.capacity}`,
+    });
+  }
+
   const waterCap = waterCapacity(state);
   if (summaries.water.balancePerTick > 0 && state.resources.water >= waterCap) {
     alerts.push({
@@ -232,12 +314,13 @@ export function getAlerts(
   }
 
   // Growth blocked by air quality (Step053 F1): states the exact gate —
-  // quality, admission threshold, pollution — never an instruction.
+  // quality, admission threshold, pollution — never an instruction. The gate
+  // itself is the domain's (Step069 follow-up): the same reading feeds the
+  // cockpit's `plan`, which therefore cannot offer unreachable headroom.
   if (
-    state.population > 0 &&
+    admissionGate(state).blocked &&
     state.population < housingCapacity(state) &&
-    state.resources.food > 0 &&
-    quality < MIN_QUALITY_FOR_ADMISSION
+    state.resources.food > 0
   ) {
     alerts.push({
       severity: "warning",

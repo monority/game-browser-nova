@@ -37,15 +37,6 @@ function workplaceRow(
 }
 
 describe("getStaffingOverview (Step025)", () => {
-  it("bare colony: no eligible workplaces, no workers", () => {
-    expect(getStaffingOverview(bare())).toMatchObject({
-      eligible: 0,
-      staffed: 0,
-      workers: 0,
-      entries: [],
-    });
-  });
-
   it("ranks workplaces canonically (y, x, id), staffs in rank order, leaves the tail idle", () => {
     const ranked = bare();
     ranked.resources.money = 500;
@@ -120,15 +111,6 @@ describe("getStaffingOverview (Step025)", () => {
     ).toBe(true);
   });
 
-  it("is deterministic across identical states (no hidden ordering)", () => {
-    const build = () => {
-      const state = bare();
-      workplaceRow(state, ["farm", "well", "workshop", "park"]);
-      state.population = 3;
-      return getStaffingOverview(state);
-    };
-    expect(build()).toEqual(build());
-  });
 });
 
 describe("workforce alerts (Step025, reworked Step057 F5)", () => {

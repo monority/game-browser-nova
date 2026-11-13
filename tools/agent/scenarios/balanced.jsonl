@@ -9,19 +9,22 @@
 #   1. cropRotation (age 1, 50$) makes a farm yield 3/tick. That is what
 #      breaks the age-1 infeasibility — with one worker per building slot,
 #      f + w + 2 workshops = P cannot satisfy both 2f+1 >= P and 2w >= P.
-#      At 3/tick, five farms feed 16 colonists and housing may grow.
-#   2. Parks absorb 4/tick against the workshops' 2/tick, so pollution falls
-#      2/tick and quality is back above the gate long before growth starts.
+#      At 3/tick, six farms feed 16 colonists AND keep a reserve (Step068):
+#      five farms produce exactly the consumption (16), which has no fixed
+#      point once conservation takes 3%/tick — the colony then starves on the
+#      boundary, one death and one admission per tick (measured).
+#   2. One park absorbs 2/tick against the workshops' 2/tick: net 0, quality
+#      100. The second park of the Step060 line was pure upkeep (Step068).
 #   3. Capacity is bought in the order that gates admission: water first,
 #      then housing. Money is the tight constraint (~232$ on hand), so one
 #      road cell is shared by two wells and the last two residences wait for
 #      the tax of the first four to land.
-# End state: pop 16/16, food 16 = 16, water 16 = 16, pollution 0, net +3/tick.
+# End state (Step068, measured): pop 16/16, food 78 -> 81 (a 5.1-tick
+# reserve, 19 produced for 16 eaten), water 25, pollution 0, money 952.
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
 {"cmd":"build","type":"park","x":11,"y":1}
-{"cmd":"build","type":"park","x":15,"y":1}
 {"cmd":"tick","n":300}
 {"cmd":"report"}
 {"cmd":"do","command":{"kind":"placeRoads","cells":["19,2","21,2"]}}
@@ -36,6 +39,7 @@
 {"cmd":"report"}
 {"cmd":"build","type":"residence","x":23,"y":1,"road":false}
 {"cmd":"build","type":"residence","x":12,"y":2,"road":false}
+{"cmd":"build","type":"farm","x":10,"y":2,"road":false}
 {"cmd":"tick","n":60}
 {"cmd":"assess"}
 {"cmd":"tick","n":120}

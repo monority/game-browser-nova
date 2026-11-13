@@ -104,8 +104,9 @@ test.describe("NOVA simulation", () => {
       const h = window.__nova!;
       const s = h.getState();
       s.resources.money = 500;
-      s.resources.water = 40;
-      s.population = 14; // more colonists than workplaces: every one is staffed
+      s.resources.water = 80;
+      s.resources.food = 120;
+      s.population = 16; // more colonists than workplaces: every one is staffed
       const key = (x: number, y: number) => `${x},${y}`;
       const roads = Object.values(s.roads).flatMap((r) => r.cells);
       const free = (x: number, y: number) => {
@@ -121,6 +122,31 @@ test.describe("NOVA simulation", () => {
         [0, 1],
         [0, -1],
       ] as const;
+
+      // Step068: the fixture must FEED the population it forces. Conservation
+      // (3%/tick) has no fixed point at an exact balance, so the old 5 farms
+      // (11 food/tick) for 14 colonists starved the colony, one colonist per
+      // tick, and starvation unstaffs the very workshops this test needs
+      // staffed to observe pollution. cropRotation (3 food/farm) plus one more
+      // farm gives 19 for 16 mouths (equilibrium ~81), three more wells cover
+      // the water — the environment system is then isolated from the famine.
+      h.command({ kind: "researchTech", techId: "cropRotation" });
+      const buildBesideRoad = (type: "farm" | "well"): boolean => {
+        const rs = new Set(Object.values(s.roads).flatMap((r) => r.cells));
+        for (let y = 0; y < s.world.height; y++) {
+          for (let x = 0; x < s.world.width; x++) {
+            if (!free(x, y)) continue;
+            const near = sides.some(([dx, dy]) => rs.has(key(x + dx, y + dy)));
+            if (!near) continue;
+            if (h.command({ kind: "placeBuilding", type, x, y }).ok) return true;
+          }
+        }
+        return false;
+      };
+      if (!buildBesideRoad("farm")) return { ok: false, reason: "no farm site" };
+      for (let i = 0; i < 3; i++) {
+        if (!buildBesideRoad("well")) return { ok: false, reason: "no well site" };
+      }
 
       // a road cell with one free neighbour beside it, for the workshop
       let site: { x: number; y: number; nx: number; ny: number } | null = null;

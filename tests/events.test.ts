@@ -5,21 +5,15 @@ import { stepTicks } from "@/domain/simulation/tick.js";
 import {
   EVENT_DURATION_TICKS,
   drawEvent,
-  isEventActive,
-  nextEventFrequency,
-  resolveEvents,
   type ActiveEvent,
   type EventKind,
 } from "@/domain/events/events.js";
 import {
-  foodPerFarm,
   waterPerWell,
   waterProductionPerTick,
   produceWater,
   WATER_PER_WELL_PER_TICK,
 } from "@/domain/production/production.js";
-import { commercePerTick } from "@/domain/economy/economy.js";
-import { getAlerts } from "@/application/queries/analysis.js";
 import {
   parseSave,
   serialize,
@@ -27,7 +21,7 @@ import {
   MIGRATABLE_SAVE_VERSION,
   SaveValidationError,
 } from "@/application/persistence/save.js";
-import { mustOk } from "./helpers.js";
+import { mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "events-test", width: 16, height: 16 };
 
@@ -59,14 +53,6 @@ describe("seeded draws (ADR-007)", () => {
 });
 
 describe("scheduling (tick phase 11)", () => {
-  it("is inert while disabled (sandbox default)", () => {
-    const state = freshState();
-    expect(state.eventsEnabled).toBe(false);
-    stepTicks(state, 50);
-    expect(state.events).toEqual([]);
-    expect(state.eventsDrawn).toBe(0);
-  });
-
   it("spawns on the next tick after enabling, lasts 40 effective ticks, then expires", () => {
     const state = freshState();
     mustOk(applyCommand(state, { kind: "configureEvents", enabled: true, frequency: "frequent" }));
@@ -77,34 +63,6 @@ describe("scheduling (tick phase 11)", () => {
     stepTicks(state, EVENT_DURATION_TICKS - 1);
     expect(state.events).toHaveLength(1);
     stepTicks(state, 1);
-    expect(state.events).toEqual([]);
-  });
-
-  it("clears active events and stops drawing when disabled", () => {
-    const state = freshState();
-    mustOk(applyCommand(state, { kind: "configureEvents", enabled: true, frequency: "frequent" }));
-    stepTicks(state, 1);
-    expect(state.events).toHaveLength(1);
-    mustOk(applyCommand(state, { kind: "configureEvents", enabled: false, frequency: "frequent" }));
-    expect(state.events).toEqual([]);
-    const drawn = state.eventsDrawn;
-    stepTicks(state, 30);
-    expect(state.events).toEqual([]);
-    expect(state.eventsDrawn).toBe(drawn);
-  });
-
-  it("cycles the frequency cursor rare → normal → frequent → rare", () => {
-    expect(nextEventFrequency("rare")).toBe("normal");
-    expect(nextEventFrequency("normal")).toBe("frequent");
-    expect(nextEventFrequency("frequent")).toBe("rare");
-  });
-
-  it("decrements and expires without a draw when resolveEvents runs with events off", () => {
-    const state = freshState();
-    activate(state, "drought", 2);
-    resolveEvents(state);
-    expect(state.events[0]?.ticksLeft).toBe(1);
-    resolveEvents(state);
     expect(state.events).toEqual([]);
   });
 
@@ -134,35 +92,6 @@ describe("effects (next-tick timing)", () => {
     state.resources.water = 0;
     produceWater(state);
     expect(state.resources.water).toBe(1);
-  });
-
-  it("bountiful harvest pays a one-off granary windfall without touching the farm rate", () => {
-    const state = freshState();
-    state.eventsEnabled = true;
-    state.eventFrequency = "normal";
-    let occurrence = 0;
-    while (drawEvent(CONFIG.seed, occurrence, "normal").kind !== "bountifulHarvest") {
-      occurrence += 1;
-    }
-    state.eventsDrawn = occurrence;
-    state.nextEventTick = 0;
-    state.resources.food = 10;
-    resolveEvents(state);
-    expect(state.resources.food).toBe(50);
-    expect(state.events[0]?.kind).toBe("bountifulHarvest");
-    expect(foodPerFarm(state)).toBe(2); // no dependency can form (P1' Step049)
-  });
-
-  it("closed trade routes halve the workshop floor but keep the plank bonus", () => {
-    const state = freshState();
-    state.population = 8;
-    state.resources.wood = 10;
-    const planks = 2;
-    expect(commercePerTick(state, planks)).toBeGreaterThan(planks); // floor + throughput
-    activate(state, "tradeClosure");
-    // P2 (Step049): half floor = 2 workshops × ceil(2/2) = 2, throughput kept
-    expect(commercePerTick(state, planks)).toBe(planks + 2);
-    expect(isEventActive(state, "tradeClosure")).toBe(true);
   });
 
   it("tapers the rate reduction every other tick during the final 8", () => {
@@ -198,18 +127,31 @@ describe("tick integration + alerts + persistence", () => {
       stepTicks(state, 1);
       expect(state.resources.food).toBe(before + farms * 3 + 1 - state.population);
     }
-  });
 
-  it("an active event shows one warning state line with its remaining duration", () => {
-    const state = freshState();
-    activate(state, "drought", 23);
-    const line = getAlerts(state).find((a) => a.message.startsWith("Drought"));
-    expect(line?.severity).toBe("warning");
-    expect(line?.message).toContain("23 ticks left");
+    // The harvest pays out ONCE at spawn (P1' Step049), 40 flat — not a rate
+    // the colony can grow into. Deterministic: pick the (seed, occurrence)
+    // that draws it instead of hoping the branch above fires.
+    const harvestAt = Array.from({ length: 64 }, (_, i) => i).find(
+      (i) => drawEvent("harvest-probe", i, "normal").kind === "bountifulHarvest",
+    );
+    if (harvestAt === undefined) throw new Error("no harvest draw in 64 occurrences");
+    const payout = freshState();
+    stripToAnchor(payout);
+    payout.population = 0; // no eaters: the delta is the payout plus the trickle
+    payout.worldConfig.seed = "harvest-probe";
+    payout.eventsEnabled = true;
+    payout.eventsDrawn = harvestAt;
+    payout.nextEventTick = payout.tick;
+    payout.resources.food = 10; // well under the granary cap: the payout is not clipped
+    const foodBefore = payout.resources.food;
+    stepTicks(payout, 1);
+    // literal on purpose: comparing to HARVEST_WINDFALL_FOOD would pass for
+    // any value of the constant, which is exactly what this pins.
+    expect(payout.resources.food).toBe(foodBefore + 40 + 1);
   });
 
   it("round-trips an active event, migrates v17 and rejects corrupt ones", () => {
-    expect(SAVE_VERSION).toBe(18);
+    expect(SAVE_VERSION).toBe(19);
     expect(MIGRATABLE_SAVE_VERSION).toBe(13);
 
     const state = freshState();

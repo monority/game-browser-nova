@@ -6,11 +6,11 @@
 #
 # Step065 removed the market, so nothing sells the food surplus any more and
 # two things changed for this journey:
-#   - the old "exact balance = mouths + 2 sold" plan is gone. A colony that
-#     produces more than it eats just pins at 120/120 and destroys the surplus
-#     (the storage line is information, not a fault, since 2026-11-12), so the
-#     journey never buys the surplus farms: at pop 16
-#     the arc already runs +1 food/tick and stays HEALTHY (measured).
+#   - Step068: the exact balance the Step065 line aimed at is dead with
+#     conservation on. The arc keeps 6 farms = 19 food for 16 colonists (a
+#     5-tick reserve at equilibrium 81) and one park, and the two age-2 techs
+#     are bought on either side of a 60-tick bank so the treasury covers them
+#     without moving the t=780 anchor.
 #   - the age-2 milestone set is the four Step021 dimensions again: pop 15,
 #     14 buildings, treasury 600, 5 techs. No plank project, no lumber camp.
 #
@@ -19,15 +19,13 @@
 # — the treasury banked during the arc covers the 450-tech bill and the 600
 # threshold.
 #
-# Measured: HEALTHY at t=780 in Age 2 with pop 16/16, money 787 (net +5/tick),
-# 34 buildings, 5 farms = 16 food and 8 wells = 16 water (both +0/tick, the
-# arc's own exact balance), 15 workplaces for 15 workers, pollution 0, every
-# age-2 milestone done.
+# Measured (Step068): HEALTHY at t=780 in Age 2 with pop 16/16, money 1152
+# (net +5/tick), 35 buildings, 6 farms = 19 food and 8 wells = 16 water,
+# 16 workplaces for 16 workers, pollution 0, every age-2 milestone done.
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
 {"cmd":"build","type":"park","x":11,"y":1}
-{"cmd":"build","type":"park","x":15,"y":1}
 {"cmd":"tick","n":300}
 {"cmd":"report"}
 {"cmd":"do","command":{"kind":"placeRoads","cells":["19,2","21,2"]}}
@@ -42,6 +40,7 @@
 {"cmd":"report"}
 {"cmd":"build","type":"residence","x":23,"y":1,"road":false}
 {"cmd":"build","type":"residence","x":12,"y":2,"road":false}
+{"cmd":"build","type":"farm","x":10,"y":2,"road":false}
 {"cmd":"tick","n":60}
 {"cmd":"assess"}
 {"cmd":"tick","n":120}
@@ -52,7 +51,8 @@
 {"cmd":"do","command":{"kind":"advanceAge"}}
 # --- tech5: the two age-2 techs, then a longer sit to bank the treasury ---
 {"cmd":"do","command":{"kind":"researchTech","techId":"deepMining"}}
+{"cmd":"tick","n":60}
 {"cmd":"do","command":{"kind":"researchTech","techId":"wheelbarrow"}}
-{"cmd":"tick","n":120}
+{"cmd":"tick","n":60}
 {"cmd":"assess"}
 {"cmd":"report"}

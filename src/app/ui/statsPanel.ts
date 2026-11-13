@@ -34,6 +34,15 @@ export function createStatsPanel(callbacks: {
     workforce: liveStatRow("Workforce"),
     money: liveStatRow("Money"),
     food: liveStatRow("Food"),
+    // Step067: conservation and storage-cap losses are permanent rows (0
+    // included): they explain why a positive balance does not raise the
+    // stock, and a line that appears only sometimes reads as noise.
+    foodSpoilage: liveStatRow("  spoiled/tick"),
+    foodLost: liveStatRow("  lost at cap/tick"),
+    // Step069: the reserve the production actually holds, in the doctrine's
+    // own unit (ticks of consumption) with its state — the one line that says
+    // whether the colony is funded, still building, thin or in deficit.
+    foodReserve: liveStatRow("  reserve"),
     water: liveStatRow("Water"),
     wood: liveStatRow("Wood"),
     stone: liveStatRow("Stone"),
@@ -76,6 +85,17 @@ export function createStatsPanel(callbacks: {
     statRows.workforce.set(`${stats.staffedWorkplaces} / ${stats.eligibleWorkplaces} staffed`);
     statRows.money.set(String(Math.floor(stats.resources.money)));
     statRows.food.set(`${Math.floor(stats.resources.food)} / ${stats.foodCapacity}`);
+    // losses read as "-N", and a plain 0 when nothing was lost (never "-0")
+    statRows.foodSpoilage.set(stats.foodSpoilagePerTick === 0 ? "0" : `-${stats.foodSpoilagePerTick}`);
+    statRows.foodLost.set(stats.foodLostPerTick === 0 ? "0" : `-${stats.foodLostPerTick}`);
+    statRows.foodReserve.set(
+      stats.foodReserveTicks === null
+        ? "0 / 0 ticks"
+        : `${stats.foodReserveTicks.toFixed(1)} / ${stats.foodReserveTargetTicks} ticks · ${stats.foodReserveStatus}`,
+      stats.foodReserveStatus === "deficit" || stats.foodReserveStatus === "thin"
+        ? "nova-value--danger"
+        : "nova-value--ok",
+    );
     statRows.water.set(`${Math.floor(stats.resources.water)} / ${stats.waterCapacity}`);
     statRows.wood.set(String(Math.floor(stats.resources.wood)));
     statRows.stone.set(String(Math.floor(stats.resources.stone)));
@@ -113,8 +133,14 @@ export function createStatsPanel(callbacks: {
       const name = f.resource.charAt(0).toUpperCase() + f.resource.slice(1);
       const remaining = f.ticksRemaining !== null ? ` → ${f.ticksRemaining} ticks` : "";
       const labelText = `${name} +${f.productionPerTick}/-${f.consumptionPerTick} per tick`;
-      const valueText = `stock ${Math.floor(f.stock)}${remaining}`;
-      const valueClass = f.balancePerTick < 0 ? "nova-value--danger" : "";
+      // Step067: the real per-tick change (spoilage included), so a positive
+      // balance next to a falling stock is never left unexplained.
+      const netText = f.netPerTick >= 0 ? `+${f.netPerTick}` : String(f.netPerTick);
+      const valueText = `stock ${Math.floor(f.stock)} · net ${netText}${remaining}`;
+      // A deficit is the law's fixed point, not the tick's delta: a granary
+      // one unit above zero can show net ≈ 0 while it is on its way down.
+      const valueClass =
+        f.netPerTick < 0 || f.reserve?.status === "deficit" ? "nova-value--danger" : "";
 
       let row = forecastRows.get(f.resource);
       if (!row) {

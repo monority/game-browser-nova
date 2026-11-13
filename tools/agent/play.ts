@@ -4,6 +4,11 @@ import { stepTicks } from "@/domain/simulation/tick.js";
 import { getColonyStats } from "@/application/queries/stats.js";
 import { getAlerts, getResourceSummaries } from "@/application/queries/analysis.js";
 import { getStaffingOverview } from "@/application/queries/staffing.js";
+import { admissionGate, type AdmissionGate } from "@/domain/environment/environment.js";
+import {
+  foodSustainablePopulation,
+  type FoodReserveForecast,
+} from "@/domain/storage/reserve.js";
 import { evaluateMilestones, canAdvanceAge } from "@/domain/progression/progression.js";
 import { AGE_NAMES } from "@/content/progression.js";
 import { BUILDING_DEFINITIONS, ROAD_MONEY_COST_PER_CELL, type BuildingType } from "@/content/buildings.js";
@@ -270,8 +275,28 @@ function build(session: Session, message: Record<string, unknown>): Reply {
  * the clone is ticked with the population pinned so admission cannot inflate
  * the answer. The reading then composes the same queries as the UI, so the
  * capacity it prints is the game's own view of the plan.
+ *
+ * Step069 follow-up: the capacity is the doctrine's (food/water/housing), but
+ * the headroom is what the air actually allows — the planned workshops and
+ * quarries emit into the clone, and the gate is read on it afterwards.
  */
 const PLAN_TICKS = 4;
+
+/**
+ * Tail of the plan's headroom line (Step069 follow-up): the air gate stated as
+ * a state, never as advice. Pollution gates admission binary — it names no
+ * population — so it is reported BESIDE the numeric headroom instead of
+ * lowering a ceiling that food, water and housing really do set.
+ */
+function admissionNote(gate: AdmissionGate): string {
+  if (gate.blocked) {
+    return ` · admission frozen (air quality ${gate.quality} < ${gate.threshold})`;
+  }
+  if (gate.ticksToClose !== null && gate.ticksToClose > 0) {
+    return ` · air closes admission in ${gate.ticksToClose} ticks`;
+  }
+  return "";
+}
 
 interface PlanPlacement {
   type: BuildingType;
@@ -339,15 +364,26 @@ function plan(session: Session, message: Record<string, unknown>): Reply {
   const stats = getColonyStats(clone);
   const summaries = getResourceSummaries(clone);
   const staffing = getStaffingOverview(clone);
-  // One resident eats 1 food and drinks 1 water per tick, so a production rate
-  // IS a population count: the smallest of the three is the binding ceiling.
+  const reserve = summaries.food.reserve;
+  // One resident eats 1 food and drinks 1 water per tick, so a water rate IS a
+  // population count — but a food rate is NOT (Step069): at 3%/tick the
+  // granary's fixed point stays negative until production covers the loss, so
+  // the food ceiling is the doctrine's sustainable population, not the rate.
   const ceilings = [
-    { name: "food", value: Math.floor(summaries.food.productionPerTick) },
+    {
+      name: "food",
+      value: foodSustainablePopulation(summaries.food.productionPerTick, stats.foodCapacity),
+    },
     { name: "water", value: Math.floor(summaries.water.productionPerTick) },
     { name: "housing", value: stats.housingCapacity },
   ];
   const binding = ceilings.reduce((lowest, c) => (c.value < lowest.value ? c : lowest));
   const capacity = binding.value;
+  // Step069 follow-up: a numeric ceiling is not the whole answer — the air
+  // gates admission too, and it gates it BINARY (quality < 25 freezes growth),
+  // so it caps no population but voids the headroom. Read on the clone after
+  // the plan: the planned workshops and quarries emit into it.
+  const gate = admissionGate(clone);
   const headroom = capacity - pinnedPopulation;
   const treasury = Math.floor(session.state.resources.money);
   const affordable = cost <= treasury;
@@ -355,13 +391,23 @@ function plan(session: Session, message: Record<string, unknown>): Reply {
   const placedText = placements
     .map((p) => `${p.type} ${p.x},${p.y}${p.road ? ` (road ${p.road})` : ""}`)
     .join(" · ");
+  const foodLine = reserve
+    ? `food ${summaries.food.productionPerTick}/tick · eaten ${reserve.consumptionPerTick} · spoiled ${reserve.spoilagePerTick} · net ${signed(reserve.netPerTick)}/tick · reserve ${reserveTicks(reserve.equilibrium, reserve.consumptionPerTick)}/${reserve.targetTicks} ticks (${reserve.status})`
+    : `food ${summaries.food.productionPerTick}/tick`;
+  const reserveLine = reserve
+    ? `  target ${reserve.target} food · granary ${reserve.capacity}${reserve.capacityShort ? " (target does not fit)" : ""} · needs ${reserve.productionForTarget.toFixed(1)}/tick · runs ${reserve.productionPerTick}/tick`
+    : "";
   const text = [
     `plan +${placements.length} building(s) · cost ${cost}$ (${affordable ? "affordable" : `NOT affordable, short ${cost - treasury}$`} · treasury ${treasury}$) · projected t=${clone.tick}`,
     `  pop ${pinnedPopulation} (pinned) · housing ${stats.housingCapacity} · jobs ${staffing.staffed}/${staffing.eligible} staffed · no-road ${staffing.unconnected}`,
-    `  food ${summaries.food.productionPerTick}/tick · water ${summaries.water.productionPerTick}/tick · money net ${signed(stats.netMoneyPerTick)}/tick · pollution ${Math.round(stats.pollution)} (q${stats.envQuality})`,
-    `  capacity ${capacity} resident(s) (binding: ${binding.name}) · headroom ${headroom >= 0 ? "+" : ""}${headroom}`,
+    `  ${foodLine}`,
+    `  water ${summaries.water.productionPerTick}/tick · money net ${signed(stats.netMoneyPerTick)}/tick · pollution ${Math.round(stats.pollution)} (q${stats.envQuality}, net ${signed(stats.pollutionNetPerTick)})`,
+    `  capacity ${capacity} resident(s) (binding: ${binding.name}) · headroom ${signed(headroom)}${admissionNote(gate)}`,
+    reserveLine,
     `  placed: ${placedText}`,
-  ].join("\n");
+  ]
+    .filter((line) => line.length > 0)
+    .join("\n");
 
   return {
     ok: true,
@@ -374,8 +420,29 @@ function plan(session: Session, message: Record<string, unknown>): Reply {
       capacity,
       binding: binding.name,
       headroom,
+      admission: {
+        blocked: gate.blocked,
+        quality: gate.quality,
+        threshold: gate.threshold,
+        ticksToClose: gate.ticksToClose,
+      },
       housing: stats.housingCapacity,
       foodProductionPerTick: summaries.food.productionPerTick,
+      food: reserve
+        ? {
+            production: reserve.productionPerTick,
+            consumption: reserve.consumptionPerTick,
+            spoilage: reserve.spoilagePerTick,
+            net: reserve.netPerTick,
+            status: reserve.status,
+            target: reserve.target,
+            targetTicks: reserve.targetTicks,
+            equilibrium: reserve.equilibrium,
+            capacity: reserve.capacity,
+            capacityShort: reserve.capacityShort,
+            productionForTarget: reserve.productionForTarget,
+          }
+        : null,
       waterProductionPerTick: summaries.water.productionPerTick,
       moneyNetPerTick: stats.netMoneyPerTick,
       jobs: { staffed: staffing.staffed, eligible: staffing.eligible, unconnected: staffing.unconnected },
@@ -481,7 +548,10 @@ function formatReport(session: Session): string {
   const ageName = AGE_NAMES[state.age] ?? `Age ${state.age}`;
   const lines: string[] = [
     `t=${state.tick} · age${state.age} ${ageName} · pop ${state.population}/${stats.housingCapacity} · money ${Math.floor(state.resources.money)} (net ${stats.netMoneyPerTick >= 0 ? "+" : ""}${stats.netMoneyPerTick}/tick) · bld ${Object.keys(state.buildings).length} (op ${stats.operationalBuildings})`,
-    `food ${Math.floor(state.resources.food)}/${stats.foodCapacity} (${signed(summaries.food.balancePerTick)}/tick) · water ${Math.floor(state.resources.water)}/${stats.waterCapacity} (${signed(summaries.water.balancePerTick)}/tick) · wood ${Math.floor(state.resources.wood)} · stone ${Math.floor(state.resources.stone)} · planks ${Math.floor(state.resources.planks)}`,
+    // Step069: production, eating and conservation are stated separately —
+    // a balance alone let a colony losing 2/tick read "+0/tick".
+    `food ${Math.floor(state.resources.food)}/${stats.foodCapacity} · prod ${summaries.food.productionPerTick} · eaten ${summaries.food.consumptionPerTick} · spoiled ${summaries.food.spoilagePerTick} · net ${signed(summaries.food.netPerTick)}/tick${formatReserve(summaries.food.reserve)}`,
+    `water ${Math.floor(state.resources.water)}/${stats.waterCapacity} (${signed(summaries.water.balancePerTick)}/tick) · wood ${Math.floor(state.resources.wood)} · stone ${Math.floor(state.resources.stone)} · planks ${Math.floor(state.resources.planks)}`,
     `workforce ${stats.staffedWorkplaces}/${stats.eligibleWorkplaces} · no-road ${getStaffingOverview(state).unconnected} · pollution ${Math.round(state.pollution)} (q${stats.envQuality}) · techs ${state.researchedTechs.length}${state.eventsEnabled ? ` · events ${state.eventFrequency}` : ""}`,
     `deposits: wood ${wood.remaining}/${wood.capacity} (${wood.cells} cells) · stone ${stone.remaining}/${stone.capacity} (${stone.cells} cells)`,
     `composition: ${composition(state) || "none"}`,
@@ -494,6 +564,17 @@ function signed(value: number): string {
   return (value >= 0 ? "+" : "") + value;
 }
 
+/** Reserve as the ticks of consumption it covers, e.g. "5.1". */
+function reserveTicks(reserve: number, consumption: number): string {
+  return (consumption > 0 ? reserve / consumption : 0).toFixed(1);
+}
+
+/** ": reserve 5.1/5 ticks (funded)" — empty for a resource without a reserve. */
+function formatReserve(reserve: FoodReserveForecast | undefined): string {
+  if (!reserve) return "";
+  return ` · reserve ${reserveTicks(reserve.equilibrium, reserve.consumptionPerTick)}/${reserve.targetTicks} ticks (${reserve.status})`;
+}
+
 interface Assessment {
   tick: number;
   age: number;
@@ -501,10 +582,22 @@ interface Assessment {
   verdict: "healthy" | "tight" | "critical";
   population: { value: number; housing: number; headroom: number };
   money: { value: number; net: number; ticksToZero: number | null };
-  food: { stock: number; balance: number; ticksRemaining: number | null };
+  food: {
+    stock: number;
+    balance: number;
+    ticksRemaining: number | null;
+    production: number;
+    consumption: number;
+    spoilage: number;
+    net: number;
+    /** Step069: the Step068 doctrine applied to this colony. */
+    reserve: FoodReserveForecast | null;
+  };
   water: { stock: number; balance: number; ticksRemaining: number | null };
   workforce: { workers: number; eligible: number; staffed: number; unconnected: number };
   pollution: { value: number; quality: number; net: number };
+  /** Step069 follow-up: the admission gate as the population phase applies it. */
+  admission: AdmissionGate;
   storage: { foodPinned: boolean; waterPinned: boolean };
   alerts: Array<{ severity: string; message: string }>;
   pendingMilestones: Array<{ id: string; value: number; threshold: number }>;
@@ -528,6 +621,7 @@ function assess(session: Session): Assessment {
 
   const moneyNet = stats.netMoneyPerTick;
   const money = Math.floor(state.resources.money);
+  const gate = admissionGate(state);
   const ticksToZero = moneyNet < 0 ? Math.floor(money / -moneyNet) : null;
   const headroom = stats.housingCapacity - state.population;
 
@@ -541,6 +635,12 @@ function assess(session: Session): Assessment {
     (summaries.water.ticksRemaining !== null && summaries.water.ticksRemaining <= 20);
   if (survivalSqueeze) reasons.push("stocks under 20 ticks");
   if (moneyNet < 0) reasons.push(`treasury net ${moneyNet}/tick`);
+  // Step069 follow-up: the air freezes admission without costing a colonist,
+  // so no warning fires and nothing else in the reading notices. A full
+  // housing row must not read HEALTHY while every new colonist is refused.
+  if (gate.blocked) {
+    reasons.push(`growth frozen: air quality ${gate.quality} < admission threshold ${gate.threshold}`);
+  }
   if (staffing.unconnected > 0) reasons.push(`${staffing.unconnected} workplace(s) without road access`);
   if (headroom > 0 && stagnantTicks >= session.window) {
     reasons.push(`growth stalled ${stagnantTicks} ticks with ${headroom} housing headroom`);
@@ -549,7 +649,10 @@ function assess(session: Session): Assessment {
   const verdict: Assessment["verdict"] =
     warnings.length > 0 || survivalSqueeze || state.population === 0
       ? "critical"
-      : moneyNet < 0 || staffing.unconnected > 0 || (headroom > 0 && stagnantTicks >= session.window)
+      : moneyNet < 0 ||
+          staffing.unconnected > 0 ||
+          gate.blocked ||
+          (headroom > 0 && stagnantTicks >= session.window)
         ? "tight"
         : "healthy";
 
@@ -564,6 +667,11 @@ function assess(session: Session): Assessment {
       stock: Math.floor(summaries.food.stock),
       balance: summaries.food.balancePerTick,
       ticksRemaining: summaries.food.ticksRemaining,
+      production: summaries.food.productionPerTick,
+      consumption: summaries.food.consumptionPerTick,
+      spoilage: summaries.food.spoilagePerTick,
+      net: summaries.food.netPerTick,
+      reserve: summaries.food.reserve ?? null,
     },
     water: {
       stock: Math.floor(summaries.water.stock),
@@ -577,6 +685,7 @@ function assess(session: Session): Assessment {
       unconnected: staffing.unconnected,
     },
     pollution: { value: Math.round(state.pollution), quality: stats.envQuality, net: stats.pollutionNetPerTick },
+    admission: gate,
     storage: {
       foodPinned: summaries.food.balancePerTick > 0 && state.resources.food >= stats.foodCapacity,
       waterPinned: summaries.water.balancePerTick > 0 && state.resources.water >= stats.waterCapacity,
@@ -610,8 +719,8 @@ function formatAssessment(session: Session): string {
   const lines: string[] = [
     `assess t=${a.tick} age${a.age} (${a.ageName}) verdict=${a.verdict.toUpperCase()}`,
     `  pop ${a.population.value}/${a.population.housing} (headroom ${a.population.headroom}) · money ${a.money.value} (net ${signed(a.money.net)}/tick${a.money.ticksToZero === null ? "" : `, zero in ${a.money.ticksToZero}`})`,
-    `  food ${a.food.stock} ${signed(a.food.balance)}/tick${a.food.ticksRemaining === null ? "" : ` · ${a.food.ticksRemaining} ticks left`} · water ${a.water.stock} ${signed(a.water.balance)}/tick${a.water.ticksRemaining === null ? "" : ` · ${a.water.ticksRemaining} ticks left`}`,
-    `  workforce ${a.workforce.staffed}/${a.workforce.eligible} · no-road ${a.workforce.unconnected} · pollution ${a.pollution.value} (q${a.pollution.quality}, net ${signed(a.pollution.net)})${a.storage.foodPinned ? " · food pinned" : ""}${a.storage.waterPinned ? " · water pinned" : ""}`,
+    `  food ${a.food.stock} · prod ${a.food.production} · eaten ${a.food.consumption} · spoiled ${a.food.spoilage} · net ${signed(a.food.net)}/tick${formatReserve(a.food.reserve ?? undefined)}${a.food.ticksRemaining === null ? "" : ` · empties in ${a.food.ticksRemaining} ticks`} · water ${a.water.stock} ${signed(a.water.balance)}/tick${a.water.ticksRemaining === null ? "" : ` · ${a.water.ticksRemaining} ticks left`}`,
+    `  workforce ${a.workforce.staffed}/${a.workforce.eligible} · no-road ${a.workforce.unconnected} · pollution ${a.pollution.value} (q${a.pollution.quality}, net ${signed(a.pollution.net)})${admissionNote(a.admission)}${a.storage.foodPinned ? " · food pinned" : ""}${a.storage.waterPinned ? " · water pinned" : ""}`,
     `  milestones pending: ${a.pendingMilestones.length === 0 ? "none" : a.pendingMilestones.map((m) => `${m.id} ${m.value}/${m.threshold}`).join(" · ")} · canAdvanceAge=${a.canAdvanceAge}`,
     `  stagnant ${a.stagnantTicks} ticks · timeline ${a.timeline.map((s) => `t${s.tick} pop${s.pop} $${s.money}`).join(" | ")}`,
     `  reasons: ${a.reasons.length === 0 ? "none" : "\n" + a.reasons.map((r) => `    - ${r}`).join("\n")}`,

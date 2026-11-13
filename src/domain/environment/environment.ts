@@ -102,6 +102,34 @@ export function pollutionTicksToAdmissionBlock(state: GameState): number | null 
   return Math.floor((lastCleanPollution - state.pollution) / net) + 1;
 }
 
+/**
+ * The admission gate as the population phase applies it (Step014): quality
+ * below MIN_QUALITY_FOR_ADMISSION freezes further admission, with the
+ * bootstrap exemption for the first colonist. Single source shared by the
+ * "Growth blocked" alert and the cockpit's `plan` (Step069 follow-up), so a
+ * plan can never promise housing headroom the air will not honour.
+ */
+export interface AdmissionGate {
+  quality: number;
+  threshold: number;
+  /** Air alone freezes admission for an existing colony (population > 0). */
+  blocked: boolean;
+  /** Ticks until the air closes the gate; 0 when already closed, null while pollution is not rising. */
+  ticksToClose: number | null;
+}
+
+export function admissionGate(state: GameState): AdmissionGate {
+  const quality = environmentalQuality(state);
+  return {
+    quality,
+    threshold: MIN_QUALITY_FOR_ADMISSION,
+    // the bootstrap exemption mirrors population.ts: the first colonist is
+    // admitted whatever the air, so an empty colony is never "blocked"
+    blocked: state.population > 0 && quality < MIN_QUALITY_FOR_ADMISSION,
+    ticksToClose: pollutionTicksToAdmissionBlock(state),
+  };
+}
+
 /** Tick phase: pollution flows and clamps, then parks regrow adjacent wood. Returns the new pollution level. */
 export function updateEnvironment(state: GameState): number {
   const { net } = pollutionFlows(state);

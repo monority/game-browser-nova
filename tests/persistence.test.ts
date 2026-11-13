@@ -42,8 +42,8 @@ function mutating(
 }
 
 describe("save format", () => {
-  it("is SAVE_VERSION 18", () => {
-    expect(SAVE_VERSION).toBe(18);
+  it("is SAVE_VERSION 19", () => {
+    expect(SAVE_VERSION).toBe(19);
   });
 
   it("round-trips the canonical state losslessly, through JSON text too", () => {
@@ -106,6 +106,18 @@ describe("save rejection (corrupt data never loads as valid)", () => {
 
     const cases: { name: string; doc: unknown; error: RegExp }[] = [
       { name: "wrong version", doc: { ...doc, formatVersion: 12 }, error: /unsupported save version/ },
+      // A save written by a NEWER build must be refused, not read as if its
+      // shape were this one's: that is how an old build silently corrupts it.
+      {
+        name: "future version",
+        doc: { ...doc, formatVersion: SAVE_VERSION + 1 },
+        error: /unsupported save version/,
+      },
+      {
+        name: "duplicate tech",
+        doc: { ...doc, researchedTechs: ["cropRotation", "cropRotation"] },
+        error: /duplicate tech/,
+      },
       { name: "invalid JSON text", doc: "{not json", error: /JSON/ },
       {
         name: "negative resources",

@@ -5,10 +5,11 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { allRoadCells } from "@/domain/road/road.js";
 import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
-import { foodPerFarm } from "@/domain/production/production.js";
+import { foodProductionPerTick } from "@/domain/production/production.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
 import { canAdvanceAge } from "@/domain/progression/progression.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
+import { planFoodReserve } from "@/domain/storage/reserve.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { freeCell, mustOk } from "./helpers.js";
 import type { WorldConfig } from "@/domain/world/world.js";
@@ -29,6 +30,14 @@ import type { EventFrequency } from "@/domain/events/events.js";
  * emergency food builds only on structural (staffed-capacity) deficit;
  * priority lists must fall through on failure; triage rests water/wood/
  * stone getters (never commerce) when food runs thin.
+ *
+ * Step068: food is sized by the reserve doctrine, not by the exact balance.
+ * Step056's `ceil(pop / yield)` leaves no margin, and with the 3%/tick
+ * conservation of Step067 its fixed point is zero — the colony then lives on
+ * the starvation boundary (one death and one admission per tick, permanently
+ * unfed). `planFoodReserve` (src/domain/storage/reserve.ts) answers the
+ * question instead: farms for a reserve of FOOD_RESERVE_TICKS of consumption,
+ * capped by the granary, and the triage floor is expressed in the same ticks.
  */
 
 export const SELFPLAY_CONFIG = {
@@ -63,6 +72,7 @@ function manageMothballs(state: GameState): void {
   // workshops while the cistern empties. Rest industry first — it is the only
   // workplace that earns without keeping anyone alive — then revive it once
   // the cistern is comfortable again.
+  const reserve = planFoodReserve(state);
   const workshops = Object.values(state.buildings)
     .filter((b) => b.type === "workshop")
     .sort((a, b) => a.y - b.y || a.x - b.x);
@@ -75,41 +85,34 @@ function manageMothballs(state: GameState): void {
       if (!b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: true });
     }
   }
+  // Reserve doctrine (Step068): the farm count is whatever holds the target
+  // reserve, so there is no separate "rest a farm when food is high" rule any
+  // more — at 3%/tick stock and production are coupled, and two thresholds
+  // fighting each other would toggle farms every tick.
+  const activeFarms = Object.values(state.buildings)
+    .filter((f) => f.type === "farm" && f.active)
+    .sort((a, b) => a.y - b.y || a.x - b.x);
+  if (activeFarms.length > reserve.farms) {
+    for (const f of activeFarms.slice(reserve.farms)) {
+      applyCommand(state, { kind: "setBuildingActive", id: f.id, active: false });
+    }
+  } else if (activeFarms.length < reserve.farms) {
+    const resting = Object.values(state.buildings)
+      .filter((f) => f.type === "farm" && !f.active)
+      .sort((a, b) => a.y - b.y || a.x - b.x);
+    for (const f of resting.slice(0, reserve.farms - activeFarms.length)) {
+      applyCommand(state, { kind: "setBuildingActive", id: f.id, active: true });
+    }
+  }
   for (const b of Object.values(state.buildings)) {
     // Food triage first: rest water/wood/stone getters so workers flow
     // deterministically to farms next tick. Workshops keep earning and
     // parks keep absorbing; water shortage pauses admission but never kills.
-    if (state.resources.food < pop + 4 && (b.type === "well" || b.type === "lumberCamp" || b.type === "quarry")) {
+    // The floor is ticks of consumption (Step068), not the old `pop + 4`
+    // offset, which meant a different autonomy at every population.
+    if (state.resources.food < reserve.triageFloor && (b.type === "well" || b.type === "lumberCamp" || b.type === "quarry")) {
       if (b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
       continue;
-    }
-    // Yield-tech slack (Step021): researched farm yield covers pop with fewer
-    // farms; resting the surplus frees workers for wells (water surplus =
-    // admission resumes) and camps (wood chain). Rest latest-built first:
-    // they sort last and would sit unstaffed anyway.
-    const farmYield = foodPerFarm(state);
-    const farmsNeeded = Math.max(1, Math.ceil(pop / farmYield));
-    const activeFarms = Object.values(state.buildings)
-      .filter((f) => f.type === "farm" && f.active)
-      .sort((a, b) => a.y - b.y || a.x - b.x);
-    if (activeFarms.length > farmsNeeded) {
-      for (const f of activeFarms.slice(farmsNeeded)) {
-        applyCommand(state, { kind: "setBuildingActive", id: f.id, active: false });
-      }
-    } else if (activeFarms.length < farmsNeeded) {
-      const resting = Object.values(state.buildings)
-        .filter((f) => f.type === "farm" && !f.active)
-        .sort((a, b) => a.y - b.y || a.x - b.x);
-      for (const f of resting.slice(0, farmsNeeded - activeFarms.length)) {
-        applyCommand(state, { kind: "setBuildingActive", id: f.id, active: true });
-      }
-    }
-    if (b.type === "farm") {
-      if (b.active && state.resources.food > pop * 4 + 16) {
-        applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
-      } else if (!b.active && state.resources.food < pop * 2 + 6) {
-        applyCommand(state, { kind: "setBuildingActive", id: b.id, active: true });
-      }
     }
     if (b.type === "well") {
       if (b.active && state.resources.water > pop * 4 + 8) {
@@ -265,20 +268,28 @@ export function playGame(
     manageMothballs(state);
 
     // Step031: storage pressure — a pinned stock means the surplus
-  // engine outgrew capacity (farm rest thresholds and project buffers
-  // assume headroom). The player answer is a warehouse; the governor
-  // builds up to 4 (each +50/50, industry-gated via 2 planks).
-  const foodPinned = state.resources.food >= foodCapacity(state) - 1;
-  const waterPinned = state.resources.water >= waterCapacity(state) - 1;
-  const staffedFarms = Object.values(state.buildings).filter((b) => b.type === "farm" && b.staffed).length;
-    const structuralFoodGap = state.resources.food < pop + 4 && staffedFarms * 2 < pop;
+    // engine outgrew capacity (farm rest thresholds and project buffers
+    // assume headroom). The player answer is a warehouse; the governor
+    // builds up to 4 (each +50/50, industry-gated via 2 planks).
+    const foodPinned = state.resources.food >= foodCapacity(state) - 1;
+    const waterPinned = state.resources.water >= waterCapacity(state) - 1;
+    // Step068: the reserve plan also answers the storage question — when the
+    // target reserve does not fit the granary, storage is a food decision.
+    const reserve = planFoodReserve(state);
+    const foodBelowNeed = foodProductionPerTick(state) < pop;
+    const structuralFoodGap = state.resources.food < reserve.triageFloor && foodBelowNeed;
     // Emergency farms respect the same staffing-ratio ceiling as normal
     // builds (Step035): above ceil(pop/2)+1 a new farm cannot be staffed
     // (workers are the constraint — Step022 triage doctrine) and only
     // adds upkeep. Without the cap, exact-balance pinning (food stuck
     // at 0 with production == consumption) spams farms forever once
     // placement works, diluting staffing until wells go dry.
-    const farmHeadroom = countType(state, "farm") < Math.ceil(pop / 2) + 1;
+    const farmHeadroom =
+      countType(state, "farm") < reserve.farms &&
+      // staffing ceiling kept from Step035: above one farm per two colonists
+      // a new farm cannot be staffed (workers are the constraint) and only
+      // adds upkeep.
+      countType(state, "farm") < Math.ceil(pop / 2) + 1;
     // Bank phase: at pop>=10 with a living colony, stop expanding and bank
     // 400 for the back-to-back tech run (tre200 must hold at advance).
     const banking = pop >= 10 && state.researchedTechs.length < 3 && money < 400;
@@ -295,9 +306,15 @@ export function playGame(
         return false;
       }],
       [!banking && countType(state, "workshop") < 4 && money > 50, () => tryBuild("workshop", true, 0)],
-      [!banking && (foodPinned || waterPinned) && countType(state, "warehouse") < 4 && money > 60, () => tryBuild("warehouse", false, 20)],
+      [
+        !banking &&
+          (foodPinned || waterPinned || (reserve.capacityShort && reserve.autonomy < reserve.targetTicks * 0.8)) &&
+          countType(state, "warehouse") < 4 &&
+          money > 60,
+        () => tryBuild("warehouse", false, 20),
+      ],
       [!banking && housing < capNow && pop >= housing && money > 60, () => tryBuild("residence", false, 20)],
-      [!banking && countType(state, "farm") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("farm", true, 20)],
+      [!banking && countType(state, "farm") < reserve.farms && money > 60, () => tryBuild("farm", true, 20)],
       [!banking && countType(state, "well") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("well", true, 20)],
       [!banking && countType(state, "lumberCamp") < 1 && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
       [!banking && countType(state, "quarry") < 1 && state.resources.planks >= 5 && money > 60, () => tryBuildNearDeposit("quarry", state.stoneDeposits, true, 20)],

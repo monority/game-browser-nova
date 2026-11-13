@@ -17,6 +17,13 @@ export interface GameState {
   /** Fixed simulation tick; monotonic, starts at 0. */
   tick: number;
   resources: ResourceStock;
+  /**
+   * Fractional remainder of the last food conservation loss, in [0, 1)
+   * (Step067). Persisted: the granary stock is an integer, so without this
+   * carry the 3%/tick law would silently round to nothing below 34 units
+   * and a save/load would change the trajectory.
+   */
+  foodSpoilCarry: number;
   /** Aggregate population (ADR-004): one number, no individual entities. */
   population: number;
   buildings: Record<string, Building>;
@@ -53,6 +60,7 @@ export function createInitialState(config: WorldConfig): GameState {
     worldConfig: canonicalConfig,
     tick: 0,
     resources: createInitialResourceStock(),
+    foodSpoilCarry: 0,
     population: 0,
     buildings: {},
     roads: {},
