@@ -10,6 +10,7 @@ import {
   foodSustainablePopulation,
 } from "@/domain/storage/reserve.js";
 import { getResourceSummaries } from "@/application/queries/analysis.js";
+import { getColonyStats } from "@/application/queries/stats.js";
 import { saveToString } from "@/application/persistence/save.js";
 import { run } from "../tools/agent/play.js";
 import { mustOk, stripToAnchor, freeCell, adjacentFree } from "./helpers.js";
@@ -289,5 +290,29 @@ describe("cockpit forecast — the admission gate", () => {
     expect(critical.reasons).toContain(
       "growth frozen: air quality 20 < admission threshold 25",
     );
+  });
+});
+
+describe("stats view — what the cockpit reads, nothing invented", () => {
+  it("keeps each resource's waste on its own line", () => {
+    const state = colony({ population: 0, farms: 0 });
+    const stats = getColonyStats(state, {
+      ...emptyTickFlows(),
+      foodWasted: 3,
+      waterWasted: 7,
+    });
+    expect(stats.foodLostPerTick).toBe(3);
+    expect(stats.waterLostPerTick).toBe(7);
+    // without the tick's measurements the view reports zero, never a guess
+    expect(getColonyStats(state).foodLostPerTick).toBe(0);
+    expect(getColonyStats(state).waterLostPerTick).toBe(0);
+  });
+
+  it("reports no reserve, rather than an infinite one, for a colony with no mouths", () => {
+    const empty = colony({ population: 0, farms: 0 });
+    expect(getColonyStats(empty).foodReserveTicks).toBeNull();
+
+    const fed = colony({ population: 16, farms: 6, techs: ["cropRotation"] });
+    expect(getColonyStats(fed).foodReserveTicks).toBeGreaterThan(0);
   });
 });

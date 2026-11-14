@@ -3,12 +3,16 @@ import {
   DEFAULT_PREFERENCES,
   PREFS_STORAGE_KEY,
   clearSaveSlot,
+  coerceOverlayMode,
+  coerceSpeedId,
   loadPreferences,
   parsePreferences,
   savePreferences,
   serializePreferences,
+  storedSpeedIds,
   type PrefsStorage,
 } from "@/application/persistence/preferences.js";
+import { SPEED_SETTINGS } from "@/app/ui/kit.js";
 
 /** In-memory stand-in for localStorage (vitest runs in node, no DOM). */
 function fakeStorage(
@@ -76,5 +80,33 @@ describe("clearSaveSlot", () => {
     expect(clearSaveSlot(fakeStorage({ "nova-save": "x" }, { remove: true }), "nova-save")).toBe(
       "failed",
     );
+  });
+});
+
+describe("the trust boundary on stored values", () => {
+  it("falls back per field, so one stale value cannot reset the other", () => {
+    // a payload written by a newer build: unknown overlay, known speed
+    expect(parsePreferences({ speedId: "8x", overlay: "happiness" })).toEqual({
+      speedId: "8x",
+      overlay: DEFAULT_PREFERENCES.overlay,
+    });
+    expect(parsePreferences({ speedId: "warp", overlay: "food" })).toEqual({
+      speedId: DEFAULT_PREFERENCES.speedId,
+      overlay: "food",
+    });
+  });
+
+  it("coerces an untrusted id instead of storing it", () => {
+    // button and keyboard strings reach these without passing through a list
+    expect(coerceSpeedId("4x")).toBe("4x");
+    expect(coerceSpeedId("16x")).toBe(DEFAULT_PREFERENCES.speedId);
+    expect(coerceOverlayMode("logistics")).toBe("logistics");
+    expect(coerceOverlayMode("production")).toBe(DEFAULT_PREFERENCES.overlay);
+  });
+
+  it("keeps its speed allowlist in step with the UI's speed settings", () => {
+    // the literals are duplicated on purpose (no UI import in this layer), so
+    // something has to compare them
+    expect(storedSpeedIds()).toEqual(SPEED_SETTINGS.map((setting) => setting.id));
   });
 });

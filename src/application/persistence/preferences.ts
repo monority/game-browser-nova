@@ -7,8 +7,10 @@
  * speed ids live in `app/ui/kit.ts` and the overlay modes in
  * `renderer/overlay.ts`; duplicating the literal allowlists here keeps
  * the application layer free of UI imports. `tests/preferences.test.ts`
- * pins the lists so drift fails loudly. Unknown values fall back
- * per-field, so a newer/older prefs payload degrades gracefully.
+ * compares the speed list against `SPEED_SETTINGS` so drift there fails
+ * loudly; the overlay list has no importable source (the control panel
+ * builds its buttons inline), so nothing compares it. Unknown values fall
+ * back per-field, so a newer/older prefs payload degrades gracefully.
  *
  * All storage access goes through the minimal `PrefsStorage` surface
  * so unit tests inject fakes — no DOM needed. Every function is total:

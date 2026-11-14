@@ -439,6 +439,45 @@ const MUTATIONS = [
     find: '  return LOGISTICS_FREE_RADIUS + techLevel(state, "logisticsRadius") * WHEELBARROW_FREE_RADIUS_BONUS;',
     replace: "  return LOGISTICS_FREE_RADIUS;",
   },
+  // Batch 10 (2026-11-14): the two remaining large modules - UI preferences and
+  // the cockpit's read-only stats view. Preferences claims in its own header
+  // that a test pins the allowlists; stats feeds numbers no test names.
+  {
+    id: "C1 one bad preference field resets both",
+    batch: 10,
+    file: "src/application/persistence/preferences.ts",
+    find: '    speedId: isSpeedId(record.speedId) ? record.speedId : DEFAULT_PREFERENCES.speedId,\n    overlay: isOverlayMode(record.overlay) ? record.overlay : DEFAULT_PREFERENCES.overlay,',
+    replace:
+      '    ...(isSpeedId(record.speedId) && isOverlayMode(record.overlay)\n      ? { speedId: record.speedId, overlay: record.overlay }\n      : { ...DEFAULT_PREFERENCES }),',
+  },
+  {
+    id: "C2 an unknown speed id is stored as itself",
+    batch: 10,
+    file: "src/application/persistence/preferences.ts",
+    find: "  return isSpeedId(id) ? id : DEFAULT_PREFERENCES.speedId;",
+    replace: "  return isSpeedId(id) ? id : (id as StoredSpeedId);",
+  },
+  {
+    id: "C3 preferences share the colony save slot",
+    batch: 10,
+    file: "src/application/persistence/preferences.ts",
+    find: 'export const PREFS_STORAGE_KEY = "nova-prefs";',
+    replace: 'export const PREFS_STORAGE_KEY = "nova-save";',
+  },
+  {
+    id: "C4 the stats view reports water waste as food waste",
+    batch: 10,
+    file: "src/application/queries/stats.ts",
+    find: "    foodLostPerTick: flows?.foodWasted ?? 0,",
+    replace: "    foodLostPerTick: flows?.waterWasted ?? 0,",
+  },
+  {
+    id: "C5 the reserve reads infinity instead of null with no mouths",
+    batch: 10,
+    file: "src/application/queries/stats.ts",
+    find: "      reserve.consumptionPerTick > 0 ? reserve.equilibrium / reserve.consumptionPerTick : null,",
+    replace: "      reserve.equilibrium / reserve.consumptionPerTick,",
+  },
 ];
 
 // ---------------------------------------------------------------- arguments
