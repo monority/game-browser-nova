@@ -2,7 +2,7 @@ name: CI
 
 # Continuous integration for NOVA (docs/DEVELOPMENT.md §CI).
 # One job, the same gate order as docs/VALIDATION.md:
-#   install -> typecheck -> lint -> audit -> unit -> build -> e2e
+#   install -> typecheck -> lint -> audit -> unit -> probe -> build -> e2e
 # The E2E step runs against the dev server (same command as local) so the
 # browser journeys are identical to a developer run; the production
 # bundle is validated by the separate build step.
@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   verify:
-    name: verify (typecheck, lint, audit, unit, build, e2e)
+    name: verify (typecheck, lint, audit, unit, probe, build, e2e)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -61,6 +61,13 @@ jobs:
 
       - name: Unit tests
         run: pnpm test
+
+      # The probe reports whether the suite can still fail; the full table
+      # (45 mutations, ~290 s) stays a local measurement, so CI runs the five
+      # marked core laws (~33 s measured). Without this step the probe is the
+      # only instrument in the repository that nothing ever triggers.
+      - name: Core mutation probe
+        run: pnpm test:mutations:fast
 
       - name: Production build
         run: pnpm build

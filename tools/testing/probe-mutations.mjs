@@ -11,6 +11,7 @@
  *   node tools/testing/probe-mutations.mjs                 # every batch (~2.5 min)
  *   node tools/testing/probe-mutations.mjs --batch 3       # one batch (~40 s)
  *   node tools/testing/probe-mutations.mjs --only M4,M5    # named mutations
+ *   node tools/testing/probe-mutations.mjs --fast          # the CI subset (~35 s)
  *   node tools/testing/probe-mutations.mjs --list          # the table only
  *
  * Discipline (AGENTS.md): a batch is the unit that fits the 2-minute cap; the
@@ -144,6 +145,7 @@ const MUTATIONS = [
   {
     id: "M15 staffing ignores road access",
     batch: 3,
+    fast: true,
     file: "src/domain/jobs/jobs.ts",
     find: "    BUILDING_DEFINITIONS[building.type].jobCapacity > 0 &&\n    isAdjacentToRoad(state.roads, building.x, building.y)",
     replace: "    BUILDING_DEFINITIONS[building.type].jobCapacity > 0",
@@ -158,6 +160,7 @@ const MUTATIONS = [
   {
     id: "M17 the treasury may go negative",
     batch: 3,
+    fast: true,
     file: "src/domain/resource/resource.ts",
     find: "  stock.money = Math.max(0, stock.money + amount);",
     replace: "  stock.money = stock.money + amount;",
@@ -179,6 +182,7 @@ const MUTATIONS = [
   {
     id: "M20 starvation wipes two colonists per unfed tick",
     batch: 4,
+    fast: true,
     file: "src/domain/population/population.ts",
     find: "export const STARVATION_LOSS_PER_TICK = 1;",
     replace: "export const STARVATION_LOSS_PER_TICK = 2;",
@@ -214,6 +218,7 @@ const MUTATIONS = [
   {
     id: "P2 two buildings may share a cell",
     batch: 5,
+    fast: true,
     file: "src/application/persistence/save.ts",
     find: "    if (buildingCells.has(key)) {\n      throw new SaveValidationError(`two buildings occupy the same cell: ${key}`);\n    }",
     replace: "",
@@ -263,6 +268,7 @@ const MUTATIONS = [
   {
     id: "P9 a future save version loads as current",
     batch: 5,
+    fast: true,
     file: "src/application/persistence/save.ts",
     find: "  if (version < MIGRATABLE_SAVE_VERSION || version > SAVE_VERSION) {",
     replace: "  if (version < MIGRATABLE_SAVE_VERSION) {",
@@ -390,6 +396,7 @@ const batchArg = flag("batch");
 const onlyArg = flag("only");
 const only = onlyArg ? onlyArg.split(",").map((id) => id.trim()) : undefined;
 const selected = MUTATIONS.filter((mutation) => {
+  if (has("fast") && !mutation.fast) return false;
   if (batchArg !== undefined && mutation.batch !== Number(batchArg)) return false;
   if (only && !only.some((id) => mutation.id.startsWith(id))) return false;
   return true;
