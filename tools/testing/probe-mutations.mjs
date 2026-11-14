@@ -478,6 +478,41 @@ const MUTATIONS = [
     find: "      reserve.consumptionPerTick > 0 ? reserve.equilibrium / reserve.consumptionPerTick : null,",
     replace: "      reserve.equilibrium / reserve.consumptionPerTick,",
   },
+  {
+    id: "D1 seeded terrain covers a sixth of the map instead of a fifteenth",
+    batch: 11,
+    file: "src/domain/world/world.ts",
+    find: "  const obstacleCount = Math.floor(normalized.width * normalized.height * 0.06);",
+    replace: "  const obstacleCount = Math.floor(normalized.width * normalized.height * 0.15);",
+  },
+  {
+    id: "D2 the rightmost column counts as in bounds",
+    batch: 11,
+    file: "src/domain/world/world.ts",
+    find: "  return x >= 0 && y >= 0 && x < world.width && y < world.height;",
+    replace: "  return x >= 0 && y >= 0 && x <= world.width && y < world.height;",
+  },
+  {
+    id: "D3 the string hash ignores a seed's last character",
+    batch: 11,
+    file: "src/domain/shared/rng.ts",
+    find: "  for (let i = 0; i < text.length; i++) {",
+    replace: "  for (let i = 0; i < text.length - 1; i++) {",
+  },
+  {
+    id: "D4 the rng sequence shifts its final fold by one bit",
+    batch: 11,
+    file: "src/domain/shared/rng.ts",
+    find: "    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;",
+    replace: "    return ((t ^ (t >>> 13)) >>> 0) / 4294967296;",
+  },
+  {
+    id: "D5 a mothballed building still counts as active",
+    batch: 11,
+    file: "src/domain/building/building.ts",
+    find: '  return building.status === "operational" && building.active;',
+    replace: '  return building.status === "operational" || building.active;',
+  },
 ];
 
 // ---------------------------------------------------------------- arguments
