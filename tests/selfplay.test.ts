@@ -97,6 +97,9 @@ describe("self-play verifier", () => {
       mustOk(applyCommand(state, { kind: "researchTech", techId }));
     }
     const age2 = evaluateMilestones(state, 2);
+    // `every` is vacuously true on an empty list: pin the four Age-2
+    // dimensions (pop/bld/treasury/techs) before asking if all are met.
+    expect(age2).toHaveLength(4);
     expect(age2.every((m) => m.done), "age-2 incomplete: " + JSON.stringify(age2)).toBe(true);
     mustOk(applyCommand(state, { kind: "advanceAge" }));
     expect(state.age).toBe(3);

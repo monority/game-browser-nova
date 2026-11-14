@@ -67,6 +67,9 @@ describe("food overlay mapping", () => {
     expect(t.get(cellKey(1, 0))).toBe("ok");
     expect(t.has(cellKey(1, 1))).toBe(false); // well
     expect(t.has(cellKey(1, 2))).toBe(false); // workshop
+    // the loop below asserts a `false` per residence: it proves nothing if the
+    // fixture quietly built none, so the count it walks is pinned first.
+    expect(residences(covered)).toHaveLength(2);
     for (const b of residences(covered)) expect(t.has(cellKey(b.x, b.y))).toBe(false);
 
     const deficit = staffedColony();
