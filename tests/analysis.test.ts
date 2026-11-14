@@ -6,6 +6,7 @@ import { stepTicks } from "@/domain/simulation/tick.js";
 import { addWater } from "@/domain/resource/resource.js";
 import { consumeWater, waterProductionPerTick } from "@/domain/production/production.js";
 import { getResourceSummaries, getAlerts } from "@/application/queries/analysis.js";
+import { foodCapacity } from "@/domain/storage/storage.js";
 import { mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "analysis-test", width: 16, height: 16 };
@@ -118,6 +119,40 @@ describe("alerts (states, not instructions)", () => {
     expect(getAlerts(state)).not.toContainEqual(
       expect.objectContaining({ severity: "warning", message: expect.stringContaining("Treasury") }),
     );
+  });
+
+  it("reports degraded air as information until quality drops under the admission gate", () => {
+    const state = fedColony();
+    // quality = POLLUTION_MAX - pollution: 40 is under the alert threshold
+    // (50) but above MIN_QUALITY_FOR_ADMISSION, so it is a nuisance, not a
+    // fault; 20 is the gate itself failing and must warn.
+    state.pollution = 60;
+    expect(getAlerts(state)).toContainEqual({
+      severity: "info",
+      message: "Environment: quality 40 · pollution 60",
+    });
+
+    state.pollution = 80;
+    expect(getAlerts(state)).toContainEqual({
+      severity: "warning",
+      message: "Environment: quality 20 · pollution 80",
+    });
+  });
+
+  it("reports a full granary as information, never a warning", () => {
+    const state = freshState();
+    stripToAnchor(state);
+    state.population = 0; // no consumption: the colony trickle is a surplus
+    stepTicks(state, 1);
+    state.resources.food = foodCapacity(state);
+    // Since Step067 conservation frees headroom every tick, so a pinned
+    // granary is a reachable steady state of a healthy colony. Ranked as a
+    // warning, it turned the cockpit verdict `critical` for 331 of 400 ticks
+    // on a colony that was healthy by every other measure.
+    expect(getAlerts(state)).toContainEqual({
+      severity: "info",
+      message: `Food storage full (${foodCapacity(state)}/${foodCapacity(state)})`,
+    });
   });
 
 });

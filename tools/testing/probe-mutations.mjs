@@ -373,6 +373,37 @@ const MUTATIONS = [
     replace:
       '  const stray = createBuilding("stray-park", "park", 1, state.world.height - 1);\n  stray.status = "operational";\n  stray.constructionTicksLeft = 0;\n  state.buildings["stray-park"] = stray;\n  state.population = D2_POPULATION;',
   },
+  // Batch 8 (2026-11-14): the two largest modules the table never touched -
+  // the cockpit verdict engine and the player-command seam. A hole here is
+  // visible to the player before any simulation law is.
+  {
+    id: "A1 environment severity bands invert",
+    batch: 8,
+    file: "src/application/queries/analysis.ts",
+    find: 'severity: quality < 25 ? "warning" : "info",',
+    replace: 'severity: quality < 25 ? "info" : "warning",',
+  },
+  {
+    id: "A2 a full granary is reported as a warning",
+    batch: 8,
+    file: "src/application/queries/analysis.ts",
+    find: '      severity: "info",\n      message: `Food storage full (',
+    replace: '      severity: "warning",\n      message: `Food storage full (',
+  },
+  {
+    id: "A3 the frozen treasury warns on a positive net",
+    batch: 8,
+    file: "src/application/queries/analysis.ts",
+    find: "    if (net < 0) {",
+    replace: "    if (net > 0) {",
+  },
+  {
+    id: "A4 demolishing refunds ten money",
+    batch: 8,
+    file: "src/domain/simulation/commands.ts",
+    find: "  if (!validation.ok) return validation;\n  delete state.buildings[id];",
+    replace: "  if (!validation.ok) return validation;\n  state.resources.money += 10;\n  delete state.buildings[id];",
+  },
 ];
 
 // ---------------------------------------------------------------- arguments
