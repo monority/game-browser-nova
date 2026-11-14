@@ -57,8 +57,12 @@ describe("getStaffingOverview (Step025)", () => {
     const two = getStaffingOverview(short);
     expect(two).toMatchObject({ workers: 2, eligible: 3, staffed: 2 });
     expect(two.entries.map((e) => e.state)).toEqual(["staffed", "staffed", "idle"]);
-    // an idle tail reports no-workers (road access is not the cause)
-    for (const entry of two.entries.filter((e) => e.state === "idle")) {
+    // an idle tail reports no-workers (road access is not the cause). The
+    // filter is the collection the loop walks, so it is pinned first: an empty
+    // tail would otherwise pass while checking nothing.
+    const idle = two.entries.filter((e) => e.state === "idle");
+    expect(idle).toHaveLength(1);
+    for (const entry of idle) {
       expect(entry.reason).toBe("no-workers");
     }
     // staffing line: rank and state
@@ -104,11 +108,10 @@ describe("getStaffingOverview (Step025)", () => {
     mustOk(applyCommand(homes, { kind: "placeRoads", cells: [cellKey(1, 1)] }));
     mustOk(applyCommand(homes, { kind: "placeBuilding", type: "residence", x: 1, y: 2 }));
     stepTicks(homes, 2);
-    expect(
-      getStaffingOverview(homes).entries.every(
-        (e) => e.type !== "residence" && e.type !== "colonyCenter",
-      ),
-    ).toBe(true);
+    // "lists no non-workplace" stated as a count: the colony has no workplace
+    // at all, so an empty list is the claim — and `.every` over an empty list
+    // would have said the same thing about any implementation.
+    expect(getStaffingOverview(homes).entries).toHaveLength(0);
   });
 
 });
