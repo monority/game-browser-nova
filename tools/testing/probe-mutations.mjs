@@ -267,6 +267,72 @@ const MUTATIONS = [
     find: "  if (version < MIGRATABLE_SAVE_VERSION || version > SAVE_VERSION) {",
     replace: "  if (version < MIGRATABLE_SAVE_VERSION) {",
   },
+  // Batch 6 (2026-11-14): the laws Step067-069 introduced. Batches 1-5 were
+  // written before conservation, the reserve doctrine and the cockpit forecast
+  // existed, so the youngest rules had never been asked what observes them.
+  {
+    id: "F1 the fractional spoil loss is rounded up instead of carried",
+    batch: 6,
+    file: "src/domain/storage/spoilage.ts",
+    find: "  const whole = Math.max(0, Math.floor(loss));",
+    replace: "  const whole = Math.max(0, Math.ceil(loss));",
+  },
+  {
+    id: "F2 the equilibrium stock divides by (1 - r) instead of r",
+    batch: 6,
+    file: "src/domain/storage/spoilage.ts",
+    find: "      population * FOOD_PER_COLONIST_PER_TICK) /\n    FOOD_SPOILAGE_RATE_PER_TICK\n  );",
+    replace: "      population * FOOD_PER_COLONIST_PER_TICK) /\n    (1 - FOOD_SPOILAGE_RATE_PER_TICK)\n  );",
+  },
+  {
+    id: "F3 the projection forgets the storage cap",
+    batch: 6,
+    file: "src/domain/storage/spoilage.ts",
+    find: "  const stock = Math.min(afterEating, foodCapacity(state));",
+    replace: "  const stock = Math.min(afterEating, foodCapacity(state) + 1000);",
+  },
+  {
+    id: "F4 the projection eats more than the granary holds",
+    batch: 6,
+    file: "src/domain/storage/spoilage.ts",
+    find: "  const eaten = Math.min(afterSpoilage, state.population * FOOD_PER_COLONIST_PER_TICK);",
+    replace: "  const eaten = state.population * FOOD_PER_COLONIST_PER_TICK;",
+  },
+  {
+    id: "F5 the reserve target drops from 5 to 3 ticks of consumption",
+    batch: 6,
+    file: "src/domain/storage/reserve.ts",
+    find: "export const FOOD_RESERVE_TICKS = 5;",
+    replace: "export const FOOD_RESERVE_TICKS = 3;",
+  },
+  {
+    id: "F6 the plan may sit its equilibrium exactly on the granary cap",
+    batch: 6,
+    file: "src/domain/storage/reserve.ts",
+    find: "  const ceiling = capacity - 1;",
+    replace: "  const ceiling = capacity;",
+  },
+  {
+    id: "F7 the plan prefers the nearest under-target reserve to the first one above",
+    batch: 6,
+    file: "src/domain/storage/reserve.ts",
+    find: "      if (!atOrAbove || equilibrium < atOrAbove.equilibrium) atOrAbove = candidate;",
+    replace: "      if (!atOrAbove || equilibrium > atOrAbove.equilibrium) atOrAbove = candidate;",
+  },
+  {
+    id: "F8 a draining granary is reported as a storage limit",
+    batch: 6,
+    file: "src/domain/storage/reserve.ts",
+    find: "  if (input.equilibrium <= 0) return \"deficit\";\n  if (input.target <= 0) return \"thin\";\n  if (input.capacityShort) return \"storage-limited\";",
+    replace: "  if (input.target <= 0) return \"thin\";\n  if (input.capacityShort) return \"storage-limited\";\n  if (input.equilibrium <= 0) return \"deficit\";",
+  },
+  {
+    id: "F9 the sustainable population stops one short of the exact balance",
+    batch: 6,
+    file: "src/domain/storage/reserve.ts",
+    find: "    if (Math.min(steady, capacity) < next * ticks) break;",
+    replace: "    if (Math.min(steady, capacity) <= next * ticks) break;",
+  },
 ];
 
 // ---------------------------------------------------------------- arguments
@@ -326,10 +392,21 @@ function restoreAll() {
   }
 }
 
-process.on("SIGINT", () => {
+// A killed run must not leave a mutated source behind. SIGINT was handled
+// first; SIGTERM was not, and a `timeout`/kill during a batch left
+// BASE_FOOD_CAPACITY at x3 in the working tree until `git status` caught it.
+const onSignal = (signal) => {
   restoreAll();
   rmSync(scratch, { recursive: true, force: true });
+  console.error(`\n${signal}: sources restored, no verdict`);
   process.exit(130);
+};
+for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"]) process.on(signal, () => onSignal(signal));
+process.on("uncaughtException", (error) => {
+  restoreAll();
+  rmSync(scratch, { recursive: true, force: true });
+  console.error(error);
+  process.exit(2);
 });
 
 /**

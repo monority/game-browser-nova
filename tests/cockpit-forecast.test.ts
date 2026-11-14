@@ -4,7 +4,11 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { emptyTickFlows, stepSimulation, stepTicks } from "@/domain/simulation/tick.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
 import { foodEquilibriumStock, projectFoodTick } from "@/domain/storage/spoilage.js";
-import { FOOD_RESERVE_TICKS, foodReserveStatus } from "@/domain/storage/reserve.js";
+import {
+  FOOD_RESERVE_TICKS,
+  foodReserveStatus,
+  foodSustainablePopulation,
+} from "@/domain/storage/reserve.js";
 import { getResourceSummaries } from "@/application/queries/analysis.js";
 import { saveToString } from "@/application/persistence/save.js";
 import { run } from "../tools/agent/play.js";
@@ -111,6 +115,17 @@ describe("cockpit forecast — the tick's own arithmetic", () => {
 });
 
 describe("cockpit forecast — capacity ceiling (sustainable population)", () => {
+  it("funds the resident the boundary supports exactly, and no more", () => {
+    // Capacity-bound: 50 units is exactly 5 ticks of consumption for 10
+    // colonists, so the boundary funds them — equality is inside the claim,
+    // because at that stock the granary still holds the full target.
+    expect(foodSustainablePopulation(1000, 50)).toBe(10);
+    expect(foodSustainablePopulation(1000, 49)).toBe(9); // a unit short
+
+    // The measured Step069 case: 19 food/tick funds 16 colonists, not the 19
+    // that `floor(production)` credits — the 3% loss eats the difference.
+    expect(foodSustainablePopulation(19, 1000)).toBe(16);
+  });
 
   it("classifies the five states without inventing a sixth", () => {
     const base = { stock: 100, equilibrium: 100, target: 80, capacityShort: false };
@@ -206,6 +221,15 @@ describe("cockpit forecast — agreement with the simulation", () => {
     expect(full.real.wasted).toBeGreaterThan(0);
     expect(full.end).toBe(foodCapacity(colony({ population: 4, farms: 6 })));
     expect(full.forecast.reserve?.status).toBe("funded");
+
+    // starving: the need is capped by the stock, so the projection eats what
+    // the granary holds, never what the population implies (6 + the Center's
+    // 1 trickle for 16 mouths)
+    const starving = agreement({ population: 16, farms: 0, food: 6 }, 5);
+    expect(starving.real).toEqual(starving.projected);
+    expect(starving.firstTick.eaten).toBeLessThan(16);
+    expect(starving.firstTick.eaten).toBeLessThanOrEqual(6 + starving.firstTick.production);
+    expect(starving.end).toBe(0);
   });
 
 });

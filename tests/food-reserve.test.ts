@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
-import { foodPerFarm } from "@/domain/production/production.js";
+import { FOOD_PER_COLONY_CENTER_PER_TICK, foodPerFarm } from "@/domain/production/production.js";
 import { planFoodReserve, forecastFoodReserve, FOOD_RESERVE_TICKS } from "@/domain/storage/reserve.js";
 import { foodEquilibriumStock } from "@/domain/storage/spoilage.js";
+import { foodCapacity } from "@/domain/storage/storage.js";
 import { mustOk, stripToAnchor, freeCell, adjacentFree } from "./helpers.js";
 import type { WorldConfig } from "@/domain/world/world.js";
 
@@ -62,6 +63,27 @@ function withResidences(state: GameState, count: number): void {
   stepTicks(state, 3);
 }
 
+/**
+ * The farm count the doctrine must pick: the SMALLEST equilibrium that reaches
+ * the target without overflowing the granary ("over-reserve is the safe side,
+ * but the first count that reaches the target wins"). Null when no count
+ * inside the cap reaches it — the plan then stays below, on purpose.
+ */
+function smallestAtOrAbove(
+  state: GameState,
+  plan: ReturnType<typeof planFoodReserve>,
+): number | null {
+  const yieldPerFarm = foodPerFarm(state);
+  const ceiling = foodCapacity(state) - 1; // one unit of headroom, as the plan
+  for (let farms = 0; farms <= plan.farms + 8; farms++) {
+    const production = FOOD_PER_COLONY_CENTER_PER_TICK + farms * yieldPerFarm;
+    const equilibrium = foodEquilibriumStock(state.population, production);
+    if (equilibrium > ceiling) break; // monotone: nothing higher fits either
+    if (equilibrium >= plan.target) return farms;
+  }
+  return null;
+}
+
 function minFood(state: GameState, ticks: number): { min: number; final: number } {
   let min = state.resources.food;
   for (let i = 0; i < ticks; i++) {
@@ -87,6 +109,19 @@ describe("food reserve doctrine", () => {
         expect(plan.production).toBeGreaterThan(population); // ...but this plan also spoils
         expect(plan.equilibrium).toBeGreaterThan(0);
         expect(plan.autonomy).toBeGreaterThan(0);
+
+        // Which count, not just "some count": the first equilibrium at or
+        // above the target, never the largest one the granary could hold.
+        // (Mutation F7 — preferring the nearest under-target reserve, or the
+        // far side of the target — survived the whole suite before this.)
+        const expectedFarms = smallestAtOrAbove(state, plan);
+        const where = `${population} pop · ${techs.join("+") || "no tech"}`;
+        if (expectedFarms !== null) {
+          expect(plan.farms, where).toBe(expectedFarms);
+          expect(plan.equilibrium, where).toBeGreaterThanOrEqual(plan.target);
+        } else {
+          expect(plan.equilibrium, where).toBeLessThan(plan.target);
+        }
       }
     }
 
@@ -136,6 +171,29 @@ describe("food reserve doctrine", () => {
     expect(roomy.capacityShort).toBe(false);
     expect(roomy.autonomy).toBeGreaterThan(tight.autonomy);
     expect(roomy.equilibrium).toBeGreaterThan(60);
+  });
+
+  it("takes the first count that reaches the target, not the largest one it could hold", () => {
+    // pop 16 with cropRotation: one farm moves the equilibrium by 100 units
+    // (yield / spoilage rate = 3 / 0.03), so a warehouse makes TWO counts
+    // reach the 80-unit target — 81 at 6 farms, 178 at 7. Over-reserve is the
+    // safe side, but the doctrine takes the first: the seventh farm's surplus
+    // is destroyed at the cap for nothing. (Mutation F7 measured this as
+    // unobserved: with the base granary only one candidate fits, so the tie
+    // never showed.)
+    const state = colony(16, 6, ["cropRotation"]);
+    expect(planFoodReserve(state).farms).toBe(6); // base granary: one candidate
+
+    state.resources.planks = 5; // the warehouse is industry-gated (Step031)
+    const spot = freeCell(state);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "warehouse", x: spot.x, y: spot.y }));
+    stepTicks(state, 3);
+
+    const plan = planFoodReserve(state);
+    expect(plan.capacity).toBe(180); // both candidates fit now
+    expect(plan.farms).toBe(6);
+    expect(plan.equilibrium).toBeCloseTo(81, 0);
+    expect(plan.autonomy).toBeGreaterThanOrEqual(FOOD_RESERVE_TICKS);
   });
 
   it("feeds the growth it allows (population, needs and reserve)", () => {
