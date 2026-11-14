@@ -2,7 +2,7 @@ name: CI
 
 # Continuous integration for NOVA (docs/DEVELOPMENT.md §CI).
 # One job, the same gate order as docs/VALIDATION.md:
-#   install -> typecheck -> lint -> unit -> build -> e2e
+#   install -> typecheck -> lint -> audit -> unit -> build -> e2e
 # The E2E step runs against the dev server (same command as local) so the
 # browser journeys are identical to a developer run; the production
 # bundle is validated by the separate build step.
@@ -25,7 +25,7 @@ concurrency:
 
 jobs:
   verify:
-    name: verify (typecheck, lint, unit, build, e2e)
+    name: verify (typecheck, lint, audit, unit, build, e2e)
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -53,6 +53,11 @@ jobs:
 
       - name: Lint
         run: pnpm lint
+
+      # `pnpm check` runs this too; CI replays the steps one by one, so the
+      # audit needs its own step or the gate exists only locally.
+      - name: Test vacuity audit
+        run: pnpm test:audit
 
       - name: Unit tests
         run: pnpm test
