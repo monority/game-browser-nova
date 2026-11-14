@@ -18,20 +18,24 @@
  *                           whose emptiness nothing pinned
  *   R6 unguarded `every`  — `every()` is vacuously true on an empty list
  *
+ * Scope: `tests/` (vitest laws) and `e2e/` (Playwright journeys) — same rules,
+ * because nothing about vacuity is specific to a runner.
+ *
  * Usage:
- *   node tools/testing/audit-vacuity.mjs            # the suite in tests/
+ *   node tools/testing/audit-vacuity.mjs            # both suites
  *   node tools/testing/audit-vacuity.mjs --verbose  # every file, not just hits
  *   node tools/testing/audit-vacuity.mjs --selftest # prove the rules still fire
  *
  * Exit codes: 0 clean, 1 findings, 2 the audit itself failed.
  */
 
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const TESTS = join(ROOT, "tests");
+/** Both suites: the unit laws and the browser journeys. Same rules apply. */
+const SUITES = ["tests", "e2e"];
 const VERBOSE = process.argv.includes("--verbose");
 
 /** Patterns that count as pinning the size of a collection. */
@@ -61,7 +65,8 @@ function balanced(text, openIndex) {
 const lineOf = (text, index) => text.slice(0, index).split("\n").length;
 
 /**
- * Every `describe(...)` / `it(...)` / `test(...)` call in a file.
+ * Every `describe(...)` / `it(...)` / `test(...)` call in a file, with
+ * `test.describe(...)` folded into `describe`.
  *
  * The body is everything AFTER the name literal, not the last `{...}` group:
  * an arrow body contains nested braces (object literals, callbacks), so
@@ -77,9 +82,14 @@ function blocks(src) {
     const inner = args.slice(1);
     const nameMatch = /^\s*(["'`])(.*?)\1\s*/.exec(inner);
     const afterName = nameMatch ? nameMatch[0].length : 0;
+    // Playwright spells a describe block `test.describe(...)`: it is a group,
+    // not a test, so judging its body for assertions would be judging the
+    // nested tests as one, and counting it would inflate the denominator.
+    const modifiers = match[2] ?? "";
+    const isDescribe = match[1] === "describe" || modifiers.includes(".describe");
     found.push({
-      kind: match[1],
-      modifier: match[2] ?? "",
+      kind: isDescribe ? "describe" : "test",
+      modifier: modifiers.replace(".describe", ""),
       name: nameMatch?.[2] ?? "(anonymous)",
       line: lineOf(src, match.index),
       body: inner.slice(afterName),
@@ -144,12 +154,20 @@ function auditSource(file, src) {
 
     // R4: `if` branches that assert, where the other side has no assertion.
     // An `if/else` with assertions in both arms always runs one of them.
-    for (const match of entry.body.matchAll(/if\s*\([^)]*\)\s*\{/g)) {
+    // The condition is read by bracket counting, not by matching to the first
+    // `)`: Playwright conditions are full of calls (`if (await page
+    // .locator("li").isVisible())`), and a regex stopped at the first inner
+    // `)` — so every browser-shaped conditional was invisible to this rule.
+    for (const match of entry.body.matchAll(/\bif\s*\(/g)) {
       const index = match.index ?? 0;
-      const openBrace = entry.body.indexOf("{", index);
-      const branch = balanced(entry.body, openBrace);
+      const openParen = entry.body.indexOf("(", index);
+      const condition = balanced(entry.body, openParen);
+      let cursor = openParen + condition.length;
+      while (/\s/.test(entry.body[cursor] ?? "")) cursor++;
+      if (entry.body[cursor] !== "{") continue; // unbraced body: not judged
+      const branch = balanced(entry.body, cursor);
       if (!ASSERTS.test(branch)) continue;
-      const after = entry.body.slice(openBrace + branch.length);
+      const after = entry.body.slice(cursor + branch.length);
       const elseBranch = /^\s*else\s*\{/.exec(after);
       if (elseBranch) {
         const elseOpen = after.indexOf("{", elseBranch.index);
@@ -185,18 +203,31 @@ function auditSource(file, src) {
 
 // --------------------------------------------------------------- the audit
 
+/** Every spec under a suite directory, recursively (e2e/ has subdirectories). */
+function specFiles(dir) {
+  const found = [];
+  const walk = (current) => {
+    for (const name of readdirSync(current).sort()) {
+      const full = join(current, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.(test|spec)\.tsx?$/.test(name)) found.push(full);
+    }
+  };
+  walk(join(ROOT, dir));
+  return found;
+}
+
 function runAudit() {
-  const files = readdirSync(TESTS)
-    .filter((name) => name.endsWith(".test.ts"))
-    .sort();
+  const files = SUITES.flatMap(specFiles).sort();
   const findings = [];
   let declarations = 0;
-  for (const name of files) {
-    const src = readFileSync(join(TESTS, name), "utf8");
+  for (const full of files) {
+    const name = full.slice(ROOT.length + 1);
+    const src = readFileSync(full, "utf8");
     const declared = blocks(src).filter((entry) => entry.kind !== "describe").length;
     declarations += declared;
     findings.push(...auditSource(name, src));
-    if (VERBOSE) console.log(`tests/${name} — ${declared} test(s)`);
+    if (VERBOSE) console.log(`${name} — ${declared} test(s)`);
   }
   if (findings.length > 0) {
     findings.sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line);
@@ -225,7 +256,13 @@ function selftest() {
     ["R3", 'it.skip("skipped", () => {\n  expect(1).toBe(1);\n});'],
     ["R4", 'it("branch", () => {\n  if (flag) {\n    expect(a).toBe(1);\n  }\n  expect(b).toBe(2);\n});'],
     ["R5", 'it("loop", () => {\n  for (const x of load()) {\n    expect(x).toBe(1);\n  }\n});'],
+    [
+      "R4",
+      'test("browser branch", async ({ page }) => {\n  if (await page.locator("li").isVisible()) {\n    await expect(page.locator("li")).toBeVisible();\n  }\n  await expect(page).toHaveTitle("x");\n});',
+    ],
     ["R6", 'it("every", () => {\n  expect(list.every((x) => x.ok)).toBe(true);\n});'],
+    ["R1", 'test.describe("empty group", () => {\n});'],
+    [null, 'test.describe("group", () => {\n  test("nested", () => {\n    expect(1).toBe(1);\n  });\n});'],
     [null, 'it("clean", () => {\n  const all = load();\n  expect(all).toHaveLength(2);\n  if (a) {\n    expect(b).toBe(1);\n  } else {\n    expect(b).toBe(2);\n  }\n  for (const x of all) {\n    expect(x).toBe(1);\n  }\n});'],
   ];
   let failed = 0;
