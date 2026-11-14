@@ -333,6 +333,40 @@ const MUTATIONS = [
     find: "    if (Math.min(steady, capacity) < next * ticks) break;",
     replace: "    if (Math.min(steady, capacity) <= next * ticks) break;",
   },
+  // Batch 7 (2026-11-14): the pins added to make three vacuous tests real.
+  // A pin that no mutation trips is decoration; these three exist to find out.
+  {
+    id: "S1 the idle tail loses its reason and claims a road defect",
+    batch: 7,
+    file: "src/application/queries/staffing.ts",
+    find: '        order, state: "idle", reason: "no-workers",',
+    replace: '        order, state: "idle", reason: "no-road",',
+  },
+  {
+    id: "S2 buildings without jobs enter the staffing overview",
+    batch: 7,
+    file: "src/application/queries/staffing.ts",
+    find: ".filter((b) => BUILDING_DEFINITIONS[b.type].jobCapacity > 0)",
+    replace: ".filter((b) => BUILDING_DEFINITIONS[b.type].jobCapacity >= 0)",
+  },
+  {
+    // Surgical version of S2: only a residence leaks in, so the claim
+    // "lists no non-workplace" is the assertion under test and nothing else
+    // in the fixtures changes shape.
+    id: "S4 a residence is listed as a workplace",
+    batch: 7,
+    file: "src/application/queries/staffing.ts",
+    find: ".filter((b) => BUILDING_DEFINITIONS[b.type].jobCapacity > 0)",
+    replace: '.filter((b) => BUILDING_DEFINITIONS[b.type].jobCapacity > 0 || b.type === "residence")',
+  },
+  {
+    id: "S3 day-0 ships one building nobody counted",
+    batch: 7,
+    file: "src/domain/simulation/state.ts",
+    find: "  state.population = D2_POPULATION;",
+    replace:
+      '  const stray = createBuilding("stray-park", "park", 1, state.world.height - 1);\n  stray.status = "operational";\n  stray.constructionTicksLeft = 0;\n  state.buildings["stray-park"] = stray;\n  state.population = D2_POPULATION;',
+  },
 ];
 
 // ---------------------------------------------------------------- arguments
