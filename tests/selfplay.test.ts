@@ -104,7 +104,9 @@ describe("self-play verifier", () => {
     mustOk(applyCommand(state, { kind: "advanceAge" }));
     expect(state.age).toBe(3);
     const age3 = evaluateMilestones(state, 3);
-    expect(age3.length).toBe(5);
+    // Step070 dropped the three-workshop gate: with farms and wells staffed
+    // first, a workshop only opens when there are workers to spare.
+    expect(age3.length).toBe(4);
     expect(age3.every((m) => m.done), "age-3 incomplete: " + JSON.stringify(age3)).toBe(true);
     expect(canAdvanceAge(state)).toBe(true);
     const restored = parseSave(serialize(state));

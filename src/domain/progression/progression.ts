@@ -44,6 +44,10 @@ function milestoneValue(state: GameState, definition: MilestoneDefinition): numb
     }
     case "treasury":
       return state.resources.money;
+    case "stock":
+      // Step070: the stored good an age asks for. A `stock` milestone without
+      // a resource reads 0 rather than inventing one.
+      return definition.resource === undefined ? 0 : state.resources[definition.resource];
     case "techs":
       return state.researchedTechs.length;
   }

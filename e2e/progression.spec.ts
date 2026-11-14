@@ -56,19 +56,17 @@ test.describe("NOVA progression", () => {
     await advance2.click();
     expect(await page.evaluate(() => window.__nova!.getState().age)).toBe(3);
 
-    // --- Age 3 renders: name, all five prosperity milestones, values ---
+    // --- Age 3 renders: name, all four prosperity milestones, values ---
     const panel = page.locator("#progression");
     await expect(panel).toContainText("Age of Prosperity (Age 3)");
     await expect(panel).toContainText("Population 20");
-    await expect(panel).toContainText("Treasury 1500");
+    await expect(panel).toContainText("Food 120");
     await expect(panel).toContainText("30 operational buildings");
     await expect(panel).toContainText("20 residences");
-    await expect(panel).toContainText("3 operational workshops");
     // current values against thresholds (none complete at this point)
     await expect(panel).toContainText("15/20");
     await expect(panel).toContainText("23/30"); // D2 ships 23 (no market since Step065)
     await expect(panel).toContainText("10/20");
-    await expect(panel).toContainText("2/3");
     // no advance action exists past the last set
     await expect(page.locator("button[data-action='advance-age']")).toHaveCount(0);
   });

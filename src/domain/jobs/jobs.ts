@@ -25,6 +25,19 @@ export function isEligibleWorkplace(state: GameState, building: Building): boole
   );
 }
 
+/**
+ * Who gets the workers first (Step070). Placement order used to decide it: a
+ * colony whose wells and shops happened to sit on lower cells could leave
+ * farms idle next door, and since a staffed farm yields exactly one colonist's
+ * food, one unstaffed farm means the granary can never fill. The colony eats
+ * first, drinks second, and only then works the shops and the wood.
+ */
+function staffPriority(type: Building["type"]): number {
+  if (type === "farm") return 0;
+  if (type === "well") return 1;
+  return 2;
+}
+
 export function assignJobs(state: GameState): void {
   for (const building of Object.values(state.buildings)) {
     building.staffed = false;
@@ -32,7 +45,7 @@ export function assignJobs(state: GameState): void {
 
   const eligible = Object.values(state.buildings)
     .filter((b) => isEligibleWorkplace(state, b))
-    .sort(compareCellsWithId);
+    .sort((a, b) => staffPriority(a.type) - staffPriority(b.type) || compareCellsWithId(a, b));
 
   let remaining = state.population;
   for (const workplace of eligible) {
