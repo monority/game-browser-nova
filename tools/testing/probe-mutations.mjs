@@ -513,6 +513,47 @@ const MUTATIONS = [
     find: '  return building.status === "operational" && building.active;',
     replace: '  return building.status === "operational" || building.active;',
   },
+  {
+    // Expected to survive: with a whole-unit stock and a carry in [0, 1), the
+    // floor of (0.03·stock + carry) never exceeds the stock itself, so the
+    // clamp is a guard, not a law any state reaches. (stock ≥ 2: 0.03·s + 1 ≤ s
+    // ⟺ s ≥ 1.03; stock = 1 floors to exactly 1; stock = 0 → 0.) A red here
+    // would mean a test pins the clamp.
+    id: "E1 spoilage removes more than the stock holds",
+    batch: 12,
+    file: "src/domain/storage/spoilage.ts",
+    equivalent: true,
+    find: "  return { spoiled: Math.min(whole, Math.max(0, stock)), carry: loss - whole };",
+    replace: "  return { spoiled: whole, carry: loss - whole };",
+  },
+  {
+    id: "E2 the plan accepts a reserve sitting exactly on the cap",
+    batch: 12,
+    file: "src/domain/storage/reserve.ts",
+    find: "    if (equilibrium > ceiling) continue;",
+    replace: "    if (equilibrium > capacity) continue;",
+  },
+  {
+    id: "E3 the plan takes the largest reserve above the target, not the first",
+    batch: 12,
+    file: "src/domain/storage/reserve.ts",
+    find: "      if (!atOrAbove || equilibrium < atOrAbove.equilibrium) atOrAbove = candidate;",
+    replace: "      if (!atOrAbove || equilibrium > atOrAbove.equilibrium) atOrAbove = candidate;",
+  },
+  {
+    id: "E4 migration invents a spoilage carry on load",
+    batch: 12,
+    file: "src/application/persistence/save.ts",
+    find: "    foodSpoilCarry: 0,",
+    replace: "    foodSpoilCarry: 0.5,",
+  },
+  {
+    id: "E5 a colony draining to an empty granary is not called a deficit",
+    batch: 12,
+    file: "src/domain/storage/reserve.ts",
+    find: '  if (input.equilibrium <= 0) return "deficit";',
+    replace: '  if (input.equilibrium < 0) return "deficit";',
+  },
 ];
 
 // ---------------------------------------------------------------- arguments

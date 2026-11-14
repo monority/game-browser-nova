@@ -196,6 +196,22 @@ describe("food reserve doctrine", () => {
     expect(plan.autonomy).toBeGreaterThanOrEqual(FOOD_RESERVE_TICKS);
   });
 
+  it("never plans a reserve sitting on the granary's cap", () => {
+    // pop 42 on the base granary (120): no farm count reaches the 210-unit
+    // target, so the plan reports the largest equilibrium that fits — 55 with
+    // 22 farms. The next count (23) reaches 119.67: under the cap by a third
+    // of a unit, over the ceiling by two thirds, and the first tick that
+    // rounds up destroys it. That is what the plan's `capacity - 1` ceiling is
+    // for; a plan that stops at `capacity` buys a reserve it cannot keep.
+    const state = colony(42, 0);
+    const plan = planFoodReserve(state);
+    expect(plan.capacity).toBe(120);
+    expect(plan.capacityShort).toBe(true); // the target itself does not fit
+    expect(plan.farms).toBe(22);
+    expect(plan.equilibrium).toBeCloseTo(55, 0);
+    expect(plan.equilibrium).toBeLessThanOrEqual(plan.capacity - 1);
+  });
+
   it("feeds the growth it allows (population, needs and reserve)", () => {
     // Two residences on a fed colony: admission adds colonists, the need rises,
     // and the reserve must still hold — a plan that only fits the current
