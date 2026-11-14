@@ -404,6 +404,41 @@ const MUTATIONS = [
     find: "  if (!validation.ok) return validation;\n  delete state.buildings[id];",
     replace: "  if (!validation.ok) return validation;\n  state.resources.money += 10;\n  delete state.buildings[id];",
   },
+  // Batch 9 (2026-11-14): the road-graph law. Every mutation here is a rule a
+  // player can buy or build their way into, so a survivor is a wrong number on
+  // screen, not an unused branch.
+  {
+    id: "B1 a mothballed warehouse still seeds the network",
+    batch: 9,
+    file: "src/domain/logistics/logistics.ts",
+    find: '    if (building.type !== "warehouse" || !isActive(building)) continue;',
+    replace: '    if (building.type !== "warehouse") continue;',
+  },
+  {
+    // The branch moves the boundary without moving the number: at d == radius
+    // the raw curve is 100 − 0×4 = 100. Behaviour-identical, so it must stay
+    // green; a red run here would mean a test pins the comparator, not the law.
+    id: "B2 the free radius loses its last cell",
+    batch: 9,
+    file: "src/domain/logistics/logistics.ts",
+    find: "  if (d <= radius) return 100;",
+    replace: "  if (d < radius) return 100;",
+    equivalent: true,
+  },
+  {
+    id: "B3 logistics rounds the share up to the nearest unit",
+    batch: 9,
+    file: "src/domain/logistics/logistics.ts",
+    find: "  return Math.floor((base * logisticsEfficiencyPercent(state, building, map)) / 100);",
+    replace: "  return Math.round((base * logisticsEfficiencyPercent(state, building, map)) / 100);",
+  },
+  {
+    id: "B4 the wheelbarrow widens nothing",
+    batch: 9,
+    file: "src/domain/logistics/logistics.ts",
+    find: '  return LOGISTICS_FREE_RADIUS + techLevel(state, "logisticsRadius") * WHEELBARROW_FREE_RADIUS_BONUS;',
+    replace: "  return LOGISTICS_FREE_RADIUS;",
+  },
 ];
 
 // ---------------------------------------------------------------- arguments

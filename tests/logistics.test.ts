@@ -8,10 +8,13 @@ import {
   LOGISTICS_FLOOR_PERCENT,
   LOGISTICS_FREE_RADIUS,
   WHEELBARROW_FREE_RADIUS_BONUS,
+  applyLogistics,
   buildLogisticsMap,
+  freeLogisticsRadius,
   logisticsDistance,
   logisticsEfficiencyPercent,
 } from "@/domain/logistics/logistics.js";
+import type { Building } from "@/domain/building/building.js";
 import { mustOk, stripToAnchor } from "./helpers.js";
 
 /**
@@ -20,6 +23,20 @@ import { mustOk, stripToAnchor } from "./helpers.js";
  * with road-graph distance to the nearest operational warehouse; farms,
  * wells and workshops are exempt until the V2 network-storage scope.
  */
+
+/** A building that needs no placement rules: all these tests ask is where it sits. */
+function probe(x: number, y: number): Building {
+  return {
+    id: `probe-${x}-${y}`,
+    type: "lumberCamp",
+    x,
+    y,
+    status: "operational",
+    constructionTicksLeft: 0,
+    staffed: true,
+    active: true,
+  };
+}
 
 const CONFIG = {
   seed: "logistics-test",
@@ -115,10 +132,51 @@ describe("distance and efficiency", () => {
     void island;
     const map = buildLogisticsMap(state);
     expect(map.distance.get(cellKey(30, 8))).toBeUndefined();
-    expect(logisticsEfficiencyPercent(state, {
-      id: "probe", type: "lumberCamp", x: 30, y: 9,
-      status: "operational", constructionTicksLeft: 0, staffed: true, active: true,
-    }, map)).toBe(LOGISTICS_FLOOR_PERCENT);
+    expect(logisticsEfficiencyPercent(state, probe(30, 9), map)).toBe(LOGISTICS_FLOOR_PERCENT);
+  });
+
+  it("the free radius includes its last cell and decays from the next", () => {
+    const state = freshState();
+    setupCorridor(state, 31);
+    const map = buildLogisticsMap(state);
+    expect(logisticsEfficiencyPercent(state, probe(12, 3), map)).toBe(100);
+    expect(logisticsEfficiencyPercent(state, probe(13, 3), map)).toBe(96);
+  });
+
+  it("takes its share of the base rate, never rounds it up", () => {
+    // 13 hops = 96 %; base 2 → 1.92. The colony gets the unit it earned, not
+    // the nearest one: rounding here would hand out free output at every
+    // fractional band of the curve (13..17 hops all sit above .5).
+    const state = freshState();
+    setupCorridor(state, 31);
+    expect(applyLogistics(state, probe(13, 3), 2)).toBe(1);
+  });
+
+  it("a mothballed warehouse stops extending the network", () => {
+    const state = freshState();
+    setupCorridor(state, 31);
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "warehouse", x: 30, y: 1 }));
+    stepTicks(state, 2); // the second hub must be operational to seed the BFS
+    expect(logisticsDistance(state, probe(25, 3))).toBe(5);
+
+    const farHub = Object.values(state.buildings).find((b) => b.type === "warehouse" && b.x === 30);
+    if (!farHub) throw new Error("far warehouse missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: farHub.id, active: false }));
+    // A mothballed hub keeps its stock but not its reach: the camp falls back
+    // to the founding warehouse at the origin.
+    expect(logisticsDistance(state, probe(25, 3))).toBe(25);
+  });
+
+  it("the wheelbarrow widens the free radius, not the floor", () => {
+    const state = freshState();
+    setupCorridor(state, 31);
+    expect(logisticsEfficiencyPercent(state, probe(20, 3))).toBe(68);
+
+    state.age = 2;
+    mustOk(applyCommand(state, { kind: "researchTech", techId: "wheelbarrow" }));
+    expect(freeLogisticsRadius(state)).toBe(18);
+    // radius 18: 20 hops = 2 past it → 92 %, where 12 hops' radius gave 68 %.
+    expect(logisticsEfficiencyPercent(state, probe(20, 3))).toBe(92);
   });
 
 });
