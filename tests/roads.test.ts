@@ -30,12 +30,13 @@ describe("road placement validation", () => {
     const state = freshState();
     stripToAnchor(state);
     const blocked = Object.keys(state.world.blockedCells)[0];
-    if (blocked) {
-      expect(applyCommand(state, { kind: "placeRoads", cells: [blocked] })).toEqual({
-        ok: false,
-        reason: "blockedCell",
-      });
-    }
+    // The seed is part of the fixture: if it ever stops producing a blocked
+    // cell, this test must fail rather than quietly assert nothing.
+    if (!blocked) throw new Error("seed build-test kept no blocked cell");
+    expect(applyCommand(state, { kind: "placeRoads", cells: [blocked] })).toEqual({
+      ok: false,
+      reason: "blockedCell",
+    });
     // pinned contract: unlike buildings, roads may cross deposit cells
     expect(applyCommand(state, { kind: "placeRoads", cells: [cellKey(5, 5)] })).toEqual({
       ok: true,

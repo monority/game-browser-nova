@@ -116,21 +116,16 @@ describe("tick integration + alerts + persistence", () => {
     stepTicks(state, 1);
     const spawned: ActiveEvent | undefined = state.events[0];
     if (!spawned) throw new Error("expected an event at tick 1");
-    const wells = Object.values(state.buildings).filter((b) => b.type === "well").length;
-    const farms = Object.values(state.buildings).filter((b) => b.type === "farm").length;
-    if (spawned.kind === "drought") {
-      const before = state.resources.water;
-      stepTicks(state, 1);
-      expect(state.resources.water).toBe(Math.max(0, before - state.population + wells));
-    } else if (spawned.kind === "bountifulHarvest") {
-      const before = state.resources.food;
-      stepTicks(state, 1);
-      expect(state.resources.food).toBe(before + farms * 3 + 1 - state.population);
-    }
+    // Which kind this seed draws must not decide whether anything is asserted:
+    // the branch that used to sit here compared two effects of which a
+    // different seed would test neither, and passed. Each effect is pinned
+    // deterministically — the harvest payout below as a literal, the drought
+    // reduction in its own test above — so this line only pins the timing.
+    expect(["drought", "bountifulHarvest"]).toContain(spawned.kind);
 
     // The harvest pays out ONCE at spawn (P1' Step049), 40 flat — not a rate
     // the colony can grow into. Deterministic: pick the (seed, occurrence)
-    // that draws it instead of hoping the branch above fires.
+    // that draws it instead of hoping a branch fires.
     const harvestAt = Array.from({ length: 64 }, (_, i) => i).find(
       (i) => drawEvent("harvest-probe", i, "normal").kind === "bountifulHarvest",
     );
