@@ -17,6 +17,17 @@
  * Discipline (AGENTS.md): a batch is the unit that fits the 2-minute cap; the
  * full table is a checkpoint, not an iteration command.
  *
+ * A verdict of SURVIVED is a claim about the tests, so it must come with proof
+ * the suite actually ran: the probe refuses to start on a sandbox that cannot
+ * spawn workers, and a run that exits without a green summary is BROKE, never
+ * SURVIVED. Measured 2026-11-14: at 1004 of 1024 PIDs, Vitest children died
+ * with `spawn EAGAIN`, exited 1 with no summary, and five mutations were
+ * reported SURVIVED in 2.2 s — which reads exactly like five missing tests.
+ *
+ * NOVA_PROBE_VITEST overrides the runner path; it exists so the gate above can
+ * be exercised on a healthy sandbox (`NOVA_PROBE_VITEST=/nonexistent`) instead
+ * of by starving the machine.
+ *
  * Tags:
  *   equivalent: true — the mutation cannot change behaviour (e.g. floor/ceil on
  *   an integer, or a ceiling that cannot bite at amount 1). These are EXPECTED
@@ -35,7 +46,7 @@ import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const VITEST = join(ROOT, "node_modules/vitest/vitest.mjs");
+const VITEST = process.env.NOVA_PROBE_VITEST ?? join(ROOT, "node_modules/vitest/vitest.mjs");
 const TIMEOUT_MS = 115_000;
 
 /** @typedef {{ id: string, batch: number, file: string, find: string, replace: string, equivalent?: boolean }} Mutation */
@@ -633,7 +644,7 @@ process.on("uncaughtException", (error) => {
 
 /**
  * @param {Mutation} mutation
- * @returns {{ verdict: "caught" | "survived" | "stale" | "broke", files: string[], seconds: number }}
+ * @returns {{ verdict: "caught" | "survived" | "stale" | "broke", files: string[], seconds: number, reason?: string }}
  */
 function probe(mutation) {
   const path = join(ROOT, mutation.file);
@@ -660,11 +671,49 @@ function probe(mutation) {
   if (files.length > 0) return { verdict: "caught", files, seconds };
   // A crash or a timeout is not a detection: the suite never finished judging.
   const died = run.status === null || run.signal !== null || run.status >= 2;
-  if (died) return { verdict: "broke", files: [], seconds };
+  if (died) return { verdict: "broke", files: [], seconds, reason: "the suite crashed or timed out — no verdict either way" };
+  // Exit 1 with nothing red is not a green suite: a starved sandbox kills the
+  // workers before they collect a single file. Demand the summary Vitest prints
+  // only after judging, with every file and test accounted for.
+  const settled = /Test Files\s+(\d+) passed \(\1\)/.test(output) && /Tests\s+(\d+) passed \(\1\)/.test(output);
+  if (!settled) {
+    return { verdict: "broke", files: [], seconds, reason: "exit 1 without a green summary — no test ever ran (a starved sandbox looks like this)" };
+  }
   return { verdict: "survived", files: [], seconds };
 }
 
+// -------------------------------------------------------------- preflight
+
+/**
+ * Reasons this host cannot produce a trustworthy verdict right now.
+ * The PID check catches the measured failure before it costs a batch; the
+ * canary catches every other way a child process can fail to start.
+ * @returns {string[]}
+ */
+function preflight() {
+  const problems = [];
+  try {
+    const current = Number(readFileSync("/sys/fs/cgroup/pids.current", "utf8").trim());
+    const max = readFileSync("/sys/fs/cgroup/pids.max", "utf8").trim();
+    if (max !== "max" && current > Number(max) * 0.9) {
+      problems.push(`${current} of ${max} PIDs in use — the suite's workers would fail to spawn`);
+    }
+  } catch {
+    // No cgroup v2 on this host; the canary below still speaks for spawning.
+  }
+  const canary = spawnSync(process.execPath, ["-e", ""], { encoding: "utf8", timeout: 10_000 });
+  if (canary.status !== 0) problems.push(`a child process cannot start (${canary.error?.code ?? canary.status})`);
+  return problems;
+}
+
 // -------------------------------------------------------------------- run
+
+const blocked = preflight();
+if (blocked.length > 0) {
+  console.error("refusing to probe — every verdict would read SURVIVED for the wrong reason:");
+  for (const problem of blocked) console.error(`  - ${problem}`);
+  process.exit(2);
+}
 
 console.log(`probing ${selected.length} mutation(s) — one file at a time, suite fully re-run each time\n`);
 let failures = 0;
@@ -677,7 +726,7 @@ for (const mutation of selected) {
   const label = mutation.equivalent ? "equivalent" : "law";
   if (result.verdict === "broke") {
     failures += 1;
-    console.log(`BROKE   ${mutation.id}\n        the suite crashed or timed out — no verdict either way\n`);
+    console.log(`BROKE   ${mutation.id}\n        ${result.reason}\n`);
     continue;
   }
   if (result.verdict === "stale") {
