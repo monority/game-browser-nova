@@ -6,6 +6,13 @@ playwright-report/
 *.local
 .DS_Store
 
+# tool caches and editor state (regenerated, never hand-edited)
+.eslintcache
+.vite/
+*.tsbuildinfo
+.idea/
+.vscode/
+
 # agent playtest artifacts (screenshots + generated report)
 playtest/artifacts/
 
@@ -15,5 +22,13 @@ TASK.md
 .unipi/
 .agents/
 playtest/
+.freebuff/
+
+# assistant / agent tooling configs: local scaffolding, not project source
+.claude/
+.cursor/
+.continue/
+.codex/
+.aider*
 docs/*
 !docs/STATE.md
