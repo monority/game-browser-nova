@@ -127,8 +127,42 @@ export function isMaintenanceExempt(building: { type: string }): boolean {
   return building.type === "colonyCenter" || building.type === "residence";
 }
 
+/**
+ * Crowding (Step072): what a settlement costs its people, beyond the buildings.
+ *
+ * Measured on the self-play line at pop 24 with 54 buildings: taxes 24 +
+ * commerce 12 − maintenance 29 = **+7 money per tick with nothing left to
+ * buy**, so the treasury rose for ever (5 561 at tick 1500 and climbing). Money
+ * is a currency only while it is scarce, and a fixed upkeep against a growing
+ * town cannot keep it scarce.
+ *
+ * The charge starts ABOVE THE FOUNDING STOCK (D2 ships 10 colonists) and costs
+ * one money per THREE of them: nothing at pop 10 — the opening keeps the
+ * surplus it needs to build with, measured as +3/tick — one at pop 15, four at
+ * pop 24 (which turns +7 into +3), ten at pop 40. Two calibrations were
+ * measured and rejected on the way: a charge from the first colonist froze the
+ * harness at pop 15 (it taxed the surplus the first buildings need), and one
+ * per two above the founding stock left the colony at exactly +0 — it could no
+ * longer save 150 for a technology, which a player cannot do either.
+ * Paid with the maintenance, in the same phase.
+ */
+export const CROWDING_FREE_POPULATION = 10;
+
+export function crowdingCostPerTick(state: GameState): number {
+  const above = state.population - CROWDING_FREE_POPULATION;
+  if (above <= 0) return 0;
+  return Math.floor(above / 3);
+}
+
 export function payMaintenance(state: GameState): number {
   const owed = maintenancePerTick(state);
   addMoney(state.resources, -owed); // clamps at 0: partial payment, never negative
+  return owed;
+}
+
+/** The people's upkeep, on top of the buildings' (Step072). */
+export function payCrowding(state: GameState): number {
+  const owed = crowdingCostPerTick(state);
+  addMoney(state.resources, -owed);
   return owed;
 }

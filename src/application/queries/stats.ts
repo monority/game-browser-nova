@@ -2,6 +2,7 @@ import type { GameState } from "@/domain/simulation/state.js";
 import {
   commercePerTick,
   connectedWorkshops,
+  crowdingCostPerTick,
   maintenancePerTick,
   operationalBuildingCount,
   taxesPerTick,
@@ -80,6 +81,8 @@ export interface ColonyStats {
   commercePerTick: number;
   revenuePerTick: number;
   maintenancePerTick: number;
+  /** What the people cost on top of the buildings (Step072). */
+  crowdingPerTick: number;
   netMoneyPerTick: number;
   connectedWorkshops: number;
   operationalBuildings: number;
@@ -134,7 +137,8 @@ export function getColonyStats(state: GameState, flows?: TickFlows): ColonyStats
     commercePerTick: commerce,
     revenuePerTick: taxes + commerce,
     maintenancePerTick: maintenance,
-    netMoneyPerTick: taxes + commerce - maintenance,
+    crowdingPerTick: crowdingCostPerTick(state),
+    netMoneyPerTick: taxes + commerce - maintenance - crowdingCostPerTick(state),
     connectedWorkshops: connectedWorkshops(state),
     operationalBuildings: operationalBuildingCount(state),
   };

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { canAdvanceAge, evaluateMilestones } from "@/domain/progression/progression.js";
+import { stepTicks } from "@/domain/simulation/tick.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { mustOk } from "./helpers.js";
 import { playGame, SELFPLAY_CONFIG } from "./selfplay.governor.js";
@@ -95,8 +96,12 @@ describe("self-play verifier", () => {
     expect(phases.some((x) => x.startsWith("age2@")), "no age 2: " + phases.join(", ")).toBe(true);
     // Step071: the automated player now researches as it can afford to, so
     // these two may already be in hand by the time the run gets here.
+    // Step072: and the treasury is flat once the people cost something, so the
+    // directed tail waits for the money it needs, the way a player would,
+    // instead of assuming a pile that no longer exists.
     for (const techId of ["irrigation", "deepMining"]) {
       if (state.researchedTechs.includes(techId)) continue;
+      for (let i = 0; i < 400 && state.resources.money < 160; i++) stepTicks(state, 1);
       mustOk(applyCommand(state, { kind: "researchTech", techId }));
     }
     const age2 = evaluateMilestones(state, 2);

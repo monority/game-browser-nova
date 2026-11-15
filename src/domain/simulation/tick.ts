@@ -2,7 +2,7 @@ import type { GameState } from "./state.js";
 import { produceFood, produceWater, consumeFood, consumeWater } from "@/domain/production/production.js";
 import { updatePopulation } from "@/domain/population/population.js";
 import { assignJobs } from "@/domain/jobs/jobs.js";
-import { collectRevenue, payMaintenance } from "@/domain/economy/economy.js";
+import { collectRevenue, payCrowding, payMaintenance } from "@/domain/economy/economy.js";
 import { updateEnvironment } from "@/domain/environment/environment.js";
 import { resolveEvents } from "@/domain/events/events.js";
 import { produceStone, produceWood } from "@/domain/production/extraction.js";
@@ -57,7 +57,7 @@ export function emptyTickFlows(): TickFlows {
  *       produced THIS tick's output (assigned at the end of the previous
  *       tick, Step064) — an idling workshop emits nothing
  *   9. assignJobs (next tick's staffing)
- *   10. collectRevenue → payMaintenance (money model, same-tick inflow;
+ *   10. collectRevenue → payMaintenance → payCrowding (money model, same-tick inflow;
  *       commerce comes only from staffed workshops, Step065)
  *   11. resolveEvents (Step047: expire + seeded draws; canonical phase 12
  *       of 05-SIMULATION §3 — active events feed the NEXT tick's
@@ -93,6 +93,7 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
 
   collectRevenue(state, planksProduced);
   payMaintenance(state);
+  payCrowding(state); // Step072: the people cost more than the buildings
   resolveEvents(state);
 
   if (flows) {

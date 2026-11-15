@@ -62,6 +62,9 @@ export function createStatsPanel(callbacks: {
     taxes: liveStatRow("  taxes"),
     commerce: liveStatRow("  commerce"),
     maintenance: liveStatRow("Maintenance/tick"),
+    // Step072: the people's upkeep, separate from the buildings' — the line
+    // that explains why a big colony stops getting richer by itself.
+    crowding: liveStatRow("  people"),
     net: liveStatRow("Net money/tick"),
   };
   for (const row of Object.values(statRows)) element.appendChild(row.element);
@@ -137,6 +140,7 @@ export function createStatsPanel(callbacks: {
     statRows.taxes.set(String(stats.taxesPerTick));
     statRows.commerce.set(String(stats.commercePerTick));
     statRows.maintenance.set(String(stats.maintenancePerTick));
+    statRows.crowding.set(String(stats.crowdingPerTick));
     statRows.net.set(
       String(stats.netMoneyPerTick),
       stats.netMoneyPerTick >= 0 ? "nova-value--ok" : "nova-value--danger",
