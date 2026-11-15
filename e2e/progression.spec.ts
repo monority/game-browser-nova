@@ -60,7 +60,7 @@ test.describe("NOVA progression", () => {
     const panel = page.locator("#progression");
     await expect(panel).toContainText("Age of Prosperity (Age 3)");
     await expect(panel).toContainText("Population 20");
-    await expect(panel).toContainText("Food 120");
+    await expect(panel).toContainText("Food 75");
     await expect(panel).toContainText("30 operational buildings");
     await expect(panel).toContainText("20 residences");
     // current values against thresholds (none complete at this point)

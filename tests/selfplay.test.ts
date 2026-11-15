@@ -93,7 +93,10 @@ describe("self-play verifier", () => {
     // commands only.
     const { state, phases } = playGame(-1, false, 14, 24);
     expect(phases.some((x) => x.startsWith("age2@")), "no age 2: " + phases.join(", ")).toBe(true);
+    // Step071: the automated player now researches as it can afford to, so
+    // these two may already be in hand by the time the run gets here.
     for (const techId of ["irrigation", "deepMining"]) {
+      if (state.researchedTechs.includes(techId)) continue;
       mustOk(applyCommand(state, { kind: "researchTech", techId }));
     }
     const age2 = evaluateMilestones(state, 2);

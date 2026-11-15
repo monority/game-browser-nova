@@ -49,7 +49,12 @@ export const AGE_MILESTONES: Record<number, MilestoneDefinition[]> = {
   2: [
     { id: "pop15", label: "Population 15", dimension: "population", threshold: 15 },
     { id: "bld14", label: "14 operational buildings", dimension: "buildings", threshold: 14 },
-    { id: "food90", label: "Food 90", dimension: "stock", threshold: 90, resource: "food" },
+    // Step070/071: the gate must sit UNDER the lean season's trough, not on it.
+    // A granary of 180-240 peaks at 169 and bottoms at 120 at pop 24, and the
+    // smaller Age-2 colony bottoms around 83 — a 90-unit gate passed or failed
+    // depending on which tick the player looked (measured: 83 at the moment the
+    // run asked, having held 120 the month before).
+    { id: "food60", label: "Food 60", dimension: "stock", threshold: 60, resource: "food" },
     { id: "tech5", label: "5 technologies researched", dimension: "techs", threshold: 5 },
     // Step065: the market milestone went with the market itself. Age 2 is
     // again the four Step021 dimensions (pop / buildings / food / techs).
@@ -65,7 +70,7 @@ export const AGE_MILESTONES: Record<number, MilestoneDefinition[]> = {
     { id: "pop20", label: "Population 20", dimension: "population", threshold: 20 },
     // A full base granary: the proof that the colony can carry itself through
     // a lean season without a warehouse bailing it out.
-    { id: "food120", label: "Food 120", dimension: "stock", threshold: 120, resource: "food" },
+    { id: "food75", label: "Food 75", dimension: "stock", threshold: 75, resource: "food" },
     { id: "bld30", label: "30 operational buildings", dimension: "buildings", threshold: 30 },
     { id: "res20", label: "20 residences", dimension: "buildings", threshold: 20, buildingType: "residence" },
     // Step070 dropped the THREE-WORKSHOP gate. Once colonists work the farms

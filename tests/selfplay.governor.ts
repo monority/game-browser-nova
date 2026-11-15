@@ -49,7 +49,23 @@ export const SELFPLAY_CONFIG = {
 };
 
 export const SELFPLAY_TICK_BUDGET = 1500;
-export const TECH_ORDER = ["cropRotation", "masonry", "tradeRoutes"];
+/**
+ * Research order for the automated player (Step071). The three Age-1 techs
+ * come first because the Age-1 gate needs three, then the rest of the catalog
+ * as money allows — including the two Age-3 sinks, so a run that reaches Age 3
+ * actually spends the treasury instead of hoarding it. This is the harness's
+ * player policy, not a game rule: the catalog is read from content.
+ */
+export const TECH_ORDER = [
+  "cropRotation",
+  "masonry",
+  "tradeRoutes",
+  "irrigation",
+  "deepMining",
+  "wheelbarrow",
+  "cobbledRoads",
+  "winterWheat",
+];
 
 function buildable(state: GameState, x: number, y: number, roads: Set<string>): boolean {
   if (x < 0 || y < 0 || x >= state.world.width || y >= state.world.height) return false;
@@ -298,13 +314,21 @@ export function playGame(
       [banking && structuralFoodGap && farmHeadroom, () => tryBuild("farm", true, 0)],
       [banking && countType(state, "workshop") < 2 && money > 50, () => tryBuild("workshop", true, 0)],
       [!banking && structuralFoodGap && farmHeadroom, () => tryBuild("farm", true, 0)],
-      [!banking && state.researchedTechs.length < 3 && money >= 150, () => {
-        for (const tech of TECH_ORDER) {
-          const def = TECH_DEFINITIONS[tech];
-          if (def && !state.researchedTechs.includes(tech) && applyCommand(state, { kind: "researchTech", techId: tech }).ok) return true;
-        }
-        return false;
-      }],
+      [
+        !banking,
+        () => {
+          for (const tech of TECH_ORDER) {
+            const def = TECH_DEFINITIONS[tech];
+            if (!def || state.researchedTechs.includes(tech)) continue;              // Age still gates a technology, and the player keeps a building
+              // budget: research comes after the warehouses and farms it can
+              // still afford (measured: a 40-unit buffer spent the granary's
+              // warehouse and left the endgame granary 7 units under target).
+              if (def.age > state.age || state.resources.money < def.cost + 200) continue;
+            if (applyCommand(state, { kind: "researchTech", techId: tech }).ok) return true;
+          }
+          return false;
+        },
+      ],
       [!banking && countType(state, "workshop") < 4 && money > 50, () => tryBuild("workshop", true, 0)],
       [
         !banking &&
