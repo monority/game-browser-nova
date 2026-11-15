@@ -59,4 +59,26 @@ export const TECH_DEFINITIONS: Record<string, TechDefinition> = {
     // Step050 L3b: transport technology — widens the logistics free radius.
     effect: "logisticsRadius",
   },
+  // Step070 — what money is FOR in the late game. The colony that reaches Age 3
+  // holds thousands and has nothing left to buy: buildings need free cells and
+  // planks, and the map runs out before the treasury does (measured on the
+  // self-play line: 5 424 at tick 1500 with 51 buildings and no purchase left).
+  // These two are priced in money alone, so the surplus buys capability instead
+  // of sitting there, and both answer the lean season: one gets more out of the
+  // land the colony already works, the other moves goods further without a
+  // penalty.
+  cobbledRoads: {
+    id: "cobbledRoads",
+    displayName: "Cobbled Roads",
+    cost: 800,
+    age: 3,
+    effect: "logisticsRadius",
+  },
+  winterWheat: {
+    id: "winterWheat",
+    displayName: "Winter Wheat",
+    cost: 1200,
+    age: 3,
+    effect: "farmFood",
+  },
 };
