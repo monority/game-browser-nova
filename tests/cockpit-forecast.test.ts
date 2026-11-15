@@ -195,8 +195,11 @@ describe("cockpit forecast — agreement with the simulation", () => {
     // the doctrine's claim, verified: 19 food for 16 colonists settles at 81
     const steady = Math.round(foodEquilibriumStock(16, 19));
     expect(funded.forecast.reserve?.equilibrium).toBe(steady);
-    expect(funded.end).toBeGreaterThanOrEqual(Math.floor(steady) - 1);
-    expect(funded.end).toBeLessThanOrEqual(Math.ceil(steady) + 1);
+    // Step070: the stock is a SAWTOOTH, not a point. Winter parks the surplus
+    // farms and conservation takes its share, spring refills toward the law's
+    // equilibrium; 200 ticks end mid-refill. What must hold is that the season
+    // never brings the granary near starvation.
+    expect(funded.end).toBeGreaterThan(steady * 0.5);
 
     // deficit: the announced countdown is the tick that really empties it
     const spec: ColonySpec = { population: 19, farms: 6, techs: ["cropRotation"], food: 58 };

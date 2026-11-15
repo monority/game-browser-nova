@@ -29,12 +29,14 @@ describe("storage capacity (Step031)", () => {
   it("counts operational warehouses only, gates on planks, and reaches the stats surface", () => {
     const state = freshState();
     const id = placeWarehouse(state);
-    expect(foodCapacity(state)).toBe(180);
+    // Step070: the base granary is three day-0 stocks (180), so one warehouse
+    // brings it to 240.
+    expect(foodCapacity(state)).toBe(240);
     expect(waterCapacity(state)).toBe(120);
-    expect(getColonyStats(state)).toMatchObject({ foodCapacity: 180, waterCapacity: 120 });
+    expect(getColonyStats(state)).toMatchObject({ foodCapacity: 240, waterCapacity: 120 });
 
     mustOk(applyCommand(state, { kind: "setBuildingActive", id, active: false }));
-    expect(foodCapacity(state)).toBe(120);
+    expect(foodCapacity(state)).toBe(180);
     expect(waterCapacity(state)).toBe(80);
 
     const building = freshState();
@@ -43,7 +45,7 @@ describe("storage capacity (Step031)", () => {
     building.resources.planks = 10;
     const spot = freeCell(building);
     mustOk(applyCommand(building, { kind: "placeBuilding", type: "warehouse", x: spot.x, y: spot.y }));
-    expect(foodCapacity(building)).toBe(120); // under construction adds nothing
+    expect(foodCapacity(building)).toBe(180); // under construction adds nothing
 
     const broke = freshState();
     stripToAnchor(broke);
@@ -60,19 +62,19 @@ describe("storage capacity (Step031)", () => {
     stripToAnchor(overflow);
     overflow.resources.food = 300;
     overflow.resources.water = 300;
-    expect(clampStorage(overflow)).toEqual({ foodWasted: 180, waterWasted: 220 });
-    expect(overflow.resources).toMatchObject({ food: 120, water: 80 });
+    expect(clampStorage(overflow)).toEqual({ foodWasted: 120, waterWasted: 220 });
+    expect(overflow.resources).toMatchObject({ food: 180, water: 80 });
 
     const pinned = freshState();
     stripToAnchor(pinned);
     pinned.population = 0; // no consumption: pure production vs cap
-    pinned.resources.food = 120;
+    pinned.resources.food = 180;
     pinned.resources.water = 80;
     stepTicks(pinned, 1); // colony-center trickle +1, then clamp
-    // Step067: conservation takes 3 of the 121 units before the clamp, so the
+    // Step067: conservation takes 5 of the 181 units before the clamp, so the
     // granary settles below the cap instead of pinning. Water is unchanged
     // (no degradation) and still pins at 80.
-    expect(pinned.resources).toMatchObject({ food: 118, water: 80 });
+    expect(pinned.resources).toMatchObject({ food: 176, water: 80 });
 
     const grown = freshState();
     stepTicks(grown, 50);

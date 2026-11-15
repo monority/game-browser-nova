@@ -28,6 +28,9 @@ export function createStatsPanel(callbacks: {
   // literal order is the visual order (object insertion order is defined).
   const statRows = {
     tick: liveStatRow("Tick"),
+    // Step070: the calendar is a rule the player must be able to see — the
+    // lean season is why a full granary is a plan and not a waste.
+    season: liveStatRow("Season"),
     population: liveStatRow("Population"),
     // Step057 F5: the workforce ratio lives here permanently instead of
     // re-firing an alert every tick of a structural shortage.
@@ -81,6 +84,11 @@ export function createStatsPanel(callbacks: {
 
   function updateStats(stats: ColonyStats): void {
     statRows.tick.set(String(stats.tick));
+    statRows.season.set(
+      `${stats.seasonLabel} · ${stats.seasonTicksLeft} ticks left` +
+        (stats.seasonLean ? ` · lean harvest (${stats.workingFarms} farms working)` : ""),
+      stats.seasonLean ? "nova-value--warn" : "",
+    );
     statRows.population.set(`${stats.population} / ${stats.housingCapacity}`);
     statRows.workforce.set(`${stats.staffedWorkplaces} / ${stats.eligibleWorkplaces} staffed`);
     statRows.money.set(String(Math.floor(stats.resources.money)));

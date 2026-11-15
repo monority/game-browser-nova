@@ -2,7 +2,7 @@ import type { GameState } from "@/domain/simulation/state.js";
 import { FOOD_SPOILAGE_RATE_PER_TICK } from "@/content/conservation.js";
 import {
   FOOD_PER_COLONIST_PER_TICK,
-  foodProductionPerTick,
+  foodProductionForTick,
 } from "@/domain/production/production.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
 
@@ -64,7 +64,8 @@ export function applyFoodSpoilage(state: GameState): number {
  * less than the law says, so it cannot empty a stock the law keeps alive.
  */
 export function foodTicksRemaining(state: GameState): number | null {
-  const production = foodProductionPerTick(state);
+  // Same basis as the projection: the ticks being walked are the ones ahead.
+  const production = foodProductionForTick(state, state.tick + 1);
   if (foodEquilibriumStock(state.population, production) > 0) return null;
   const need = state.population * FOOD_PER_COLONIST_PER_TICK;
   let stock = state.resources.food;
@@ -107,7 +108,10 @@ export interface FoodTickProjection {
  * not part of the law: a projection states the tick's own arithmetic.
  */
 export function projectFoodTick(state: GameState): FoodTickProjection {
-  const production = foodProductionPerTick(state);
+  // The COMING tick: the tick phase advances the clock before it harvests, so a
+  // projection that read the current season would promise a spring harvest for
+  // a winter tick at every boundary (Step070).
+  const production = foodProductionForTick(state, state.tick + 1);
   const harvest = state.resources.food + production;
   const loss = spoilFood(harvest, state.foodSpoilCarry);
   const afterSpoilage = harvest - loss.spoiled;

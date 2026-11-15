@@ -13,7 +13,16 @@ import { countActiveOfType } from "@/domain/building/building.js";
  * per warehouse" rules now share one source of truth.
  */
 
-export const BASE_FOOD_CAPACITY = D2_FOOD * 2;
+/**
+ * Base granary: THREE day-0 stocks, not two (Step070). The reserve doctrine
+ * aims at five ticks of consumption, and one farm moves the steady stock by
+ * `yield × (1 - r) / r` — 65 units at the shipped yield. A granary of two
+ * stocks (120) has 120 − target of room for that step at pop 16 and none at
+ * pop 24, so the doctrine cannot hold its own target and the colony lives on
+ * the starvation boundary. Three stocks give the plan one farm-step of headroom
+ * above the five-tick target at every population the game reaches.
+ */
+export const BASE_FOOD_CAPACITY = D2_FOOD * 3;
 export const BASE_WATER_CAPACITY = D2_WATER * 2;
 export const FOOD_PER_WAREHOUSE = D2_FOOD;
 export const WATER_PER_WAREHOUSE = D2_WATER;

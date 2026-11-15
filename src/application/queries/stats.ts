@@ -15,6 +15,8 @@ import {
 } from "@/domain/environment/environment.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { projectFoodTick } from "@/domain/storage/spoilage.js";
+import { currentSeason, ticksLeftInSeason } from "@/domain/season/season.js";
+import { workingFarms } from "@/domain/production/production.js";
 import { forecastFoodReserve, type FoodReserveStatus } from "@/domain/storage/reserve.js";
 import type { TickFlows } from "@/domain/simulation/tick.js";
 import { getStaffingOverview } from "./staffing.js";
@@ -24,6 +26,13 @@ import { getStaffingOverview } from "./staffing.js";
 export interface ColonyStats {
   tick: number;
   population: number;
+  /** Step070: the season the clock is in, and how long it lasts. */
+  seasonLabel: string;
+  seasonTicksLeft: number;
+  /** The lean season: the harvest runs only as far as the granary pays. */
+  seasonLean: boolean;
+  /** Farms that work this tick, out of those staffed (differs in the lean season). */
+  workingFarms: number;
   housingCapacity: number;
   foodCapacity: number;
   waterCapacity: number;
@@ -80,9 +89,14 @@ export function getColonyStats(state: GameState, flows?: TickFlows): ColonyStats
   const pollution = pollutionFlows(state);
   const staffing = getStaffingOverview(state);
   const reserve = forecastFoodReserve(state);
+  const season = currentSeason(state);
   return {
     tick: state.tick,
     population: state.population,
+    seasonLabel: season.label,
+    seasonTicksLeft: ticksLeftInSeason(state.tick),
+    seasonLean: season.lean,
+    workingFarms: workingFarms(state),
     housingCapacity: housingCapacity(state),
     foodCapacity: foodCapacity(state),
     waterCapacity: waterCapacity(state),

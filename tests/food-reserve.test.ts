@@ -84,13 +84,18 @@ function smallestAtOrAbove(
   return null;
 }
 
-function minFood(state: GameState, ticks: number): { min: number; final: number } {
+function minFood(
+  state: GameState,
+  ticks: number,
+): { min: number; max: number; final: number } {
   let min = state.resources.food;
+  let max = state.resources.food;
   for (let i = 0; i < ticks; i++) {
     stepTicks(state, 1);
     min = Math.min(min, state.resources.food);
+    max = Math.max(max, state.resources.food);
   }
-  return { min, final: state.resources.food };
+  return { min, max, final: state.resources.food };
 }
 
 describe("food reserve doctrine", () => {
@@ -139,16 +144,21 @@ describe("food reserve doctrine", () => {
     const plan = planFoodReserve(state);
     expect(plan.farms).toBe(6);
     expect(plan.equilibrium).toBeCloseTo(81, 0);
-    const { min, final } = minFood(state, 600);
-    // settles on the predicted equilibrium, never touching zero
-    expect(final).toBeGreaterThan(plan.equilibrium - 4);
-    expect(final).toBeLessThan(plan.equilibrium + 4);
+    const { min, max } = minFood(state, 600);
+    // Step070: six hundred ticks span ten seasons, so the stock is a sawtooth —
+    // winter parks the surplus farms and conservation takes its share, spring
+    // refills toward the predicted equilibrium. What the season may not do is
+    // starve the colony or keep it out of the reserve band: the peak stays close
+    // to the 80-unit target and the trough never comes near zero.
+    expect(max).toBeGreaterThan(plan.target * 0.8);
     expect(min).toBeGreaterThan(20);
   });
 
   it("asks for storage when the target reserve cannot fit", () => {
+    // pop 42 needs a 210-unit reserve; the base granary is 180 (Step070, three
+    // day-0 stocks), so the target genuinely does not fit.
     const state = createInitialState(CONFIG);
-    state.population = 24;
+    state.population = 42;
     state.researchedTechs = ["cropRotation", "irrigation"]; // 4 food/farm
     const tight = planFoodReserve(state);
     expect(tight.capacityShort).toBe(true);
@@ -190,25 +200,25 @@ describe("food reserve doctrine", () => {
     stepTicks(state, 3);
 
     const plan = planFoodReserve(state);
-    expect(plan.capacity).toBe(180); // both candidates fit now
+    expect(plan.capacity).toBe(240); // base 180 + one warehouse
     expect(plan.farms).toBe(6);
     expect(plan.equilibrium).toBeCloseTo(81, 0);
     expect(plan.autonomy).toBeGreaterThanOrEqual(FOOD_RESERVE_TICKS);
   });
 
   it("never plans a reserve sitting on the granary's cap", () => {
-    // pop 42 on the base granary (120): no farm count reaches the 210-unit
-    // target, so the plan reports the largest equilibrium that fits — 55 with
-    // 22 farms. The next count (23) reaches 119.67: under the cap by a third
-    // of a unit, over the ceiling by two thirds, and the first tick that
-    // rounds up destroys it. That is what the plan's `capacity - 1` ceiling is
-    // for; a plan that stops at `capacity` buys a reserve it cannot keep.
+    // pop 42 on the base granary (180, three day-0 stocks since Step070): no
+    // farm count reaches the 210-unit target, so the plan reports the largest
+    // equilibrium that fits — 119.67 with 23 farms. The next count (24) reaches
+    // 184.29: 5 units over the ceiling, and the first tick that rounds up
+    // destroys it. That is what the plan's `capacity - 1` ceiling is for; a
+    // plan that stops at `capacity` buys a reserve it cannot keep.
     const state = colony(42, 0);
     const plan = planFoodReserve(state);
-    expect(plan.capacity).toBe(120);
+    expect(plan.capacity).toBe(180);
     expect(plan.capacityShort).toBe(true); // the target itself does not fit
-    expect(plan.farms).toBe(22);
-    expect(plan.equilibrium).toBeCloseTo(55, 0);
+    expect(plan.farms).toBe(23);
+    expect(plan.equilibrium).toBeCloseTo(119.67, 1);
     expect(plan.equilibrium).toBeLessThanOrEqual(plan.capacity - 1);
   });
 

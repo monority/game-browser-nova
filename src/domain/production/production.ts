@@ -6,6 +6,12 @@ import {
   isEventEffectTick,
 } from "@/domain/events/events.js";
 import { addFood, addWater, deductFood } from "@/domain/resource/resource.js";
+import { isLeanSeason } from "@/domain/season/season.js";
+import {
+  LEAN_SEASON_AFFORDABLE_STOCK_SHARE,
+  LEAN_SEASON_IDLE_FARM_SHARE,
+} from "@/content/seasons.js";
+import { foodCapacity } from "@/domain/storage/storage.js";
 
 export const FOOD_PER_FARM_PER_TICK = 2;
 export const WATER_PER_WELL_PER_TICK = 2;
@@ -28,17 +34,48 @@ export function foodPerFarm(state: GameState): number {
   return FOOD_PER_FARM_PER_TICK + techLevel(state, "farmFood");
 }
 
-/** Expected food production for the coming tick (pure): staffed farms plus
- * Center trickle. Farms are EXEMPT from logistics efficiency (Step050
- * calibration: subsistance producers stay full-rate until the V2 network
- * storage lands — measured evidence in the Step050 report). */
-export function foodProductionPerTick(state: GameState): number {
-  let produced = 0;
+/**
+ * Farms that actually work THIS tick (Step070).
+ *
+ * Out of the lean season every staffed farm works. In the lean season the
+ * colony rests up to half of them, scaled by how full the granary is against
+ * `LEAN_SEASON_AFFORDABLE_STOCK_SHARE` of its capacity: a full granary parks
+ * the full share, a half-empty one parks proportionally less, an empty one
+ * parks nothing and the colony eats. That is the whole safety of the season —
+ * the harvest can never be cut below what the store can carry, so winter is a
+ * dip the player plans for and never a famine they cannot answer.
+ *
+ * The forecast, the overlay and the tick all read this count, so none of them
+ * can promise a harvest the season takes back.
+ */
+export function workingFarms(state: GameState, tick: number = state.tick): number {
+  let farms = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.type === "farm" && isActive(building) && building.staffed) {
-      produced += foodPerFarm(state);
-    }
+    if (building.type === "farm" && isActive(building) && building.staffed) farms += 1;
   }
+  if (!isLeanSeason(tick) || farms === 0) return farms;
+  // What the colony must harvest to eat today: the Center's trickle covers one
+  // mouth, every other one costs a farm.
+  const needed = Math.max(0, Math.ceil((state.population - FOOD_PER_COLONY_CENTER_PER_TICK) / foodPerFarm(state)));
+  const spare = Math.max(0, farms - needed);
+  // ...and of the spare farms, only the share the granary can pay for: a full
+  // granary parks them, an empty one parks none.
+  const affordable = foodCapacity(state) * LEAN_SEASON_AFFORDABLE_STOCK_SHARE;
+  const fullness = affordable > 0 ? Math.min(1, Math.max(0, state.resources.food / affordable)) : 0;
+  const idle = Math.min(spare, Math.floor(farms * LEAN_SEASON_IDLE_FARM_SHARE * fullness));
+  return farms - idle;
+}
+
+/** Harvest of the tick numbered `tick` (pure): working farms plus Center
+ * trickle. The explicit tick matters at a season boundary — the tick phase
+ * increments the clock before it produces, so a forecast of the COMING tick
+ * must read the coming tick's season, not the current one (Step070; measured
+ * as a one-tick, one-farm disagreement in `cockpit-forecast`).
+ * Farms are EXEMPT from logistics efficiency (Step050 calibration: subsistance
+ * producers stay full-rate until the V2 network storage lands — measured
+ * evidence in the Step050 report). */
+export function foodProductionForTick(state: GameState, tick: number): number {
+  let produced = workingFarms(state, tick) * foodPerFarm(state);
   // the anchor is always active by contract — no mothball escape hatch
   for (const building of Object.values(state.buildings)) {
     if (building.type === "colonyCenter" && building.status === "operational") {
@@ -46,6 +83,11 @@ export function foodProductionPerTick(state: GameState): number {
     }
   }
   return produced;
+}
+
+/** Harvest of the tick the state is currently in (the tick phase's own read). */
+export function foodProductionPerTick(state: GameState): number {
+  return foodProductionForTick(state, state.tick);
 }
 
 export function produceFood(state: GameState): void {
