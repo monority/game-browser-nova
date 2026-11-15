@@ -6,6 +6,8 @@ import {
   foodPerFarm,
 } from "@/domain/production/production.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
+import { SEASONS } from "@/content/seasons.js";
+import { ticksUntilLeanSeason } from "@/domain/season/season.js";
 import {
   foodEquilibriumStock,
   foodTicksRemaining,
@@ -166,6 +168,54 @@ export function planFoodReserve(
     equilibrium: Math.max(0, chosen.equilibrium),
     autonomy: population > 0 ? Math.max(0, chosen.equilibrium) / (population * FOOD_PER_COLONIST_PER_TICK) : 0,
     triageFloor,
+  };
+}
+
+/**
+ * What the lean season will cost the granary (Step070).
+ *
+ * The season is only affordable if the store covers it, so the cockpit has to
+ * say the number before it arrives, in the doctrine's own currency (units of
+ * food).
+ *
+ * The number is a SAFE UPPER BOUND, not a prediction, and the bound comes from
+ * the season's own law: the colony never parks the farms it needs to eat, so
+ * winter production is at least consumption and the store can only fall by
+ * conservation. Assuming exactly `production = consumption` for the whole
+ * season, the store decays as `S ← 0.97·S − 0.03·pop`, closed form
+ * `S_n = rⁿ·S − pop·(1 − rⁿ)`. That is the most the season can take; a colony
+ * that keeps its surplus farms working loses less (measured at pop 24: bound
+ * 71, real dip 49). No farm count is re-derived here — duplicating the
+ * affordability rule would be a second law to keep in sync.
+ */
+export interface LeanSeasonOutlook {
+  /** 0 while the lean season runs, N when it starts in N ticks. */
+  ticksAway: number;
+  /** Length of the lean season, in ticks. */
+  ticks: number;
+  /** Food the season will have to take from the granary (0 if it covers itself). */
+  shortfall: number;
+  stock: number;
+  /** The granary holds what the season will cost. */
+  covered: boolean;
+}
+
+export function forecastLeanSeason(state: GameState): LeanSeasonOutlook {
+  const leanTicks = SEASONS.filter((s) => s.lean).reduce((sum, s) => sum + s.ticks, 0);
+  const ticksAway = ticksUntilLeanSeason(state.tick);
+  if (leanTicks === 0) {
+    return { ticksAway, ticks: 0, shortfall: 0, stock: state.resources.food, covered: true };
+  }
+  const stock = state.resources.food;
+  const keep = Math.pow(1 - FOOD_SPOILAGE_RATE_PER_TICK, leanTicks);
+  // production = consumption for every tick of the season (the upper bound)
+  const worstEnd = stock * keep - state.population * (1 - keep);
+  return {
+    ticksAway,
+    ticks: leanTicks,
+    shortfall: Math.max(0, Math.ceil(stock - worstEnd)),
+    stock,
+    covered: worstEnd > 0,
   };
 }
 

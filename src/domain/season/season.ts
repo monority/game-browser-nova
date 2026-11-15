@@ -34,3 +34,18 @@ export function isLeanSeason(tick: number): boolean {
 export function ticksLeftInSeason(tick: number): number {
   return SEASON_LENGTH_TICKS - (tick % SEASON_LENGTH_TICKS);
 }
+
+/** Total ticks in a year. */
+export const YEAR_TICKS = SEASON_LENGTH_TICKS * SEASONS.length;
+
+/**
+ * Ticks until the lean season starts: 0 while it runs, N when it is N ticks
+ * away. Walks the calendar so the answer follows the table (a second lean
+ * season, or a longer winter, needs no change here).
+ */
+export function ticksUntilLeanSeason(tick: number): number {
+  for (let ahead = 0; ahead < YEAR_TICKS; ahead++) {
+    if (isLeanSeason(tick + ahead)) return ahead;
+  }
+  return YEAR_TICKS; // no lean season in the table: a year is the honest answer
+}

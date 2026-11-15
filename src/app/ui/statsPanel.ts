@@ -31,6 +31,9 @@ export function createStatsPanel(callbacks: {
     // Step070: the calendar is a rule the player must be able to see — the
     // lean season is why a full granary is a plan and not a waste.
     season: liveStatRow("Season"),
+    // Step070: the season is only fair if it is announced — what it will cost
+    // the granary, before it arrives, in units of food.
+    leanSeason: liveStatRow("  lean season"),
     population: liveStatRow("Population"),
     // Step057 F5: the workforce ratio lives here permanently instead of
     // re-firing an alert every tick of a structural shortage.
@@ -88,6 +91,12 @@ export function createStatsPanel(callbacks: {
       `${stats.seasonLabel} · ${stats.seasonTicksLeft} ticks left` +
         (stats.seasonLean ? ` · lean harvest (${stats.workingFarms} farms working)` : ""),
       stats.seasonLean ? "nova-value--warn" : "",
+    );
+    statRows.leanSeason.set(
+      stats.seasonLean
+        ? `now · costs ${stats.leanSeasonShortfall} food · stock ${Math.floor(stats.resources.food)}`
+        : `in ${stats.leanSeasonTicksAway} ticks · will cost ${stats.leanSeasonShortfall} food · stock ${Math.floor(stats.resources.food)}`,
+      stats.leanSeasonCovered ? "nova-value--ok" : "nova-value--danger",
     );
     statRows.population.set(`${stats.population} / ${stats.housingCapacity}`);
     statRows.workforce.set(`${stats.staffedWorkplaces} / ${stats.eligibleWorkplaces} staffed`);
