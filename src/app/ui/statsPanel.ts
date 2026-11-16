@@ -90,15 +90,18 @@ export function createStatsPanel(callbacks: {
 
   function updateStats(stats: ColonyStats): void {
     statRows.tick.set(String(stats.tick));
+    // Short enough to stay on the row (Step075, seen in the browser):
+    // "Winter · 3 ticks left · lean harvest (5 farms working)" ran past the
+    // label column and wrapped under "Season", so the value and the label read
+    // as one word. The harvest detail lives on the sub-row where it has room.
     statRows.season.set(
-      `${stats.seasonLabel} · ${stats.seasonTicksLeft} ticks left` +
-        (stats.seasonLean ? ` · lean harvest (${stats.workingFarms} farms working)` : ""),
+      `${stats.seasonLabel} · ${stats.seasonTicksLeft} ticks left`,
       stats.seasonLean ? "nova-value--warn" : "",
     );
     statRows.leanSeason.set(
       stats.seasonLean
-        ? `now · costs ${stats.leanSeasonShortfall} food · stock ${Math.floor(stats.resources.food)}`
-        : `in ${stats.leanSeasonTicksAway} ticks · will cost ${stats.leanSeasonShortfall} food · stock ${Math.floor(stats.resources.food)}`,
+        ? `${stats.leanSeasonShortfall} food · ${stats.workingFarms} farms`
+        : `in ${stats.leanSeasonTicksAway} ticks · ${stats.leanSeasonShortfall} food`,
       stats.leanSeasonCovered ? "nova-value--ok" : "nova-value--danger",
     );
     statRows.population.set(`${stats.population} / ${stats.housingCapacity}`);

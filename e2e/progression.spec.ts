@@ -17,6 +17,10 @@ test.describe("NOVA progression", () => {
       const s = window.__nova!.getState();
       s.resources.money = 1500;
       s.resources.planks = 5;
+      // Step072: Age 2 asks for a food stock (60), and the opening holds
+      // exactly that — at 15 colonists it drains below the gate within two
+      // ticks, so the scenario funds the granary like the treasury.
+      s.resources.food = 120;
       s.population = 15;
     });
 

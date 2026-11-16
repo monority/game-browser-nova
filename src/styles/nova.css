@@ -164,6 +164,15 @@ body {
   justify-content: space-between;
 }
 
+/* A stat label never breaks in two (Step075, seen in the browser: "lean
+   season" was splitting under "Season"): the value wraps beside it instead,
+   which keeps the column of labels aligned. No gap is added — the panel is
+   narrow and the value column loses a row of text for every pixel it gives. */
+.nova-row--between > span:first-child {
+  white-space: nowrap;
+  padding-right: 6px;
+}
+
 .nova-row--wrap {
   flex-wrap: wrap;
 }
