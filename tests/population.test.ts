@@ -3,7 +3,7 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepSimulation, stepTicks } from "@/domain/simulation/tick.js";
-import { housingCapacity } from "@/domain/population/population.js";
+import { housingCapacity, updatePopulation } from "@/domain/population/population.js";
 import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "pop-test", width: 16, height: 16 };
@@ -115,6 +115,30 @@ describe("population", () => {
       pops.push(terminal.population);
     }
     expect(Math.max(...pops)).toBeGreaterThanOrEqual(1);
+  });
+
+  it("admits at exact water balance and refuses one colonist short (Step077)", () => {
+    const state = freshState();
+    stripToAnchor(state);
+    state.population = 0;
+    const used = new Set<string>();
+    for (let i = 0; i < 4; i++) {
+      const spot = freeCell(state, new Set(used));
+      used.add(cellKey(spot.x, spot.y));
+      mustOk(applyCommand(state, { kind: "placeBuilding", type: "residence", x: spot.x, y: spot.y }));
+    }
+    stepTicks(state, 2); // the residences finish building
+    expect(housingCapacity(state)).toBe(4);
+
+    state.population = 2;
+    state.resources.food = 20;
+    // served === population with an empty stock: the old rule (stock > 0)
+    // froze growth here for good. Growth must resume.
+    updatePopulation(state, 2, 2);
+    expect(state.population).toBe(3);
+    // one colonist unserved: coverage below 100 %, admission suspended.
+    updatePopulation(state, 3, 2);
+    expect(state.population).toBe(3);
   });
 
 });

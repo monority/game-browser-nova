@@ -81,11 +81,12 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
   const foodBeforeConsumption = state.resources.food;
   const fedColonists = consumeFood(state);
   const foodConsumed = foodBeforeConsumption - state.resources.food;
-  consumeWater(state);
+  // Step077: the served count is the coverage numerator — the growth gate reads it.
+  const waterServed = consumeWater(state);
 
   const clamp = clampStorage(state);
 
-  updatePopulation(state, fedColonists);
+  updatePopulation(state, fedColonists, waterServed);
 
   updateEnvironment(state);
 

@@ -26,11 +26,19 @@ export const STARVATION_LOSS_PER_TICK = 1;
  * loss stays readable and leaves the player the ticks needed to correct
  * the deficit. Admission is the deterministic growth mechanism: one
  * colonist per tick while housing is vacant and food is available.
- * Water gate: admission requires water headroom, with a bootstrap
- * exemption for the first colonist (population 0) — the documented
- * anti-deadlock rule.
+ * Water gate (Step077): admission requires the water actually SERVED this
+ * tick, not the residual stock. Wells produce before the colonists drink, so
+ * an exactly balanced colony ends every tick at 0 water while serving every
+ * colonist; testing that stock froze growth for good, silently. The served
+ * count is the law the shortage alert already uses — min(stock + production,
+ * need). At population 0 it holds trivially (0 >= 0), which subsumes the old
+ * bootstrap exemption.
  */
-export function updatePopulation(state: GameState, fedColonists: number): void {
+export function updatePopulation(
+  state: GameState,
+  fedColonists: number,
+  servedWater: number,
+): void {
   if (fedColonists < state.population) {
     state.population = Math.max(0, state.population - STARVATION_LOSS_PER_TICK);
   }
@@ -38,7 +46,7 @@ export function updatePopulation(state: GameState, fedColonists: number): void {
   if (
     state.population < housingCapacity(state) &&
     state.resources.food > 0 &&
-    (state.population === 0 || state.resources.water > 0) &&
+    servedWater >= state.population &&
     // environmental gate (Step014): growth stops in degraded air; the
     // bootstrap exemption mirrors the water rule
     (state.population === 0 || environmentalQuality(state) >= MIN_QUALITY_FOR_ADMISSION)
