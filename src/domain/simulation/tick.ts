@@ -7,6 +7,7 @@ import { updateEnvironment } from "@/domain/environment/environment.js";
 import { resolveEvents } from "@/domain/events/events.js";
 import { produceStone, produceWood } from "@/domain/production/extraction.js";
 import { producePlanks } from "@/domain/production/transformation.js";
+import { updateWaterPressure } from "@/domain/water/water.js";
 import { clampStorage } from "@/domain/storage/storage.js";
 import { applyFoodSpoilage } from "@/domain/storage/spoilage.js";
 
@@ -81,12 +82,16 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
   const foodBeforeConsumption = state.resources.food;
   const fedColonists = consumeFood(state);
   const foodConsumed = foodBeforeConsumption - state.resources.food;
-  // Step077: the served count is the coverage numerator — the growth gate reads it.
+  // Step077: the served count is the coverage numerator — the growth gate
+  // reads it, and so does the pressure gauge (Step078). The need is captured
+  // before admission: an admitted colonist drinks from the NEXT tick.
+  const waterNeed = state.population;
   const waterServed = consumeWater(state);
 
   const clamp = clampStorage(state);
 
   updatePopulation(state, fedColonists, waterServed);
+  state.waterPressure = updateWaterPressure(state.waterPressure, waterServed, waterNeed);
 
   updateEnvironment(state);
 

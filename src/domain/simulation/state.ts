@@ -33,6 +33,12 @@ export interface GameState {
   stoneDeposits: Deposits;
   /** Global pollution stock, 0–100 (environment system, Step014). */
   pollution: number;
+  /**
+   * Hydric pressure gauge, integer 0–100 (Step078). Rises while the water
+   * shortage is severe, holds during a light deficit, and falls only once
+   * coverage is back to 100 % — persisted so a reload cannot launder a crisis.
+   */
+  waterPressure: number;
   /** Current civilization age (progression, Step016). */
   age: number;
   /** Researched technology ids (progression, Step016). */
@@ -67,6 +73,7 @@ export function createInitialState(config: WorldConfig): GameState {
     woodDeposits: normalizeDeposits(config.woodDeposits ?? []),
     stoneDeposits: normalizeDeposits(config.stoneDeposits ?? []),
     pollution: 0,
+    waterPressure: 0,
     age: STARTING_AGE,
     researchedTechs: [],
     buildingCounter: 1,

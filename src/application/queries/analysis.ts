@@ -19,7 +19,11 @@ import {
   MIN_QUALITY_FOR_ADMISSION,
 } from "@/domain/environment/environment.js";
 import { housingCapacity } from "@/domain/population/population.js";
-import { waterBalancePerTick, waterServed } from "@/domain/water/water.js";
+import {
+  waterBalancePerTick,
+  waterPressureLevel,
+  waterServed,
+} from "@/domain/water/water.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { foodTicksRemaining, projectFoodTick } from "@/domain/storage/spoilage.js";
 import { forecastFoodReserve, type FoodReserveForecast } from "@/domain/storage/reserve.js";
@@ -249,6 +253,17 @@ export function getAlerts(
     alerts.push({
       severity: "warning",
       message: `Water: ${servedWater}/${state.population} colonists served`,
+    });
+  }
+
+  // Hydric pressure (Step078 §6): the gauge only speaks from "tension" up —
+  // an announcement every tick would train the player to ignore it. The level
+  // is a band of the gauge, never a second reading of the coverage.
+  const pressureLevel = waterPressureLevel(state.waterPressure);
+  if (pressureLevel !== "normal") {
+    alerts.push({
+      severity: pressureLevel === "tension" ? "info" : "warning",
+      message: `Water pressure: ${state.waterPressure}/100 · ${pressureLevel}`,
     });
   }
 

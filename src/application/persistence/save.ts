@@ -6,6 +6,7 @@ import type { Road } from "@/domain/road/road.js";
 import { depositCapacities, type Deposits } from "@/domain/world/deposits.js";
 import { createWorld, inBounds, isBlocked } from "@/domain/world/world.js";
 import { POLLUTION_MAX } from "@/domain/environment/environment.js";
+import { WATER_PRESSURE_MAX } from "@/domain/water/water.js";
 import {
   EVENT_FREQUENCIES,
   EVENT_KINDS,
@@ -29,7 +30,7 @@ import type { WorldConfig } from "@/domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 19;
+export const SAVE_VERSION = 20;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 /** The single localStorage slot this game reads and writes. */
@@ -47,6 +48,8 @@ interface SaveDocument {
   };
   deposits: { wood: Deposits; stone: Deposits };
   pollution: number;
+  /** Hydric pressure gauge, 0–100 integer (Step078). */
+  waterPressure: number;
   age: number;
   researchedTechs: string[];
   tick: number;
@@ -87,6 +90,7 @@ export function serialize(state: GameState): SaveDocument {
       ),
     },
     pollution: state.pollution,
+    waterPressure: state.waterPressure,
     age: state.age,
     researchedTechs: [...state.researchedTechs],
     tick: state.tick,
@@ -124,6 +128,7 @@ export function parseSave(input: unknown): GameState {
   if (Number(doc.formatVersion) === 16) doc = migrateV16ToV17(doc);
   if (Number(doc.formatVersion) === 17) doc = migrateV17ToV18(doc);
   if (Number(doc.formatVersion) === 18) doc = migrateV18ToV19(doc);
+  if (Number(doc.formatVersion) === 19) doc = migrateV19ToV20(doc);
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
@@ -285,6 +290,14 @@ export function parseSave(input: unknown): GameState {
   const roadCounter = expectPositiveInt(doc.roadCounter, "roadCounter");
 
   const pollution = expectNonNegativeNumber(doc.pollution, "pollution");
+  // Hydric pressure (Step078): a bounded integer — a float, a negative value
+  // or anything above the ceiling is corrupt data, never plausible state.
+  const waterPressure = expectNonNegativeInt(doc.waterPressure, "save.waterPressure");
+  if (waterPressure > WATER_PRESSURE_MAX) {
+    throw new SaveValidationError(
+      `waterPressure must be <= ${WATER_PRESSURE_MAX}`,
+    );
+  }
   // Tier1: the domain documents pollution as a 0–100 stock
   // (domain/environment/environment.ts); reject out-of-range saves.
   if (pollution > POLLUTION_MAX) {
@@ -342,6 +355,7 @@ export function parseSave(input: unknown): GameState {
     woodDeposits,
     stoneDeposits,
     pollution,
+    waterPressure,
     age,
     researchedTechs,
     buildingCounter,
@@ -365,6 +379,19 @@ export function saveToString(state: GameState): string {
  * (the fractional remainder at the moment of migration is unknowable, and
  * inventing one would rewrite the player's granary).
  */
+/**
+ * v19 -> v20 (Step078): add the hydric pressure gauge, defaulting to 0.
+ * Value-preserving: a colony carried no pressure before the gauge existed, and
+ * inventing a non-zero one would turn a reload into a crisis.
+ */
+function migrateV19ToV20(document: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...document,
+    formatVersion: 20,
+    waterPressure: 0,
+  };
+}
+
 function migrateV18ToV19(document: Record<string, unknown>): Record<string, unknown> {
   return {
     ...document,

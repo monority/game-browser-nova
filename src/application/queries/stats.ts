@@ -17,7 +17,12 @@ import {
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { projectFoodTick } from "@/domain/storage/spoilage.js";
 import { currentSeason, ticksLeftInSeason } from "@/domain/season/season.js";
-import { workingFarms } from "@/domain/production/production.js";
+import { waterProductionPerTick, workingFarms } from "@/domain/production/production.js";
+import {
+  waterPressureLevel,
+  waterServed,
+  type WaterPressureLevel,
+} from "@/domain/water/water.js";
 import {
   forecastFoodReserve,
   forecastLeanSeason,
@@ -67,6 +72,12 @@ export interface ColonyStats {
   foodReserveStatus: FoodReserveStatus;
   /** Water destroyed by the storage cap on the LAST tick. */
   waterLostPerTick: number;
+  /** Colonists the coming tick can serve, over the need — 100 when nobody is thirsty. */
+  waterCoveragePercent: number;
+  /** Hydric pressure gauge (Step078), integer 0–100. */
+  waterPressure: number;
+  /** Band of the gauge: normal · tension · crisis · grave · critical. */
+  waterPressureLevel: WaterPressureLevel;
   /** Workforce fact (Step057 F5): replaces the former permanent alert. */
   staffedWorkplaces: number;
   eligibleWorkplaces: number;
@@ -125,6 +136,20 @@ export function getColonyStats(state: GameState, flows?: TickFlows): ColonyStats
     foodReserveTargetTicks: reserve.targetTicks,
     foodReserveStatus: reserve.status,
     waterLostPerTick: flows?.waterWasted ?? 0,
+    waterCoveragePercent:
+      state.population === 0
+        ? 100
+        : Math.round(
+            (100 *
+              waterServed(
+                state.resources.water,
+                waterProductionPerTick(state),
+                state.population,
+              )) /
+              state.population,
+          ),
+    waterPressure: state.waterPressure,
+    waterPressureLevel: waterPressureLevel(state.waterPressure),
     staffedWorkplaces: staffing.staffed,
     eligibleWorkplaces: staffing.eligible,
     pollution: state.pollution,

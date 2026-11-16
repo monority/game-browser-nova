@@ -50,6 +50,10 @@ export function createStatsPanel(callbacks: {
     // whether the colony is funded, still building, thin or in deficit.
     foodReserve: liveStatRow("  reserve"),
     water: liveStatRow("Water"),
+    // Step078: coverage answers "is anyone going thirsty", the gauge answers
+    // "how long has this been going on" — two facts, two permanent rows.
+    waterCoverage: liveStatRow("  coverage"),
+    waterPressure: liveStatRow("  pressure"),
     wood: liveStatRow("Wood"),
     stone: liveStatRow("Stone"),
     planks: liveStatRow("Planks"),
@@ -120,6 +124,14 @@ export function createStatsPanel(callbacks: {
         : "nova-value--ok",
     );
     statRows.water.set(`${Math.floor(stats.resources.water)} / ${stats.waterCapacity}`);
+    statRows.waterCoverage.set(
+      `${stats.waterCoveragePercent} %`,
+      stats.waterCoveragePercent < 100 ? "nova-value--danger" : "nova-value--ok",
+    );
+    statRows.waterPressure.set(
+      `${stats.waterPressure} / 100 · ${stats.waterPressureLevel}`,
+      stats.waterPressureLevel === "normal" ? "nova-value--ok" : "nova-value--danger",
+    );
     statRows.wood.set(String(Math.floor(stats.resources.wood)));
     statRows.stone.set(String(Math.floor(stats.resources.stone)));
     statRows.planks.set(String(Math.floor(stats.resources.planks)));

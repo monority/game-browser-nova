@@ -551,7 +551,9 @@ function formatReport(session: Session): string {
     // Step069: production, eating and conservation are stated separately —
     // a balance alone let a colony losing 2/tick read "+0/tick".
     `food ${Math.floor(state.resources.food)}/${stats.foodCapacity} · prod ${summaries.food.productionPerTick} · eaten ${summaries.food.consumptionPerTick} · spoiled ${summaries.food.spoilagePerTick} · net ${signed(summaries.food.netPerTick)}/tick${formatReserve(summaries.food.reserve)}`,
-    `water ${Math.floor(state.resources.water)}/${stats.waterCapacity} (${signed(summaries.water.balancePerTick)}/tick) · wood ${Math.floor(state.resources.wood)} · stone ${Math.floor(state.resources.stone)} · planks ${Math.floor(state.resources.planks)}`,
+    // Step078: coverage and pressure come from getColonyStats — the same
+    // source as the stats panel, so the cockpit cannot read a second truth.
+    `water ${Math.floor(state.resources.water)}/${stats.waterCapacity} (${signed(summaries.water.balancePerTick)}/tick) · coverage ${stats.waterCoveragePercent} % · pressure ${stats.waterPressure}/100 ${stats.waterPressureLevel} · wood ${Math.floor(state.resources.wood)} · stone ${Math.floor(state.resources.stone)} · planks ${Math.floor(state.resources.planks)}`,
     `workforce ${stats.staffedWorkplaces}/${stats.eligibleWorkplaces} · no-road ${getStaffingOverview(state).unconnected} · pollution ${Math.round(state.pollution)} (q${stats.envQuality}) · techs ${state.researchedTechs.length}${state.eventsEnabled ? ` · events ${state.eventFrequency}` : ""}`,
     `deposits: wood ${wood.remaining}/${wood.capacity} (${wood.cells} cells) · stone ${stone.remaining}/${stone.capacity} (${stone.cells} cells)`,
     `composition: ${composition(state) || "none"}`,

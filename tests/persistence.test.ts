@@ -42,8 +42,33 @@ function mutating(
 }
 
 describe("save format", () => {
-  it("is SAVE_VERSION 19", () => {
-    expect(SAVE_VERSION).toBe(19);
+  it("is SAVE_VERSION 20", () => {
+    expect(SAVE_VERSION).toBe(20);
+  });
+
+  it("migrates a v19 save to an empty gauge, keeps a v20 reading exact, and rejects impossible ones", () => {
+    // v19 predates the gauge: the migration must add it at 0 and rewrite
+    // nothing else — a reload is not allowed to invent a crisis.
+    const state = richState();
+    const legacy: Record<string, unknown> = { ...serialize(state), formatVersion: 19 };
+    delete legacy.waterPressure;
+    const migrated = parseSave(legacy);
+    expect(migrated.waterPressure).toBe(0);
+    // everything else survives the migration byte for byte.
+    expect(migrated).toEqual({ ...state, waterPressure: 0 });
+
+    // v20 keeps the reading exactly.
+    const pressurised = richState();
+    pressurised.waterPressure = 87;
+    expect(parseSave(serialize(pressurised)).waterPressure).toBe(87);
+    expect(parseSave(serialize(pressurised))).toEqual(pressurised);
+
+    // corrupt values are refused, never normalised silently.
+    for (const bad of [101, -1, 1.5, "x"]) {
+      expect(() => parseSave({ ...serialize(pressurised), waterPressure: bad })).toThrow(
+        /waterPressure/,
+      );
+    }
   });
 
   it("round-trips the canonical state losslessly, through JSON text too", () => {

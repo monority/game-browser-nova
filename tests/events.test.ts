@@ -146,7 +146,7 @@ describe("tick integration + alerts + persistence", () => {
   });
 
   it("round-trips an active event, migrates v17 and rejects corrupt ones", () => {
-    expect(SAVE_VERSION).toBe(19);
+    expect(SAVE_VERSION).toBe(20);
     expect(MIGRATABLE_SAVE_VERSION).toBe(13);
 
     const state = freshState();
