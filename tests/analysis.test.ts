@@ -115,7 +115,13 @@ describe("alerts (states, not instructions)", () => {
       message: "Treasury: frozen at 0 · net -1/tick",
     });
 
+    // Step073: above 0 the same standing deficit is stated as information, so
+    // the player sees it before the wall instead of only at 0.
     state.resources.money = 50;
+    expect(getAlerts(state)).toContainEqual({
+      severity: "info",
+      message: "Budget: net -1/tick before trade",
+    });
     expect(getAlerts(state)).not.toContainEqual(
       expect.objectContaining({ severity: "warning", message: expect.stringContaining("Treasury") }),
     );

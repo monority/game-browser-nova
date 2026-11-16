@@ -7,6 +7,7 @@ import {
 } from "@/domain/production/production.js";
 import {
   commercePerTick,
+  crowdingCostPerTick,
   maintenancePerTick,
   taxesPerTick,
 } from "@/domain/economy/economy.js";
@@ -18,7 +19,6 @@ import {
   MIN_QUALITY_FOR_ADMISSION,
 } from "@/domain/environment/environment.js";
 import { housingCapacity } from "@/domain/population/population.js";
-import { plankThroughput } from "@/domain/production/transformation.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { foodTicksRemaining, projectFoodTick } from "@/domain/storage/spoilage.js";
 import { forecastFoodReserve, type FoodReserveForecast } from "@/domain/storage/reserve.js";
@@ -290,17 +290,33 @@ export function getAlerts(
     });
   }
 
-  if (state.resources.money === 0 && summaries.food.balancePerTick >= 0) {
-    // money net is only worth reporting when the treasury is stuck; the
-    // shared economy functions keep this honest with the simulation (Step028)
-    const net =
-      taxesPerTick(state) +
-      commercePerTick(state, plankThroughput(state)) -
-      maintenancePerTick(state);
-    if (net < 0) {
+  // The standing budget, stated before it bites (Step073): crowding made a big
+  // colony able to spend more than it earns, so the alert no longer waits for
+  // the treasury to reach 0. It reads the STANDING money model — taxes, the
+  // trade floor of connected workshops, upkeep, the people — and deliberately
+  // not the plank throughput bonus: that is a per-tick flow, measured as 0 at
+  // rest (pop 24 read "commerce 12" one moment and "commerce 0" the next on
+  // the same colony), and a countdown built on it would promise a collapse
+  // that never comes. No countdown is quoted for the same reason: the line
+  // states the standing deficit, and the treasury's own fall is the judge.
+  const people = crowdingCostPerTick(state);
+  const standingMoney =
+    taxesPerTick(state) +
+    commercePerTick(state) -
+    maintenancePerTick(state) -
+    people;
+  if (standingMoney < 0) {
+    const share = people > 0 ? ` (people -${people})` : "";
+    if (state.resources.money === 0) {
+      // the shared economy functions keep this honest with the simulation (Step028)
       alerts.push({
         severity: "warning",
-        message: `Treasury: frozen at 0 · net ${net}/tick`,
+        message: `Treasury: frozen at 0 · net ${standingMoney}/tick${share}`,
+      });
+    } else {
+      alerts.push({
+        severity: "info",
+        message: `Budget: net ${standingMoney}/tick${share} before trade`,
       });
     }
   }
