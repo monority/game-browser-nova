@@ -54,6 +54,13 @@ export const AGE_MILESTONES: Record<number, MilestoneDefinition[]> = {
     // smaller Age-2 colony bottoms around 83 — a 90-unit gate passed or failed
     // depending on which tick the player looked (measured: 83 at the moment the
     // run asked, having held 120 the month before).
+    // Step076: 60 was challenged as "true at boot, false a tick later" — the
+    // D2 opening holds exactly 60. Measured, it is not knife-edge in play: with
+    // its five farms the opening settles at 23 food (production 11 against 10
+    // eaten and ~1.5 spoiled per tick), with six at 72, with seven at 122. So
+    // the gate asks ONE extra farm, and any threshold between 24 and 71 asks
+    // the very same farm — lowering it to 45 would remove no work, only move
+    // the tick at which the row turns red again. 60 is kept, mid-range.
     { id: "food60", label: "Food 60", dimension: "stock", threshold: 60, resource: "food" },
     { id: "tech5", label: "5 technologies researched", dimension: "techs", threshold: 5 },
     // Step065: the market milestone went with the market itself. Age 2 is
