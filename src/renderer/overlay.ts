@@ -4,7 +4,6 @@ import { cellKey } from "@/domain/shared/cells.js";
 import { isActive } from "@/domain/building/building.js";
 import {
   FOOD_PER_COLONIST_PER_TICK,
-  WATER_PER_SERVED_COLONIST_PER_TICK,
   foodProductionPerTick,
   waterProductionPerTick,
 } from "@/domain/production/production.js";
@@ -13,6 +12,7 @@ import {
   environmentalQuality,
 } from "@/domain/environment/environment.js";
 import { housingCapacity } from "@/domain/population/population.js";
+import { waterBalancePerTick } from "@/domain/water/water.js";
 import { buildLogisticsMap, logisticsEfficiencyPercent } from "@/domain/logistics/logistics.js";
 
 /**
@@ -41,11 +41,6 @@ export interface OverlayCell {
 function foodBalance(state: GameState): number {
   const consumption = state.population * FOOD_PER_COLONIST_PER_TICK;
   return foodProductionPerTick(state) - consumption;
-}
-
-/** Water balance: staffed active wells (drought-aware, Step047) vs. the whole population's need. */
-function waterBalance(state: GameState): number {
-  return waterProductionPerTick(state) - state.population * WATER_PER_SERVED_COLONIST_PER_TICK;
 }
 
 function tintOf(building: Building): string {
@@ -117,7 +112,8 @@ function computeLogisticsOverlay(state: GameState): OverlayCell[] {
 
 function computeWaterOverlay(state: GameState): OverlayCell[] {
   const cells: OverlayCell[] = [];
-  const balance = waterBalance(state);
+  // Same law as the growth gate and the stats panel (Step077 F12).
+  const balance = waterBalancePerTick(waterProductionPerTick(state), state.population);
   for (const building of Object.values(state.buildings)) {
     if (building.type !== "well" || building.status !== "operational") continue;
     if (!isActive(building) || !building.staffed) {

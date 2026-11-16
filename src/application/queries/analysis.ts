@@ -19,6 +19,7 @@ import {
   MIN_QUALITY_FOR_ADMISSION,
 } from "@/domain/environment/environment.js";
 import { housingCapacity } from "@/domain/population/population.js";
+import { waterBalancePerTick, waterServed } from "@/domain/water/water.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
 import { foodTicksRemaining, projectFoodTick } from "@/domain/storage/spoilage.js";
 import { forecastFoodReserve, type FoodReserveForecast } from "@/domain/storage/reserve.js";
@@ -107,7 +108,7 @@ export function getResourceSummaries(state: GameState): Record<SurvivalResource,
   // conservation loss of the coming tick are read in the pipeline's order, so
   // the numbers shown are the numbers the tick will apply.
   const foodTick = projectFoodTick(state);
-  const waterBalance = waterProduction - waterConsumption;
+  const waterBalance = waterBalancePerTick(waterProduction, pop);
   return {
     food: summarize(
       "food",
@@ -239,14 +240,15 @@ export function getAlerts(
   // 24 colonists. Comparing the post-consumption stock reported a shortage
   // in every colony whose reserve sat below its population (Step063:
   // measured on the age-3 line, 12 wells, water 22/80, pop 24, full service).
-  const waterServed = Math.min(
-    state.resources.water + waterProductionPerTick(state),
+  const servedWater = waterServed(
+    state.resources.water,
+    waterProductionPerTick(state),
     state.population,
   );
-  if (state.population > 0 && waterServed < state.population) {
+  if (state.population > 0 && servedWater < state.population) {
     alerts.push({
       severity: "warning",
-      message: `Water: ${waterServed}/${state.population} colonists served`,
+      message: `Water: ${servedWater}/${state.population} colonists served`,
     });
   }
 
