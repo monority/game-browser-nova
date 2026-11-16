@@ -137,13 +137,24 @@ export function isMaintenanceExempt(building: { type: string }): boolean {
  * town cannot keep it scarce.
  *
  * The charge starts ABOVE THE FOUNDING STOCK (D2 ships 10 colonists) and costs
- * one money per THREE of them: nothing at pop 10 — the opening keeps the
- * surplus it needs to build with, measured as +3/tick — one at pop 15, four at
- * pop 24 (which turns +7 into +3), ten at pop 40. Two calibrations were
- * measured and rejected on the way: a charge from the first colonist froze the
- * harness at pop 15 (it taxed the surplus the first buildings need), and one
- * per two above the founding stock left the colony at exactly +0 — it could no
- * longer save 150 for a technology, which a player cannot do either.
+ * one money per FIVE of them: nothing at pop 10 — the opening keeps the surplus
+ * it needs to build with, measured as +3/tick — 2 at pop 24, 7 at pop 45, 15 at
+ * pop 86.
+ *
+ * The divisor is set by GROWTH, not by the pile, and that is a trade-off worth
+ * recording. Swept on the same self-play run (capacity 240 / capacity 24, money
+ * at tick 1500):
+ *   /3 → pop 30, treasury 0 — the charge ate the surplus that digs wells, and
+ *        the settlement froze three colonists short of its housing;
+ *   /4 → pop 47, treasury 0, water 0 — same wall, a little later;
+ *   /5 → pop 86 (the harness ceiling), 4 870 — growth intact, the pile cut
+ *        from 5 561 to 3 685 at the capped colony;
+ *   none → pop 86, 21 846 and rising, i.e. the runaway this charge exists for.
+ * So the charge cannot both flatten a capped colony and leave a thin one able
+ * to grow: any figure near the endgame surplus (+7/tick) also cancels the
+ * margin a mid-size settlement lives on. The remaining pile is a saturated
+ * bot's plank throughput (280 planks stockpiled, 1 money each) — a capital
+ * question, not a headcount one.
  * Paid with the maintenance, in the same phase.
  */
 export const CROWDING_FREE_POPULATION = 10;
@@ -151,7 +162,7 @@ export const CROWDING_FREE_POPULATION = 10;
 export function crowdingCostPerTick(state: GameState): number {
   const above = state.population - CROWDING_FREE_POPULATION;
   if (above <= 0) return 0;
-  return Math.floor(above / 3);
+  return Math.floor(above / 5);
 }
 
 export function payMaintenance(state: GameState): number {

@@ -342,7 +342,11 @@ export function playGame(
       [!banking && countType(state, "well") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("well", true, 20)],
       [!banking && countType(state, "lumberCamp") < 1 && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
       [!banking && countType(state, "quarry") < 1 && state.resources.planks >= 5 && money > 60, () => tryBuildNearDeposit("quarry", state.stoneDeposits, true, 20)],
-      [!banking && countType(state, "park") < 1 && (state.pollution > 25 || money > 200) && money > 60, () => tryBuildNearDeposit("park", state.woodDeposits, false, 20)],
+      // Step074: up to three parks. One was enough while growth stopped at
+      // pop 24 for other reasons; with housing open the measured blocker is
+      // air quality itself (quality 21 against the admission gate of 25,
+      // pollution 79), so a single park left a big settlement unable to grow.
+      [!banking && countType(state, "park") < 3 && (state.pollution > 25 || money > 200) && money > 60, () => tryBuildNearDeposit("park", state.woodDeposits, false, 20)],
     ];
     for (const [cond, fn] of options) {
       if (cond && fn()) break;
