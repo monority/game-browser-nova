@@ -98,7 +98,10 @@ function manageMothballs(state: GameState): void {
   // stays 86, pressure 0, no well loses its worker: staffed 66 → 70) and pays
   // +12/tick, but pollutes to 100 because the parks are asleep on their own
   // band; waking both is stable at +9/tick with pollution 0 (57 → 1894 in 200
-  // ticks, planks 38 until the wood runs out). Left unchanged on purpose:
+  // ticks, planks 38 until the wood runs out). The other bands were swept and
+  // are dead but harmless (wells never rest, parks cannot wake while nothing
+  // emits, the food triage rest frees an already-idle worker at pop 86). Left
+  // unchanged on purpose:
   // which posture the colony ends in is a design call, measured both ways in
   // docs/STATE.md.
   const reserve = planFoodReserve(state);
