@@ -216,4 +216,57 @@ describe("self-play verifier", () => {
     const roads = applyCommand(state, { kind: "researchTech", techId: "cobbledRoads" });
     expect(roads.ok || roads.reason === "insufficientMoney", JSON.stringify(roads)).toBe(true);
   }, 240000);
+
+  it("dates every mothball band the growing line stops satisfying (Step085 guard)", () => {
+    // Step085 measured the endgame posture — all 4 workshops dormant, +4/tick,
+    // pollution 37 — and named the workshop wake band (`water > pop * 2`) as the
+    // reason: the cistern lives at 0-1 because production equals consumption exactly.
+    // What was never written down is WHEN each band stops working, so a moved
+    // constant could reintroduce the question silently.
+    //
+    // This test asks the product's own loop, on every tick, when each condition is
+    // true, and pins the dates it measured:
+    //   - workshop wake  `water > pop * 2`      true on 347 ticks, the last at t=347
+    //   - well rest      `water > pop * 4 + 8`  true exactly once, at t=345
+    //   - park wake      `pollution > 60`       true on 323 ticks, the last at t=353
+    //
+    // So the three bands stop firing around t=350 of a 1500-tick run, while the colony
+    // keeps growing to its cap at t=1497: the water triage is a working rule for the
+    // first quarter of the game and an unreachable one for the last three quarters.
+    // The park band is reachable — its INPUT disappears, because the workshops are
+    // asleep and they are the only emitters left.
+    //
+    // A change that moves one of these dates (a buffer, a cheaper well, a capacity
+    // slug) fails here on purpose: the posture it produces has to be re-measured.
+    const marks = { workshopWake: 0, wellRest: 0, parkWake: 0 };
+    const last = { workshopWake: -1, wellRest: -1, parkWake: -1 };
+    let ticksSeen = 0;
+    const { state } = playGame(-1, false, 240, 86, false, (s) => {
+      ticksSeen += 1;
+      if (s.resources.water > s.population * 2) {
+        marks.workshopWake += 1;
+        last.workshopWake = s.tick;
+      }
+      if (s.resources.water > s.population * 4 + 8) {
+        marks.wellRest += 1;
+        last.wellRest = s.tick;
+      }
+      if (s.pollution > 60) {
+        marks.parkWake += 1;
+        last.parkWake = s.tick;
+      }
+    });
+
+    expect(ticksSeen).toBe(SELFPLAY_TICK_BUDGET);
+    expect(marks.workshopWake).toBe(347);
+    expect(last.workshopWake).toBe(347);
+    expect(marks.wellRest).toBe(1);
+    expect(last.wellRest).toBe(345);
+    expect(marks.parkWake).toBe(323);
+    expect(last.parkWake).toBe(353);
+    // the posture those bands produce: industry asleep long before the cap
+    const workshops = Object.values(state.buildings).filter((b) => b.type === "workshop");
+    expect(workshops.length).toBeGreaterThan(0);
+    expect(workshops.filter((b) => b.active)).toHaveLength(0);
+  }, 120000);
 });
