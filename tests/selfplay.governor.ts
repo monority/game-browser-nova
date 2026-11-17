@@ -88,6 +88,19 @@ function manageMothballs(state: GameState): void {
   // workshops while the cistern empties. Rest industry first — it is the only
   // workplace that earns without keeping anyone alive — then revive it once
   // the cistern is comfortable again.
+  // Step085 (measured 2026-11-17): the band below cannot wake industry in the
+  // healthy regime, and the posture it leaves behind is DOMINATED. The growing
+  // line ends with all 4 workshops dormant from t≈400 with commerce 0, on
+  // +4/tick and pollution 37 — not because they are off the road (4/4 are
+  // adjacent to a road, 71 road cells) but because the cistern never holds
+  // `pop * 2` water once production equals consumption (86 for 86 mouths, the
+  // stock living at 0-1). Waking them at t=1500 costs no water (production
+  // stays 86, pressure 0, no well loses its worker: staffed 66 → 70) and pays
+  // +12/tick, but pollutes to 100 because the parks are asleep on their own
+  // band; waking both is stable at +9/tick with pollution 0 (57 → 1894 in 200
+  // ticks, planks 38 until the wood runs out). Left unchanged on purpose:
+  // which posture the colony ends in is a design call, measured both ways in
+  // docs/STATE.md.
   const reserve = planFoodReserve(state);
   const workshops = Object.values(state.buildings)
     .filter((b) => b.type === "workshop")
