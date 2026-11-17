@@ -13,22 +13,9 @@ playwright-report/
 .idea/
 .vscode/
 
-# agent playtest artifacts (screenshots + generated report)
-playtest/artifacts/
-
-# Local-only agent workflow and internal notes (never published)
-AGENTS.md
-TASK.md
-.unipi/
-.agents/
+# local playtest harness and its generated artifacts (never published)
 playtest/
-.freebuff/
 
-# assistant / agent tooling configs: local scaffolding, not project source
-.claude/
-.cursor/
-.continue/
-.codex/
-.aider*
+# internal engineering docs (only the live state file is published)
 docs/*
 !docs/STATE.md

@@ -14,7 +14,7 @@
  *   node tools/testing/probe-mutations.mjs --fast          # the CI subset (~35 s)
  *   node tools/testing/probe-mutations.mjs --list          # the table only
  *
- * Discipline (AGENTS.md): a batch is the unit that fits the 2-minute cap; the
+ * Discipline: a batch is the unit that fits the 2-minute cap; the
  * full table is a checkpoint, not an iteration command.
  *
  * A verdict of SURVIVED is a claim about the tests, so it must come with proof
