@@ -154,10 +154,20 @@ export function isMaintenanceExempt(building: { type: string }): boolean {
  *   none → pop 86, 21 846 and rising, i.e. the runaway this charge exists for.
  * So the charge cannot both flatten a capped colony and leave a thin one able
  * to grow: any figure near the endgame surplus (+7/tick) also cancels the
- * margin a mid-size settlement lives on. The remaining pile is a saturated
- * bot's plank throughput (280 planks stockpiled, 1 money each) — a capital
- * question, not a headcount one.
+ * margin a mid-size settlement lives on.
  * Paid with the maintenance, in the same phase.
+ *
+ * Re-measured 2026-11-17 on the same governor, because the water line landed
+ * in between and invalidated the "capital question" this comment used to end
+ * on. At the harness's own pop-24 cap the colony now holds 1750 money and 226
+ * planks and earns +3/tick (taxes 24 + commerce 12 − upkeep 31 − people 2),
+ * with plank production at 0 (wood 1) — so the planks are stranded, not
+ * throughput, and a pile here means the colony has stopped building. Let it
+ * grow (housing 240) and the treasury never piles at all: 61 money at t=400,
+ * 17 at t=800, 0 at t=1300, 7 at t=1400 — the crisis bill and the wells absorb
+ * every coin, and the wall is water (0 production, pressure 100, 53 colonists
+ * unserved at t=1500), not money. What remains open is that churn, and the
+ * unstaffed-wells policy behind it, not a missing sink.
  */
 export const CROWDING_FREE_POPULATION = 10;
 
