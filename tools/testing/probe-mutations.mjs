@@ -22,8 +22,10 @@
  *
  * A verdict of SURVIVED is a claim about the tests, so it must come with proof
  * the suite actually ran: the probe refuses to start on a sandbox that cannot
- * spawn workers, and a run that exits without a green summary is BROKE, never
- * SURVIVED. Measured 2026-11-14: at 1004 of 1024 PIDs, Vitest children died
+ * spawn workers, and a run that leaves no JSON report (or a report of zero
+ * tests) is BROKE, never SURVIVED. The report, not the console text, is what is
+ * read: measured 2026-11-17, `CI=true` changes the console format and the text
+ * scrape called every mutation BROKE on GitHub Actions. Measured 2026-11-14: at 1004 of 1024 PIDs, Vitest children died
  * with `spawn EAGAIN`, exited 1 with no summary, and five mutations were
  * reported SURVIVED in 2.2 s — which reads exactly like five missing tests.
  *
@@ -694,7 +696,15 @@ function probe(mutation) {
 
   writeFileSync(path, original.replace(mutation.find, mutation.replace));
   const started = Date.now();
-  const run = spawnSync(process.execPath, [VITEST, "run"], {
+  const report = join(scratch, "report.json");
+  rmSync(report, { force: true });
+  // The verdict is read from Vitest's JSON report, never from its console text.
+  // Measured 2026-11-17: with CI set (which is how the gate runs on Actions) the
+  // default reporter prints `FAIL tests/x.test.ts > name` instead of
+  // `❯ tests/x.test.ts (2 tests | 1 failed)`, so the text scrape found no failing
+  // file, found no all-passed summary either, and called EVERY mutation BROKE —
+  // the CI step could never go green. The report is machine-readable by contract.
+  const run = spawnSync(process.execPath, [VITEST, "run", "--reporter=json", `--outputFile=${report}`], {
     cwd: ROOT,
     encoding: "utf8",
     timeout: TIMEOUT_MS,
@@ -703,22 +713,34 @@ function probe(mutation) {
   const seconds = (Date.now() - started) / 1000;
   writeFileSync(path, original); // restore before anything else can throw
 
-  const output = `${run.stdout ?? ""}${run.stderr ?? ""}`;
-  const files = [...output.matchAll(/^\s*❯ (tests\/[\w./-]+\.test\.ts) \(\d+ tests? \| (\d+) failed/gm)].map(
-    (match) => `${match[1]}:${match[2]}`,
-  );
-  if (files.length > 0) return { verdict: "caught", files, seconds };
+  let parsed;
+  try {
+    parsed = JSON.parse(readFileSync(report, "utf8"));
+  } catch {
+    parsed = undefined;
+  }
   // A crash or a timeout is not a detection: the suite never finished judging.
   const died = run.status === null || run.signal !== null || run.status >= 2;
   if (died) return { verdict: "broke", files: [], seconds, reason: "the suite crashed or timed out — no verdict either way" };
-  // Exit 1 with nothing red is not a green suite: a starved sandbox kills the
-  // workers before they collect a single file. Demand the summary Vitest prints
-  // only after judging, with every file and test accounted for.
-  const settled = /Test Files\s+(\d+) passed \(\1\)/.test(output) && /Tests\s+(\d+) passed \(\1\)/.test(output);
-  if (!settled) {
-    return { verdict: "broke", files: [], seconds, reason: "exit 1 without a green summary — no test ever ran (a starved sandbox looks like this)" };
+  // No report, or a report of zero tests, is not a green suite: a starved sandbox
+  // kills the workers before they collect a single file.
+  if (!parsed || typeof parsed.numTotalTests !== "number" || parsed.numTotalTests === 0) {
+    return { verdict: "broke", files: [], seconds, reason: "no test report — no test ever ran (a starved sandbox looks like this)" };
   }
-  return { verdict: "survived", files: [], seconds };
+  const files = (parsed.testResults ?? [])
+    .map((file) => {
+      const failed = (file.assertionResults ?? []).filter((result) => result.status === "failed").length;
+      const name = String(file.name ?? "").startsWith(ROOT) ? String(file.name).slice(ROOT.length + 1) : String(file.name ?? "");
+      return failed > 0 ? `${name}:${failed}` : undefined;
+    })
+    .filter(Boolean);
+  if (files.length > 0) return { verdict: "caught", files, seconds };
+  // Exit non-zero with nothing named is a suite that failed to collect, not a
+  // mutation nobody saw: crediting SURVIVED here would invent a missing test.
+  if (run.status !== 0 || (parsed.numFailedTests ?? 0) > 0) {
+    return { verdict: "broke", files: [], seconds, reason: "the suite failed without naming a failing test — no verdict either way" };
+  }
+  return { verdict: "survived", files, seconds };
 }
 
 // -------------------------------------------------------------- preflight
