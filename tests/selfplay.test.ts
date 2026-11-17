@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "@/domain/simulation/commands.js";
-import { canAdvanceAge, evaluateMilestones } from "@/domain/progression/progression.js";
+import { canAdvanceAge, evaluateMilestones, techLevel } from "@/domain/progression/progression.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { waterServed } from "@/domain/water/water.js";
@@ -140,5 +140,37 @@ describe("self-play verifier", () => {
     const restored = parseSave(serialize(state));
     expect(restored).toEqual(state);
     console.log("age3 phases: " + phases.join(", "));
+  }, 240000);
+
+  it("spends the late-game treasury on the money-only technologies (Step086)", () => {
+    // Step070 answered "the colony holds thousands and has nothing left to
+    // buy" with two technologies priced in MONEY ALONE (cobbledRoads 800,
+    // winterWheat 1200, both Age 3). Nothing asserted that answer until this
+    // test: the sink was reachable in content but no run ever purchased it,
+    // which is how the endgame treasury came to look like it had no well when
+    // it had one behind a gate nobody opened.
+    const { state } = playGame(-1, false, 14, 24);
+    for (const techId of ["irrigation", "deepMining"]) {
+      if (state.researchedTechs.includes(techId)) continue;
+      for (let i = 0; i < 400 && state.resources.money < 160; i++) stepTicks(state, 1);
+      mustOk(applyCommand(state, { kind: "researchTech", techId }));
+    }
+    mustOk(applyCommand(state, { kind: "advanceAge" }));
+    expect(state.age).toBe(3);
+
+    // The people cost money every tick: wait for the treasury the way a player
+    // would rather than assuming a pile.
+    for (let i = 0; i < 600 && state.resources.money < 1200; i++) stepTicks(state, 1);
+    expect(state.resources.money).toBeGreaterThanOrEqual(1200);
+
+    const moneyBefore = state.resources.money;
+    const farmFoodBefore = techLevel(state, "farmFood");
+    mustOk(applyCommand(state, { kind: "researchTech", techId: "winterWheat" }));
+    expect(moneyBefore - state.resources.money).toBe(1200);
+    expect(techLevel(state, "farmFood")).toBe(farmFoodBefore + 1);
+
+    // Cobbled Roads is the same kind of purchase, one age gate closer in cost.
+    const roads = applyCommand(state, { kind: "researchTech", techId: "cobbledRoads" });
+    expect(roads.ok || roads.reason === "insufficientMoney", JSON.stringify(roads)).toBe(true);
   }, 240000);
 });
