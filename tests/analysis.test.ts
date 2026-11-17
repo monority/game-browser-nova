@@ -145,6 +145,25 @@ describe("alerts (states, not instructions)", () => {
     });
   });
 
+  it("Step083: warns with a countdown while an air surplus is still closing the gate", () => {
+    const state = freshState();
+    stepTicks(state, 3);
+    // The opening's park absorbs exactly its two unstaffed shops: net 0, so
+    // there is nothing to count down and no air alert at all.
+    expect(getAlerts(state).some((a) => a.message.startsWith("Environment: air closes"))).toBe(false);
+
+    // Mothballing it to save 1/tick upkeep reopens a +2/tick flow. Before
+    // Step083 the cockpit stayed silent for the ~37 ticks it takes the gate to
+    // shut, which made the park's role invisible until the damage was done.
+    const parkId = Object.values(state.buildings).find((b) => b.type === "park")?.id;
+    if (!parkId) throw new Error("park missing");
+    mustOk(applyCommand(state, { kind: "setBuildingActive", id: parkId, active: false }));
+    expect(getAlerts(state)).toContainEqual({
+      severity: "warning",
+      message: expect.stringMatching(/^Environment: air closes admission in 3[0-9] ticks \(net \+2\/tick\)$/),
+    });
+  });
+
   it("reports a full granary as information, never a warning", () => {
     const state = freshState();
     stripToAnchor(state);

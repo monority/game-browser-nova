@@ -18,6 +18,8 @@ import {
   admissionGate,
   environmentalQuality,
   MIN_QUALITY_FOR_ADMISSION,
+  pollutionFlows,
+  pollutionTicksToAdmissionBlock,
 } from "@/domain/environment/environment.js";
 import { housingCapacity, ticksUntilWaterDeparture } from "@/domain/population/population.js";
 import {
@@ -375,6 +377,19 @@ export function getAlerts(
     alerts.push({
       severity: "warning",
       message: `Growth blocked: air quality ${Math.round(quality)} < admission threshold ${MIN_QUALITY_FOR_ADMISSION} (pollution ${Math.round(state.pollution)})`,
+    });
+  }
+
+  // Air closing on a countdown (Step083): the gate above is reported once it
+  // is SHUT, but the emission surplus that closes it is a standing fact and
+  // the same forecast the cockpit's admission row shows. Without it, mothballing
+  // the day-0 park to save 1/tick upkeep is a silent trap — net +2/tick and the
+  // gate shuts ~37 ticks later, with no alert until then.
+  const admissionBlocksIn = pollutionTicksToAdmissionBlock(state);
+  if (admissionBlocksIn !== null && admissionBlocksIn > 0) {
+    alerts.push({
+      severity: "warning",
+      message: `Environment: air closes admission in ${admissionBlocksIn} ticks (net +${pollutionFlows(state).net}/tick)`,
     });
   }
 

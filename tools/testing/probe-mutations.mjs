@@ -169,6 +169,13 @@ const MUTATIONS = [
     replace: "  if (!isActive(building)) return 0;\n  if (!building.staffed) return 0;\n  return pollutionContributionPerTick(building.type);",
   },
   {
+    id: "A5 the air countdown never warns before the gate shuts (Step083)",
+    batch: 3,
+    file: "src/application/queries/analysis.ts",
+    find: "  if (admissionBlocksIn !== null && admissionBlocksIn > 0) {",
+    replace: "  if (admissionBlocksIn !== null && admissionBlocksIn > 1000) {",
+  },
+  {
     id: "M17 the treasury may go negative",
     batch: 3,
     fast: true,
