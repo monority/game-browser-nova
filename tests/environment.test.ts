@@ -8,6 +8,7 @@ import {
   MIN_QUALITY_FOR_ADMISSION,
   ABSORPTION_PER_PARK_PER_TICK,
   pollutionFlows,
+  pollutionIfMothballed,
   pollutionTicksToAdmissionBlock,
 } from "@/domain/environment/environment.js";
 import { getColonyStats } from "@/application/queries/stats.js";
@@ -88,6 +89,30 @@ describe("pollution flows", () => {
     const extra = Object.values(state.buildings).find((b) => b.x === spot.x && b.y === spot.y);
     expect(extra?.staffed).toBe(false);
     expect(pollutionFlows(state).net).toBe(1);
+  });
+
+  it("Step083: says which park is load-bearing by what its removal would leave", () => {
+    const state = freshState();
+    stepTicks(state, 3);
+    const park = Object.values(state.buildings).find((b) => b.type === "park");
+    if (!park) throw new Error("park missing");
+    // The opening's park carries the two unstaffed shops: removing it alone
+    // would leave +2/tick and close admission 38 ticks later.
+    const without = pollutionIfMothballed(state, park.id);
+    expect(without?.net).toBe(2);
+    expect(without?.blocksInTicks).toBe(38);
+    // A park in a colony with no emitter is decoration: nothing to count down.
+    const clean = pollutingColony();
+    const wsId = Object.values(clean.buildings).find((b) => b.type === "workshop")?.id;
+    if (!wsId) throw new Error("workshop missing");
+    mustOk(applyCommand(clean, { kind: "setBuildingActive", id: wsId, active: false }));
+    mustOk(applyCommand(clean, { kind: "placeBuilding", type: "park", x: 12, y: 12 }));
+    stepTicks(clean, 3);
+    const spare = Object.values(clean.buildings).find((b) => b.x === 12 && b.y === 12);
+    if (!spare) throw new Error("park missing");
+    expect(pollutionIfMothballed(clean, spare.id)?.blocksInTicks).toBeNull();
+    // Unknown id: no claim at all.
+    expect(pollutionIfMothballed(clean, "building-nope")).toBeNull();
   });
 
   it("parks absorb 2/tick to the floor, pollution clamps at 100", () => {

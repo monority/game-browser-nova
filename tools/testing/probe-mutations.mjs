@@ -169,6 +169,13 @@ const MUTATIONS = [
     replace: "  if (!isActive(building)) return 0;\n  if (!building.staffed) return 0;\n  return pollutionContributionPerTick(building.type);",
   },
   {
+    id: "A6 a mothballed park is not counted as load-bearing (Step083)",
+    batch: 3,
+    file: "src/domain/environment/environment.ts",
+    find: "  const net = pollutionFlows(state).net - pollutionContributionForBuilding(building);",
+    replace: "  const net = pollutionFlows(state).net;",
+  },
+  {
     id: "A5 the air countdown never warns before the gate shuts (Step083)",
     batch: 3,
     file: "src/application/queries/analysis.ts",

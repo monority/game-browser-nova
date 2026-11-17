@@ -100,8 +100,12 @@ export function pollutionFlows(state: GameState): PollutionFlows {
  * States-only forecast for the stats panel (Step056 F1): the player sees
  * the deadline instead of discovering the freeze at the housing doorstep.
  */
-export function pollutionTicksToAdmissionBlock(state: GameState): number | null {
-  const { net } = pollutionFlows(state);
+export function pollutionTicksToAdmissionBlock(
+  state: GameState,
+  /** Hypothetical flow (Step083): the inspection asks "and if this park went?" */
+  netOverride?: number,
+): number | null {
+  const net = netOverride ?? pollutionFlows(state).net;
   if (net <= 0) return null;
   // Highest pollution that still admits growth (quality == the threshold).
   const lastCleanPollution = POLLUTION_MAX - MIN_QUALITY_FOR_ADMISSION;
@@ -123,6 +127,26 @@ export interface AdmissionGate {
   blocked: boolean;
   /** Ticks until the air closes the gate; 0 when already closed, null while pollution is not rising. */
   ticksToClose: number | null;
+}
+
+/**
+ * The air as it would be if this building were mothballed (Step083): its own
+ * contribution removed, and the admission countdown that flow implies.
+ *
+ * The inspection uses it to say whether a park is LOAD-BEARING — the
+ * difference between the park that pays for the colony's industry and a park
+ * that is decoration. Measured: mothballing the day-0 park reopens +2/tick and
+ * shuts admission in 38 ticks, which used to be discovered only afterwards.
+ * Returns null for a building that does not exist.
+ */
+export function pollutionIfMothballed(
+  state: GameState,
+  buildingId: string,
+): { net: number; blocksInTicks: number | null } | null {
+  const building = state.buildings[buildingId];
+  if (!building) return null;
+  const net = pollutionFlows(state).net - pollutionContributionForBuilding(building);
+  return { net, blocksInTicks: pollutionTicksToAdmissionBlock(state, net) };
 }
 
 export function admissionGate(state: GameState): AdmissionGate {
