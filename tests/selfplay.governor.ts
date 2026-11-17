@@ -100,7 +100,11 @@ function manageMothballs(state: GameState): void {
   // band; waking both is stable at +9/tick with pollution 0 (57 → 1894 in 200
   // ticks, planks 38 until the wood runs out). The other bands were swept and
   // are dead but harmless (wells never rest, parks cannot wake while nothing
-  // emits, the food triage rest frees an already-idle worker at pop 86). Left
+  // emits, the food triage rest frees an already-idle worker at pop 86). Past
+  // t=1500 both postures are linear and unbounded (dormant +4.00/tick,
+  // industry+parks +9.02/tick to t=3500): the posture sets the slope of a
+  // stock nothing consumes, since growth is the only sink and this line caps
+  // it. Left
   // unchanged on purpose:
   // which posture the colony ends in is a design call, measured both ways in
   // docs/STATE.md.
