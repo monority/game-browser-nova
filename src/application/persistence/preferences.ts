@@ -113,11 +113,7 @@ export function coerceOverlayMode(mode: string): StoredOverlayMode {
   return isOverlayMode(mode) ? mode : DEFAULT_PREFERENCES.overlay;
 }
 
-/** Test pin: the allowlists above must stay in sync with the UI sources. */
+/** Test pin: the speed allowlist must stay in sync with `app/ui/kit.ts`. */
 export function storedSpeedIds(): readonly string[] {
   return SPEED_IDS;
-}
-
-export function storedOverlayModes(): readonly string[] {
-  return OVERLAY_IDS;
 }
