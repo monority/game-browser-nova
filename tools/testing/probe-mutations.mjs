@@ -8,8 +8,11 @@
  * laws that had no observer at all — see docs/STATE.md.
  *
  * Usage:
- *   node tools/testing/probe-mutations.mjs                 # every batch (~2.5 min)
- *   node tools/testing/probe-mutations.mjs --batch 3       # one batch (~40 s)
+ *   node tools/testing/probe-mutations.mjs                 # every batch — measured
+ *                                                          # 2026-11-17: ~10 min, so
+ *                                                          # NOT a 2-minute command
+ *   node tools/testing/probe-mutations.mjs --batch 3       # one batch (22-123 s,
+ *                                                          # measured the same day)
  *   node tools/testing/probe-mutations.mjs --only M4,M5    # named mutations
  *   node tools/testing/probe-mutations.mjs --fast          # the CI subset (~35 s)
  *   node tools/testing/probe-mutations.mjs --list          # the table only
@@ -36,6 +39,11 @@
  * Safety: each file's original bytes are restored in a finally block and
  * re-hashed at the end; the script exits 2 if any file differs. It never
  * touches git, and it never runs two mutations at once.
+ *
+ * A finally block does not survive a kill: measured 2026-11-17, a full run cut
+ * off by a 300 s timeout left `analysis.ts` mutated. Run it by BATCH (the unit
+ * that fits the 2-minute rule), and always read `git status` after an
+ * interrupted run before trusting the working tree.
  */
 
 import { readFileSync, writeFileSync, mkdtempSync, rmSync } from "node:fs";
