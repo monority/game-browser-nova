@@ -37,19 +37,24 @@ test.describe("accessibility (Tier2)", () => {
     await page.goto("/");
     // Scenario: a persistent alert whose NUMBERS change while its kind AND
     // severity stay stable — the environment alert (pollution rises, quality
-    // falls but stays above the warning band at 25). The game's own emitters
-    // are mothballed so the rise is controlled and deterministic; a
-    // food-deficit alert would instead vanish (the colony starves).
+    // falls but stays above the warning band at 25). A food-deficit alert
+    // would instead vanish (the colony starves).
+    //
+    // The D2 opening is left exactly as shipped: since Step083 its park absorbs
+    // the two unstaffed workshops it also emits, so net air is 0 and the
+    // authored stock drifts only by the controlled +1 per 100 ms below. This
+    // used to mothball every workshop first, which stopped working the moment
+    // the park existed: net -2/tick ate all 52 points before the first frame
+    // and the alert the test waits for never appeared (measured 2026-11-17).
+    //
+    // The treasury is topped up for a different reason — the budget line keeps
+    // a stable "info" kind only while money is above 0; at 0 it becomes the
+    // "warning" treasury line, a kind change this test would read as noise.
     await page.evaluate(() => {
       const h = window.__nova!;
       const s = h.getState();
       s.pollution = 52; // quality 48 -> alert fires, still "info" severity
-      for (const b of Object.values(s.buildings)) {
-        if (b.type === "workshop") {
-          h.command({ kind: "setBuildingActive", id: b.id, active: false });
-        }
-      }
-      // controlled rise: +1 per 100ms (the colony's own emitters are off)
+      s.resources.money = 5000;
       window.setInterval(() => {
         h.getState().pollution += 1;
       }, 100);

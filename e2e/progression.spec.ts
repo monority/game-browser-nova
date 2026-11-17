@@ -69,7 +69,9 @@ test.describe("NOVA progression", () => {
     await expect(panel).toContainText("20 residences");
     // current values against thresholds (none complete at this point)
     await expect(panel).toContainText("15/20");
-    await expect(panel).toContainText("23/30"); // D2 ships 23 (no market since Step065)
+    // 23 buildings since Step065 dropped the market, plus the D2 park that
+    // Step083 added to absorb its two unstaffed shops: 24.
+    await expect(panel).toContainText("24/30");
     await expect(panel).toContainText("10/20");
     // no advance action exists past the last set
     await expect(page.locator("button[data-action='advance-age']")).toHaveCount(0);
