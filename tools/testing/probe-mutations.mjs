@@ -103,11 +103,14 @@ const MUTATIONS = [
     replace: "    capacity += BUILDING_DEFINITIONS[building.type].housingCapacity;",
   },
   {
-    id: "M8 food capacity base x3",
+    id: "M8 the granary drops back to two day-0 stocks",
     batch: 2,
     file: "src/domain/storage/storage.ts",
-    find: "export const BASE_FOOD_CAPACITY = D2_FOOD * 2;",
-    replace: "export const BASE_FOOD_CAPACITY = D2_FOOD * 3;",
+    // Step070 raised the base from two stocks to three; the old mutant pinned
+    // the two-stock value as "correct" and went STALE instead of flipping
+    // direction, so the doctrine had no observer until 2026-11-17.
+    find: "export const BASE_FOOD_CAPACITY = D2_FOOD * 3;",
+    replace: "export const BASE_FOOD_CAPACITY = D2_FOOD * 2;",
   },
   {
     id: "M9 an unfed colonist counts as fed",
@@ -419,8 +422,11 @@ const MUTATIONS = [
     id: "A3 the frozen treasury warns on a positive net",
     batch: 8,
     file: "src/application/queries/analysis.ts",
-    find: "    if (net < 0) {",
-    replace: "    if (net > 0) {",
+    // Step073 moved the threshold from the per-tick `net` to the standing
+    // budget; the pattern was left behind and the probe reported STALE, i.e.
+    // this law had no observer at all until 2026-11-17.
+    find: "  if (standingMoney < 0) {",
+    replace: "  if (standingMoney > 0) {",
   },
   {
     id: "A4 demolishing refunds ten money",

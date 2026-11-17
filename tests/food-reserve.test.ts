@@ -222,6 +222,40 @@ describe("food reserve doctrine", () => {
     expect(plan.equilibrium).toBeLessThanOrEqual(plan.capacity - 1);
   });
 
+  it("calls the cap short when the target sits exactly on it", () => {
+    // pop 36 × the five-tick target = 180 = the whole base granary. The ceiling
+    // is `capacity - 1`, so a target of exactly `capacity` cannot be held: the
+    // plan must say so instead of promising a stock the clamp eats.
+    //
+    // This flag is the ONE place mutation F6 (`capacity - 1` -> `capacity`) is
+    // visible. The farm choice never discriminates: measured over pop 1..40 ×
+    // 0..12 warehouses × yields 2..5, the first equilibrium that reaches the
+    // target never lands in the last unit below the cap (0 cases) — the ladder steps by
+    // yield / spoilage rate, i.e. 67 units or more, across a one-unit window.
+    const state = createInitialState(CONFIG);
+    state.population = 36;
+    const plan = planFoodReserve(state);
+    expect(plan.target).toBe(180);
+    expect(plan.capacity).toBe(180);
+    expect(plan.capacityShort).toBe(true);
+  });
+
+  it("keeps the whole last unit below the cap out of the fallback too", () => {
+    // pop 79 on the base granary: the 395-unit target is far above the cap, so
+    // the plan reports its largest fitting equilibrium instead. 42 farms reach
+    // 115; 43 reach 179.67 — three quarters of a unit UNDER the cap, and the
+    // first tick of rounding destroys it. Mutation E2 (`ceiling` -> `capacity`
+    // in the candidate scan) only shows here, not in the choice above the
+    // target: measured over pop 1..40 × 0..12 warehouses × yields 2..5, the
+    // first equilibrium that reaches the target never lands in the last unit below the cap.
+    const state = createInitialState(CONFIG);
+    state.population = 79;
+    const plan = planFoodReserve(state);
+    expect(plan.farms).toBe(42);
+    expect(plan.equilibrium).toBeCloseTo(115, 0);
+    expect(plan.equilibrium).toBeLessThanOrEqual(plan.capacity - 1);
+  });
+
   it("feeds the growth it allows (population, needs and reserve)", () => {
     // Two residences on a fed colony: admission adds colonists, the need rises,
     // and the reserve must still hold — a plan that only fits the current
