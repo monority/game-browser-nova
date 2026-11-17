@@ -124,6 +124,11 @@ const MUTATIONS = [
     id: "M9 an unfed colonist counts as fed",
     batch: 2,
     file: "src/domain/production/production.ts",
+    // Equivalent only while eaten is a whole number of rations: floor and ceil
+    // agree on every integer (checked 0..100000 on 2026-11-17), and eaten is
+    // min(whole food, population × 1). A fractional stock — only reachable by
+    // hand-editing a save, which accepts any non-negative number — would split
+    // them (2.5 → 2 vs 3), so this entry states an invariant, not a tautology.
     equivalent: true,
     find: "  return Math.floor(eaten / FOOD_PER_COLONIST_PER_TICK);",
     replace: "  return Math.ceil(eaten / FOOD_PER_COLONIST_PER_TICK);",
@@ -146,6 +151,12 @@ const MUTATIONS = [
     id: "M12 regrowth overshoots the deposit ceiling",
     batch: 3,
     file: "src/domain/world/deposits.ts",
+    // Equivalent ONLY because WOOD_REGROWTH_PER_PARK_PER_TICK is 1: the scan
+    // admits deposits with a gap of at least one whole unit, so `min(gap, 1)`
+    // and `min(capacity, 1)` are the same number (checked every capacity 1..100
+    // × every remaining, 2026-11-17). Raise the constant to 2 and this mutant
+    // starts pushing `remaining` past `capacity` with nothing watching — a
+    // survivor this table would report as a hole, which is the honest answer.
     equivalent: true,
     find: "    const room = Math.min(deposit.capacity - deposit.remaining, amount - grown);",
     replace: "    const room = Math.min(deposit.capacity, amount - grown);",
