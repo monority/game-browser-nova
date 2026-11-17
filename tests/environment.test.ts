@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cellKey } from "@/domain/shared/cells.js";
+import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
@@ -39,17 +39,55 @@ function pollutingColony(): GameState {
 }
 
 describe("pollution flows", () => {
-  it("an active workshop emits 1/tick; mothballing stops it with no natural decay", () => {
+  it("an active workshop emits 1/tick without being staffed; mothballing stops it", () => {
     const state = pollutingColony();
-    // Step064: emission runs before assignJobs, so it follows the staffing set
-    // of the output — operational at tick 2, first emitting tick is tick 3
-    expect(state.pollution).toBe(1);
+    // Step083: emission follows activity, not staffing. This colony has pop 0,
+    // so the workshop is never staffed and it still emits — operational at
+    // tick 2, so ticks 2 and 3 have both emitted (Step064's gate would have
+    // left it at 1, because it skipped the first, unstaffed tick).
+    expect(state.pollution).toBe(2);
     const wsId = Object.values(state.buildings).find((b) => b.type === "workshop")?.id;
     if (!wsId) throw new Error("workshop missing");
     mustOk(applyCommand(state, { kind: "setBuildingActive", id: wsId, active: false }));
     const before = state.pollution;
     stepTicks(state, 2);
     expect(state.pollution).toBe(before);
+  });
+
+  it("Step083: the opening park exactly pays for its two unstaffed shops; a third idle shop tips the air", () => {
+    // The D2 opening has 10 workers for 5 farms + 5 wells, so both shops idle.
+    // They still earn their 2/tick connection floor, and since Step083 they
+    // also still emit: the park absorbs exactly that, net 0.
+    const state = freshState();
+    stepTicks(state, 3);
+    const opening = pollutionFlows(state);
+    expect(opening.emissions).toBe(2);
+    expect(opening.absorption).toBe(ABSORPTION_PER_PARK_PER_TICK);
+    expect(opening.net).toBe(0);
+
+    // One more shop on an existing road is still unstaffed — and now it costs
+    // the air 1/tick instead of paying for itself for free. That is the
+    // free-revenue line (measured: 3 idle shops held pollution 0 through t=90
+    // under Step064's gate; they now take the colony to `critical`).
+    let spot: { x: number; y: number } | null = null;
+    for (const road of Object.values(state.roads)) {
+      for (const key of road.cells) {
+        const cell = parseCellKey(key);
+        try {
+          spot = adjacentFree(state, cell.x, cell.y);
+        } catch {
+          continue; // this road cell's neighbours are all taken
+        }
+        break;
+      }
+      if (spot) break;
+    }
+    if (!spot) throw new Error("the opening has no road with a free neighbour");
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "workshop", x: spot.x, y: spot.y }));
+    stepTicks(state, 3);
+    const extra = Object.values(state.buildings).find((b) => b.x === spot.x && b.y === spot.y);
+    expect(extra?.staffed).toBe(false);
+    expect(pollutionFlows(state).net).toBe(1);
   });
 
   it("parks absorb 2/tick to the floor, pollution clamps at 100", () => {

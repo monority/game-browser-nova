@@ -62,17 +62,24 @@ export interface PollutionFlows {
 }
 
 /**
- * Per-building pollution contribution to the STOCK (Step064): the type rate
- * above, gated on being active and, for emitters, staffed. An unstaffed
- * workshop or quarry does no work and therefore emits nothing, while a park
- * (0 job capacity) always absorbs. Single source shared by the tick phase
- * and the inspection line, so the two cannot drift.
+ * Per-building pollution contribution to the STOCK: the type rate above,
+ * gated on being active — and on nothing else. Emission is NOT gated on
+ * staffing (Step083, superseding Step064's rule).
+ *
+ * The reason is economic, not physical: the connection floor pays an
+ * unstaffed workshop 2/tick (Step012), so an idle shop still trades, and
+ * what trades must still cost the air. Step064's staffing gate made idling
+ * industry free revenue — 2/tick, 1 upkeep, 0 emission, 0 labour — which is
+ * exactly the park's counterweight removed. The opening it was protecting is
+ * re-anchored with one park instead (state.ts, D2), measured to hold every
+ * age line while turning the idle-shop line critical.
+ *
+ * Single source shared by the tick phase and the inspection line, so the two
+ * cannot drift.
  */
 export function pollutionContributionForBuilding(building: Building): number {
   if (!isActive(building)) return 0;
-  const rate = pollutionContributionPerTick(building.type);
-  if (rate > 0 && !building.staffed) return 0;
-  return rate;
+  return pollutionContributionPerTick(building.type);
 }
 
 export function pollutionFlows(state: GameState): PollutionFlows {

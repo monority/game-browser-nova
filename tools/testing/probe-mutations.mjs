@@ -162,11 +162,11 @@ const MUTATIONS = [
     replace: "    BUILDING_DEFINITIONS[building.type].jobCapacity > 0",
   },
   {
-    id: "M16 an idle workshop pollutes anyway (Step064)",
+    id: "M16 an idle workshop stops polluting (Step083 free revenue)",
     batch: 3,
     file: "src/domain/environment/environment.ts",
-    find: "  if (rate > 0 && !building.staffed) return 0;",
-    replace: "",
+    find: "  if (!isActive(building)) return 0;\n  return pollutionContributionPerTick(building.type);",
+    replace: "  if (!isActive(building)) return 0;\n  if (!building.staffed) return 0;\n  return pollutionContributionPerTick(building.type);",
   },
   {
     id: "M17 the treasury may go negative",

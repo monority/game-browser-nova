@@ -1,0 +1,16 @@
+# The unstaffed-industry line (STATE.md: "commerce without staffing", the
+# Step064 side effect). Three workshops bought on day 0 for 75$ on cells that
+# already touch a road: the colony has 10 workers for 5 farms + 5 wells, so all
+# three idle. Under the shipped rule they still earn their 2/tick connection
+# floor and, since Step064, emit nothing — the park no longer prices industry.
+#
+# Run: node tools/agent/run.mjs --json --quiet \
+#        --script tools/agent/scenarios/idle-industry.jsonl
+{"cmd":"init"}
+{"cmd":"build","type":"workshop","x":1,"y":2}
+{"cmd":"build","type":"workshop","x":4,"y":2}
+{"cmd":"build","type":"workshop","x":6,"y":2}
+{"cmd":"tick","n":90}
+{"cmd":"report"}
+{"cmd":"tick","n":210}
+{"cmd":"assess"}

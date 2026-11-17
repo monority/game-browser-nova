@@ -37,11 +37,13 @@ describe("canonical state", () => {
     expect(count("farm")).toBe(5);
     expect(count("well")).toBe(5);
     expect(count("workshop")).toBe(2);
+    // Step083: one park pays for the two unstaffed shops' emission.
+    expect(count("park")).toBe(1);
     // functioning colony: everything operational, workplaces road-adjacent.
-    // The total is pinned so the loop cannot walk an empty list: 22 buildings
+    // The total is pinned so the loop cannot walk an empty list: 23 buildings
     // counted above plus the colony center.
     const all = Object.values(state.buildings);
-    expect(all).toHaveLength(23);
+    expect(all).toHaveLength(24);
     for (const b of all) {
       expect(b.status).toBe("operational");
     }

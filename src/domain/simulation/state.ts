@@ -156,9 +156,9 @@ function prePlaceColonyCenter(state: GameState): void {
 }
 
 /**
- * D2 day-0 colony (Step021, docs/game/02-MVP.md): a small FUNCTIONING
- * colony of 10 inhabitants, granted free - placement costs are not
- * charged. Counts follow the rate math: 10 mouths need 10 food + 10
+ * D2 day-0 colony (Step021, docs/game/02-MVP.md; park added by Step083): a
+ * small FUNCTIONING colony of 10 inhabitants, granted free - placement costs
+ * are not charged. Counts follow the rate math: 10 mouths need 10 food + 10
  * water per tick, producers yield 2. Residences need no roads; every
  * workplace gets an adjacent road cell. All buildings start operational;
  * staffing assigns on the first tick per the normal timing contract.
@@ -170,6 +170,7 @@ const D2_RESIDENCES = 10;
 const D2_FARMS = 5;
 const D2_WELLS = 5;
 const D2_WORKSHOPS = 2;
+const D2_PARKS = 1;
 // Tier1: exported as the single source of truth — storage derives its
 // base capacities from these (storage.ts), so the two can no longer drift.
 export const D2_FOOD = 60;
@@ -199,7 +200,7 @@ function composeD2Colony(state: GameState): void {
     { x: 0, y: 1 },
     { x: 0, y: -1 },
   ];
-  const place = (type: "residence" | "farm" | "well" | "workshop", withRoad: boolean): void => {
+  const place = (type: "residence" | "farm" | "well" | "workshop" | "park", withRoad: boolean): void => {
     const spot = freeSpot();
     if (withRoad) {
       const road = neighbors
@@ -228,6 +229,11 @@ function composeD2Colony(state: GameState): void {
   for (let i = 0; i < D2_FARMS; i++) place("farm", true);
   for (let i = 0; i < D2_WELLS; i++) place("well", true);
   for (let i = 0; i < D2_WORKSHOPS; i++) place("workshop", true);
+  // Step083: one park, the price of the two shops. Emission is not gated on
+  // staffing, so the unstaffed shops emit their 2/tick and the park absorbs
+  // exactly that. A park needs no road: absorption and regrowth are pure
+  // adjacency, so no road cell is spent on it.
+  for (let i = 0; i < D2_PARKS; i++) place("park", false);
   state.population = D2_POPULATION;
   state.resources.food = D2_FOOD;
   state.resources.water = D2_WATER;

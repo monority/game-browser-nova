@@ -39,11 +39,18 @@ function neighborSpot(state: GameState, x: number, y: number): { x: number; y: n
   return spot;
 }
 
-/** Operational park adjacent to (x, y), matured. Parks need no roads. */
-function placeParkNextTo(state: GameState, x: number, y: number): void {
+/**
+ * Operational park adjacent to (x, y), matured. Parks need no roads. Returns
+ * the new park's id: since Step083 the day-0 colony ships one park of its own,
+ * so a test that means "this park" must not look the type up by name.
+ */
+function placeParkNextTo(state: GameState, x: number, y: number): string {
   const spot = neighborSpot(state, x, y);
   mustOk(applyCommand(state, { kind: "placeBuilding", type: "park", x: spot.x, y: spot.y }));
   stepTicks(state, 2); // operational
+  const placed = Object.values(state.buildings).find((b) => b.x === spot.x && b.y === spot.y);
+  if (!placed) throw new Error("park missing after placement");
+  return placed.id;
 }
 
 
@@ -65,11 +72,7 @@ describe("park forest regrowth", () => {
     expect(bare.woodDeposits[cellKey(5, 5)]?.remaining).toBe(0);
 
     const mothballed = freshState();
-    placeParkNextTo(mothballed, 5, 5);
-    const parkId = Object.keys(mothballed.buildings).find(
-      (k) => mothballed.buildings[k]?.type === "park",
-    );
-    if (!parkId) throw new Error("park missing");
+    const parkId = placeParkNextTo(mothballed, 5, 5);
     mustOk(applyCommand(mothballed, { kind: "setBuildingActive", id: parkId, active: false }));
     mothballed.woodDeposits[cellKey(5, 5)] = { remaining: 0, capacity: 6 };
     mothballed.stoneDeposits[cellKey(10, 10)] = { remaining: 0, capacity: 8 };
