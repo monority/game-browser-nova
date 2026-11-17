@@ -9,12 +9,15 @@ distribution, trade — so the interesting decisions stay with the player.
 
 ## Status
 
-MVP delivered. The playable loop runs from a day-0 colony through production,
-storage, logistics, population needs, research and Age 2 into Age 3. The
-simulation is deterministic (fixed ticks, seeded world), which keeps runs reproducible
-and testable. Post-MVP product decisions (F13, Step054 human playtest) remain open; the
-F12 water-forecast defect is fixed and committed (`54575bd`). Current facts live
-in `docs/STATE.md`.
+The MVP is playable end to end: a day-0 colony runs through production, storage,
+logistics, population needs and research, and clears the Age 2 and Age 3 gates. The
+simulation is deterministic (fixed ticks, seeded world), so a run is reproducible and
+testable.
+
+What is left is product work rather than implementation: no human playtest session has
+been run yet, and one self-play finding — a dominated endgame posture — is an open
+design call. `docs/STATE.md` records the current facts and the measurement behind every
+closed item.
 
 ## Tech stack
 
@@ -53,7 +56,9 @@ Then open the URL printed by Vite (default `http://localhost:5173`).
 | `pnpm lint` | ESLint |
 | `pnpm test` | Unit + self-play tests (Vitest) |
 | `pnpm test:e2e` | Browser journeys (Playwright) |
-| `pnpm check` | Typecheck + lint + unit tests |
+| `pnpm test:audit` | Vacuity audit: every test must assert something |
+| `pnpm test:mutations:fast` | Mutation probe: does the suite catch planted defects? |
+| `pnpm check` | Typecheck + lint + audit + unit + fast mutation probe |
 | `pnpm verify` | Full local CI gate: check + build + browser journeys |
 
 ## Project structure
@@ -71,9 +76,9 @@ tools/agent/      Headless play + evaluation cockpit (JSONL over the real rules)
 
 ## Validation
 
-`pnpm verify` replays the whole CI gate locally (typecheck, lint, unit, build, browser
-journeys); `pnpm check` and `pnpm test:e2e` run the same steps separately. CI runs the
-chain on every push and pull request to `main`.
+`pnpm verify` replays the whole CI gate locally (typecheck, lint, vacuity audit, unit,
+mutation probe, build, browser journeys); `pnpm check` and `pnpm test:e2e` run the same
+steps separately. CI runs the chain on every push and pull request to `main`.
 
 The browser journeys need Playwright's Chromium (`pnpm exec playwright install chromium`, or
 `./node_modules/.bin/playwright install chromium` when `pnpm` itself is broken).
