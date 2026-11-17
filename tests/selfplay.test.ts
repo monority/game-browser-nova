@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { canAdvanceAge, evaluateMilestones, techLevel } from "@/domain/progression/progression.js";
+import { TECH_DEFINITIONS } from "@/content/techs.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
 import { waterServed } from "@/domain/water/water.js";
 import { waterProductionPerTick } from "@/domain/production/production.js";
 import { WATER_PRESSURE_GRAVE_THRESHOLD } from "@/domain/water/water.js";
 import { mustOk } from "./helpers.js";
-import { playGame, SELFPLAY_CONFIG } from "./selfplay.governor.js";
+import { playGame, SELFPLAY_CONFIG, SELFPLAY_TICK_BUDGET } from "./selfplay.governor.js";
 
 /**
  * Self-play verifier: gate assertions over the shared governor
@@ -140,6 +141,48 @@ describe("self-play verifier", () => {
     const restored = parseSave(serialize(state));
     expect(restored).toEqual(state);
     console.log("age3 phases: " + phases.join(", "));
+  }, 240000);
+
+  it("spends the whole endgame surplus on the Age-3 technologies (Step087)", () => {
+    // The main line was read as a colony whose money has nowhere to go: at
+    // t=1500 it holds 57 and the treasury grows +4.00/tick forever. Measured,
+    // the surplus is not stranded, it is EARLY. The same colony, given a tick
+    // budget instead of a run that ends, banks 350 at t=1574, takes its last
+    // two Age-2 technologies, enters Age 3 at t=1575 with 207 left, and buys
+    // cobbledRoads (800) at t=1761 and winterWheat (1200) at t=2061 — ending
+    // with 1 money and every technology researched. The sink Step070 wrote
+    // absorbs the whole surplus: what looked like a pile was the run stopping
+    // 561 ticks before the last purchase.
+    const { state } = playGame(-1, false, 240, 86);
+    expect(state.tick).toBe(SELFPLAY_TICK_BUDGET);
+    expect(state.age).toBe(2);
+
+    const bought: string[] = [];
+    for (let i = 0; i < 900; i++) {
+      for (const [techId, def] of Object.entries(TECH_DEFINITIONS)) {
+        if (def.age > state.age || state.researchedTechs.includes(techId)) continue;
+        // The player keeps a building budget while it still builds, exactly
+        // as the governor does; only the late-game purchases drop the buffer.
+        const buffer = def.cost < 800 ? 200 : 0;
+        if (state.resources.money < def.cost + buffer) continue;
+        if (applyCommand(state, { kind: "researchTech", techId }).ok) bought.push(techId);
+      }
+      if (state.researchedTechs.includes("winterWheat") && state.researchedTechs.includes("cobbledRoads")) {
+        break;
+      }
+      if (state.age < 3 && canAdvanceAge(state)) {
+        mustOk(applyCommand(state, { kind: "advanceAge" }));
+        continue;
+      }
+      stepTicks(state, 1);
+    }
+
+    expect(state.age).toBe(3);
+    expect(bought).toContain("cobbledRoads");
+    expect(bought).toContain("winterWheat");
+    expect(state.researchedTechs).toHaveLength(8);
+    // The point of the test: the surplus is GONE, not parked.
+    expect(state.resources.money).toBeLessThan(100);
   }, 240000);
 
   it("spends the late-game treasury on the money-only technologies (Step086)", () => {
