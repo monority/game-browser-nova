@@ -63,9 +63,11 @@ jobs:
         run: pnpm test
 
       # The probe reports whether the suite can still fail; the full table
-      # (45 mutations, ~290 s) stays a local measurement, so CI runs the five
-      # marked core laws (~33 s measured). Without this step the probe is the
-      # only instrument in the repository that nothing ever triggers.
+      # (70 mutations in 12 batches, ~10 min) stays a local measurement, so CI
+      # runs the five marked core laws (28.9-33.2 s measured). Without this step
+      # the probe is the only instrument in the repository that nothing ever
+      # triggers — which is why it went five pushes calling every mutation BROKE
+      # before the verdict moved from Vitest's console text to its JSON report.
       - name: Core mutation probe
         run: pnpm test:mutations:fast
 
