@@ -65,15 +65,19 @@ test.describe("NOVA simulation", () => {
     });
     expect(built.ok).toBe(true);
 
+    // Growth is the claim, so it is measured from the paused start: the shipped
+    // D2 opening already holds 10 colonists, which made the old `>= 5` wait
+    // resolve before the first tick (measured 2026-11-17 — the colony then grew
+    // 10 -> 13, but a stall at 10 would have passed the same assertion).
+    const startPopulation = await page.evaluate(() => window.__nova!.getState().population);
     await page.getByRole("button", { name: "8x", exact: true }).click();
     await page
       .waitForFunction(
-        () =>
-          window.__nova!.getState().population >= 5,
-        undefined,
+        (start) => window.__nova!.getState().population > start,
+        startPopulation,
         { timeout: 45_000 },
       )
-      .catch(() => {});
+      .catch(() => {}); // fall through to the assertions, which carry the numbers
     await pause(page);
 
     const final = await page.evaluate(() => {
@@ -88,6 +92,8 @@ test.describe("NOVA simulation", () => {
     });
     expect(final.housing).toBeGreaterThanOrEqual(5);
     // growth continues to housing capacity; the scenario proves ≥ 5 (MVP scale)
+    // AND that the colony actually grew from where it started
+    expect(final.population).toBeGreaterThan(startPopulation);
     expect(final.population).toBeGreaterThanOrEqual(5);
     expect(final.population).toBeLessThanOrEqual(final.housing);
     expect(final.food).toBeGreaterThan(0); // sustained, not starving
@@ -96,10 +102,11 @@ test.describe("NOVA simulation", () => {
     await page.goto("/");
     await pause(page);
 
-    // Step064: an emitter only pollutes while STAFFED, so the scenario needs a
-    // workshop that is really staffed, on a cell that is really free (the old
-    // fixed coordinates were already occupied, and the spec leaned on the
-    // shipped colony's idling workshops for its emissions).
+    // Step083 moved emission onto ACTIVITY: an active workshop pollutes whether
+    // or not anyone tends it, which is why the shipped opening's two idle shops
+    // now need its park. Staffing still decides the food and water that keep 16
+    // colonists alive, hence the farm and the three wells below; the workshop
+    // itself only needs a free cell (the old fixed coordinates were occupied).
     const built = await page.evaluate(() => {
       const h = window.__nova!;
       const s = h.getState();
@@ -167,7 +174,8 @@ test.describe("NOVA simulation", () => {
       });
       if (!workshop.ok) return { ok: false, reason: workshop.reason };
 
-      // three parks: −6/tick, more than the three staffed workshops' +3
+      // three parks here (−6/tick) on top of the shipped D2 park (−2), against
+      // the three active workshops (+3): net −5 while all four stand
       let parks = 0;
       for (let y = 0; y < s.world.height && parks < 3; y++) {
         for (let x = 0; x < s.world.width && parks < 3; x++) {
@@ -189,14 +197,16 @@ test.describe("NOVA simulation", () => {
       .toBeGreaterThan(8); // buildings mature, park absorption active
     await pause(page);
 
-    // 3 parks (−6) dominate the three staffed workshops (+3): air stays clean
+    // 4 parks (−8: these three plus the shipped one) dominate the three active
+    // workshops (+3): air stays clean
     const clean = await page.evaluate(
       () => window.__nova!.stats(),
     );
     expect(clean.pollution).toBe(0);
     expect(clean.envQuality).toBe(100);
 
-    // remove both parks → workshop emissions unopposed → degradation
+    // remove every park — the filter takes the shipped one too → emissions
+    // unopposed → degradation
     await page.evaluate(() => {
       const h = window.__nova!;
       const parks = Object.values(h.getState().buildings).filter((b) => b.type === "park");
