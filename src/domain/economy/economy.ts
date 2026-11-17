@@ -159,15 +159,20 @@ export function isMaintenanceExempt(building: { type: string }): boolean {
  *
  * Re-measured 2026-11-17 on the same governor, because the water line landed
  * in between and invalidated the "capital question" this comment used to end
- * on. At the harness's own pop-24 cap the colony now holds 1750 money and 226
+ * on. At the harness's own pop-24 cap the colony holds 1750 money and 226
  * planks and earns +3/tick (taxes 24 + commerce 12 − upkeep 31 − people 2),
  * with plank production at 0 (wood 1) — so the planks are stranded, not
  * throughput, and a pile here means the colony has stopped building. Let it
- * grow (housing 240) and the treasury never piles at all: 61 money at t=400,
- * 17 at t=800, 0 at t=1300, 7 at t=1400 — the crisis bill and the wells absorb
- * every coin, and the wall is water (0 production, pressure 100, 53 colonists
- * unserved at t=1500), not money. What remains open is that churn, and the
- * unstaffed-wells policy behind it, not a missing sink.
+ * grow to its ceiling (housing 240) and the treasury never piles: 61 money at
+ * t=400, 57 at t=1500, +4/tick standing (86 taxes + 0 commerce − 67 upkeep −
+ * 15 people), every coin having gone into 86 residences, 43 wells and 23 farms.
+ * The surplus is a flow, not a stock — there is no sink to add.
+ *
+ * The crisis this comment first recorded on that line (money 0, water
+ * production 0, pressure 100, 53 colonists unserved) was the GOVERNOR, not the
+ * game: its food triage rested every well once food fell under pop × 2, which
+ * disarmed the hydric reserve and blacked the colony out. Fixed in
+ * `tests/selfplay.governor.ts` (Step084) and pinned by the self-play suite.
  */
 export const CROWDING_FREE_POPULATION = 10;
 

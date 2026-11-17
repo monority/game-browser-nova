@@ -121,12 +121,25 @@ function manageMothballs(state: GameState): void {
     }
   }
   for (const b of Object.values(state.buildings)) {
-    // Food triage first: rest water/wood/stone getters so workers flow
+    // Food triage first: rest wood/stone getters so workers flow
     // deterministically to farms next tick. Workshops keep earning and
-    // parks keep absorbing; water shortage pauses admission but never kills.
+    // parks keep absorbing.
     // The floor is ticks of consumption (Step068), not the old `pop + 4`
     // offset, which meant a different autonomy at every population.
-    if (state.resources.food < reserve.triageFloor && (b.type === "well" || b.type === "lumberCamp" || b.type === "quarry")) {
+    //
+    // WELLS ARE OUT (Step084, measured 2026-11-17). This rule was written when
+    // its own comment could say "water shortage pauses admission but never
+    // kills": because of that, it rested wells too, and the workforce went to
+    // the farms. Steps 078-082 changed the price of a dry cistern (pressure,
+    // crisis bills, departures), and the rule also disarmed Step081's reserve
+    // — an inactive well is not an eligible workplace, so the reserve has
+    // nothing to staff. Measured on the growing line (housing 240, growth 86):
+    // at t=1500 food 80 sat under a floor of pop 53 x 2 = 106, all 29 wells
+    // were rested, water production fell to 0, pressure reached 100 and 53
+    // colonists went unserved while the treasury was drained by the bill. A
+    // colony short of food still has to drink, so wells follow the water band
+    // below, which already rests them above `pop * 4 + 8`.
+    if (state.resources.food < reserve.triageFloor && (b.type === "lumberCamp" || b.type === "quarry")) {
       if (b.active) applyCommand(state, { kind: "setBuildingActive", id: b.id, active: false });
       continue;
     }

@@ -65,6 +65,56 @@ function balanced(text, openIndex) {
 const lineOf = (text, index) => text.slice(0, index).split("\n").length;
 
 /**
+ * Comments blanked out, everything else untouched, lengths preserved.
+ *
+ * Why: the detectors below match `describe(`, `it(` and `test(` by text, and
+ * English prose says "it (pressure, crisis bills)" — which the scanner read as
+ * an anonymous `it` call, whose body was the prose itself, so a real test's
+ * neighbour was reported as asserting nothing (measured 2026-11-17 on the
+ * Step084 guard). A comment cannot assert, so it is not part of the test: the
+ * characters become spaces and every offset a finding reports stays exact.
+ */
+function stripComments(src) {
+  let out = "";
+  let quote = null;
+  for (let i = 0; i < src.length; i++) {
+    const c = src[i];
+    if (quote) {
+      out += c;
+      if (c === "\\") {
+        out += src[i + 1] ?? "";
+        i++;
+      } else if (c === quote) quote = null;
+      continue;
+    }
+    if (c === '"' || c === "'" || c === "`") {
+      quote = c;
+      out += c;
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "/") {
+      while (i < src.length && src[i] !== "\n") {
+        out += " ";
+        i++;
+      }
+      out += "\n";
+      continue;
+    }
+    if (c === "/" && src[i + 1] === "*") {
+      while (i < src.length && !(src[i] === "*" && src[i + 1] === "/")) {
+        out += src[i] === "\n" ? "\n" : " ";
+        i++;
+      }
+      out += "  ";
+      i++;
+      continue;
+    }
+    out += c;
+  }
+  return out;
+}
+
+/**
  * Every `describe(...)` / `it(...)` / `test(...)` call in a file, with
  * `test.describe(...)` folded into `describe`.
  *
@@ -129,7 +179,7 @@ function assertingLoops(body) {
 function auditSource(file, src) {
   const findings = [];
   const report = (rule, at, message) => findings.push({ rule, file, line: at, message });
-  const entries = blocks(src);
+  const entries = blocks(stripComments(src));
 
   for (const entry of entries) {
     if (entry.kind === "describe") {
@@ -224,7 +274,7 @@ function runAudit() {
   for (const full of files) {
     const name = full.slice(ROOT.length + 1);
     const src = readFileSync(full, "utf8");
-    const declared = blocks(src).filter((entry) => entry.kind !== "describe").length;
+    const declared = blocks(stripComments(src)).filter((entry) => entry.kind !== "describe").length;
     declarations += declared;
     findings.push(...auditSource(name, src));
     if (VERBOSE) console.log(`${name} — ${declared} test(s)`);
@@ -263,6 +313,14 @@ function selftest() {
     ["R6", 'it("every", () => {\n  expect(list.every((x) => x.ok)).toBe(true);\n});'],
     ["R1", 'test.describe("empty group", () => {\n});'],
     [null, 'test.describe("group", () => {\n  test("nested", () => {\n    expect(1).toBe(1);\n  });\n});'],
+    [
+      null,
+      'it("prose in a comment", () => {\n  // The triage priced it (pressure, bills) and it was harmless.\n  expect(1).toBe(1);\n});',
+    ],
+    [
+      null,
+      'it("url in a string", () => {\n  const doc = "https://example.com/it(";\n  expect(doc).toHaveLength(22);\n});',
+    ],
     [null, 'it("clean", () => {\n  const all = load();\n  expect(all).toHaveLength(2);\n  if (a) {\n    expect(b).toBe(1);\n  } else {\n    expect(b).toBe(2);\n  }\n  for (const x of all) {\n    expect(x).toBe(1);\n  }\n});'],
   ];
   let failed = 0;

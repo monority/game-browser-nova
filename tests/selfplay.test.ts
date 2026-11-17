@@ -3,6 +3,9 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { canAdvanceAge, evaluateMilestones } from "@/domain/progression/progression.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
+import { waterServed } from "@/domain/water/water.js";
+import { waterProductionPerTick } from "@/domain/production/production.js";
+import { WATER_PRESSURE_GRAVE_THRESHOLD } from "@/domain/water/water.js";
 import { mustOk } from "./helpers.js";
 import { playGame, SELFPLAY_CONFIG } from "./selfplay.governor.js";
 
@@ -85,6 +88,23 @@ describe("self-play verifier", () => {
     const restored = parseSave(serialize(state));
     expect(restored).toEqual(state);
     console.log("measure-2 tuned phases: " + phases.join(", "));
+  }, 240000);
+
+  it("keeps the wells running when the granary is short (Step084)", () => {
+    // The food triage used to rest wells too, to free workers for the farms,
+    // and it was harmless while a dry cistern only paused admission. Steps
+    // 078-082 priced it (pressure, crisis bills, departures), so the same rule
+    // was measured starving the colony: at t=1500 food 80 against a floor of
+    // pop 53 x 2 = 106 rested all 29 wells, water production fell to 0,
+    // pressure reached 100 and 53 colonists went unserved. The governor's
+    // growing line must now end served at its ceiling instead — 86/86 with
+    // production 86 and pressure 0 (2026-11-17). Asserted from the water law
+    // itself, not from a rest flag, so any way of cutting the supply fails it.
+    const { state } = playGame(-1, false, 240, 86);
+    const production = waterProductionPerTick(state);
+    expect(state.population).toBe(86);
+    expect(waterServed(state.resources.water, production, state.population)).toBe(state.population);
+    expect(state.waterPressure).toBeLessThan(WATER_PRESSURE_GRAVE_THRESHOLD);
   }, 240000);
 
   it("reaches Age 3 with a prosperous endgame (Step035)", () => {
