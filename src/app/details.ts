@@ -10,6 +10,6 @@ export const BUILDING_DETAIL: Record<BuildingType, string> = {
   lumberCamp: "+2 Wood/tick from adjacent deposits (staffed)",
   quarry: "+2 Stone/tick from adjacent deposits (staffed; tech adds more) · emits pollution",
   park: "Absorbs 2 pollution/tick, regrows 1 adjacent wood/tick",
-  warehouse: "+60 food / +40 water storage (base 120/80) · unstaffed",
+  warehouse: "+60 food / +40 water storage (base 180/80) · unstaffed",
   colonyCenter: "+1 Wood/tick · always active · cannot be removed or mothballed",
 };
