@@ -42,8 +42,8 @@ function mutating(
 }
 
 describe("save format", () => {
-  it("is SAVE_VERSION 20", () => {
-    expect(SAVE_VERSION).toBe(20);
+  it("is SAVE_VERSION 22", () => {
+    expect(SAVE_VERSION).toBe(22);
   });
 
   it("migrates a v19 save to an empty gauge, keeps a v20 reading exact, and rejects impossible ones", () => {

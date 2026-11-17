@@ -553,13 +553,25 @@ function formatReport(session: Session): string {
     `food ${Math.floor(state.resources.food)}/${stats.foodCapacity} · prod ${summaries.food.productionPerTick} · eaten ${summaries.food.consumptionPerTick} · spoiled ${summaries.food.spoilagePerTick} · net ${signed(summaries.food.netPerTick)}/tick${formatReserve(summaries.food.reserve)}`,
     // Step078: coverage and pressure come from getColonyStats — the same
     // source as the stats panel, so the cockpit cannot read a second truth.
-    `water ${Math.floor(state.resources.water)}/${stats.waterCapacity} (${signed(summaries.water.balancePerTick)}/tick) · coverage ${stats.waterCoveragePercent} % · pressure ${stats.waterPressure}/100 ${stats.waterPressureLevel} · wood ${Math.floor(state.resources.wood)} · stone ${Math.floor(state.resources.stone)} · planks ${Math.floor(state.resources.planks)}`,
+    `water ${Math.floor(state.resources.water)}/${stats.waterCapacity} (${signed(summaries.water.balancePerTick)}/tick) · coverage ${stats.waterCoveragePercent} % · pressure ${stats.waterPressure}/100 ${stats.waterPressureLevel}${waterCrisisNote(stats)} · wood ${Math.floor(state.resources.wood)} · stone ${Math.floor(state.resources.stone)} · planks ${Math.floor(state.resources.planks)}`,
     `workforce ${stats.staffedWorkplaces}/${stats.eligibleWorkplaces} · no-road ${getStaffingOverview(state).unconnected} · pollution ${Math.round(state.pollution)} (q${stats.envQuality}) · techs ${state.researchedTechs.length}${state.eventsEnabled ? ` · events ${state.eventFrequency}` : ""}`,
     `deposits: wood ${wood.remaining}/${wood.capacity} (${wood.cells} cells) · stone ${stone.remaining}/${stone.capacity} (${stone.cells} cells)`,
     `composition: ${composition(state) || "none"}`,
     `alerts: ${alerts.length === 0 ? "none" : ""}${alerts.length > 0 ? "\n" + alerts.map((a) => `  [${a.severity}] ${a.message}`).join("\n") : ""}`,
   ];
   return lines.join("\n");
+}
+
+/** Step079: the bill and the next departure, when they are real. */
+function waterCrisisNote(stats: ReturnType<typeof getColonyStats>): string {
+  const parts: string[] = [];
+  if (stats.waterEmergencyCostPerTick > 0) {
+    parts.push(`bill ${stats.waterEmergencyCostPerTick}/tick (${stats.waterUnserved} unserved)`);
+  }
+  if (stats.waterDepartureTicksAway !== null) {
+    parts.push(`departs in ${stats.waterDepartureTicksAway}`);
+  }
+  return parts.length === 0 ? "" : " · " + parts.join(" · ");
 }
 
 function signed(value: number): string {

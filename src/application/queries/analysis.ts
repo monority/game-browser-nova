@@ -10,6 +10,7 @@ import {
   crowdingCostPerTick,
   maintenancePerTick,
   taxesPerTick,
+  waterEmergencyCostPerTick,
 } from "@/domain/economy/economy.js";
 import { compareCellCoords } from "@/domain/shared/cells.js";
 import {
@@ -18,8 +19,9 @@ import {
   environmentalQuality,
   MIN_QUALITY_FOR_ADMISSION,
 } from "@/domain/environment/environment.js";
-import { housingCapacity } from "@/domain/population/population.js";
+import { housingCapacity, ticksUntilWaterDeparture } from "@/domain/population/population.js";
 import {
+  WATER_DEPARTURE_INTERVAL_TICKS,
   waterBalancePerTick,
   waterPressureLevel,
   waterServed,
@@ -259,11 +261,26 @@ export function getAlerts(
   // Hydric pressure (Step078 §6): the gauge only speaks from "tension" up —
   // an announcement every tick would train the player to ignore it. The level
   // is a band of the gauge, never a second reading of the coverage.
+  // Step079: the gauge also states WHAT it costs. A consequence is printed only
+  // while it is really happening (a bill with nobody thirsty is not a bill), and
+  // the departure cadence is quoted only at the maximum — the numbers come from
+  // the same helpers the tick and the panel use, so the copy cannot overstate.
   const pressureLevel = waterPressureLevel(state.waterPressure);
   if (pressureLevel !== "normal") {
+    const bill = waterEmergencyCostPerTick(state);
+    const clauses: string[] = [];
+    if (bill > 0) clauses.push(`emergency water -${bill}/tick`);
+    if (pressureLevel === "critical") {
+      const away = ticksUntilWaterDeparture(state);
+      clauses.push(
+        away === null
+          ? "population floor reached"
+          : `1 colonist leaves every ${WATER_DEPARTURE_INTERVAL_TICKS} ticks (next in ${away})`,
+      );
+    }
     alerts.push({
       severity: pressureLevel === "tension" ? "info" : "warning",
-      message: `Water pressure: ${state.waterPressure}/100 · ${pressureLevel}`,
+      message: `Water pressure: ${state.waterPressure}/100 · ${pressureLevel}${clauses.length > 0 ? " · " + clauses.join(" · ") : ""}`,
     });
   }
 

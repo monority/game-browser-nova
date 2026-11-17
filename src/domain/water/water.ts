@@ -92,6 +92,33 @@ export function updateWaterPressure(
   );
 }
 
+/**
+ * Step079 rule A: the gauge starts BILLING in the "grave" band. The number is
+ * shared with the band function below so the band and the bill can never drift.
+ */
+export const WATER_PRESSURE_GRAVE_THRESHOLD = 75;
+/**
+ * Step079 rule C: one departure every ten ticks while the gauge sits at its
+ * maximum. The cadence is read off the tick counter, which is already persisted:
+ * no crisis counter, no save migration, and a reload cannot shift the phase.
+ */
+export const WATER_DEPARTURE_INTERVAL_TICKS = 10;
+/** Below this headcount the colony can neither be drained nor rebuilt by thirst. */
+export const WATER_DEPARTURE_POPULATION_FLOOR = 2;
+
+/**
+ * Emergency water bill (Step079 rule A): one coin per colonist the tick could
+ * not serve, from pressure 75 up. Zero below the threshold and zero when nobody
+ * is thirsty — the bill states a shortage, it does not tax the gauge.
+ *
+ * The amount is bounded by the population, so it can cancel the tax income but
+ * never exceed it: the treasury stops at zero (addMoney), no debt is created.
+ */
+export function waterEmergencyCost(pressure: number, unserved: number): number {
+  if (pressure < WATER_PRESSURE_GRAVE_THRESHOLD) return 0;
+  return Math.max(0, Math.trunc(unserved));
+}
+
 export type WaterPressureLevel =
   | "normal"
   | "tension"
@@ -102,7 +129,7 @@ export type WaterPressureLevel =
 /** §6: gauge bands, deliberately not the coverage bands. */
 export function waterPressureLevel(pressure: number): WaterPressureLevel {
   if (pressure >= WATER_PRESSURE_MAX) return "critical";
-  if (pressure >= 75) return "grave";
+  if (pressure >= WATER_PRESSURE_GRAVE_THRESHOLD) return "grave";
   if (pressure >= 50) return "crisis";
   if (pressure >= 25) return "tension";
   return "normal";

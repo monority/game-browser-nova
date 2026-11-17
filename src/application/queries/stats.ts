@@ -6,9 +6,10 @@ import {
   maintenancePerTick,
   operationalBuildingCount,
   taxesPerTick,
+  waterEmergencyCostPerTick,
 } from "@/domain/economy/economy.js";
 import { plankThroughput } from "@/domain/production/transformation.js";
-import { housingCapacity } from "@/domain/population/population.js";
+import { housingCapacity, ticksUntilWaterDeparture } from "@/domain/population/population.js";
 import {
   environmentalQuality,
   pollutionFlows,
@@ -78,6 +79,17 @@ export interface ColonyStats {
   waterPressure: number;
   /** Band of the gauge: normal · tension · crisis · grave · critical. */
   waterPressureLevel: WaterPressureLevel;
+  /**
+   * Step079: colonists the coming tick cannot serve — the emergency bill's
+   * basis, read with the water law's own served count (same as coverage).
+   */
+  waterUnserved: number;
+  /** Step079: the emergency water bill in money/tick (0 below 75, 0 if all served). */
+  waterEmergencyCostPerTick: number;
+  /** Step081: consecutive ticks at maximum pressure, 0–10 (the departure clock). */
+  waterCrisisTicks: number;
+  /** Step079: ticks until the next hydric departure; null when none can occur. */
+  waterDepartureTicksAway: number | null;
   /** Workforce fact (Step057 F5): replaces the former permanent alert. */
   staffedWorkplaces: number;
   eligibleWorkplaces: number;
@@ -110,6 +122,14 @@ export function getColonyStats(state: GameState, flows?: TickFlows): ColonyStats
   const taxes = taxesPerTick(state);
   const commerce = commercePerTick(state, plankThroughput(state));
   const maintenance = maintenancePerTick(state);
+  // Step079: one reading of the served count feeds coverage, the unserved
+  // count and the bill — a second estimate is how the panel and the tick drift.
+  const servedWater = waterServed(
+    state.resources.water,
+    waterProductionPerTick(state),
+    state.population,
+  );
+  const waterBill = waterEmergencyCostPerTick(state);
   const pollution = pollutionFlows(state);
   const staffing = getStaffingOverview(state);
   const reserve = forecastFoodReserve(state);
@@ -137,19 +157,13 @@ export function getColonyStats(state: GameState, flows?: TickFlows): ColonyStats
     foodReserveStatus: reserve.status,
     waterLostPerTick: flows?.waterWasted ?? 0,
     waterCoveragePercent:
-      state.population === 0
-        ? 100
-        : Math.round(
-            (100 *
-              waterServed(
-                state.resources.water,
-                waterProductionPerTick(state),
-                state.population,
-              )) /
-              state.population,
-          ),
+      state.population === 0 ? 100 : Math.round((100 * servedWater) / state.population),
     waterPressure: state.waterPressure,
     waterPressureLevel: waterPressureLevel(state.waterPressure),
+    waterUnserved: Math.max(0, state.population - servedWater),
+    waterEmergencyCostPerTick: waterBill,
+    waterCrisisTicks: state.waterCrisisTicks,
+    waterDepartureTicksAway: ticksUntilWaterDeparture(state),
     staffedWorkplaces: staffing.staffed,
     eligibleWorkplaces: staffing.eligible,
     pollution: state.pollution,
@@ -163,7 +177,8 @@ export function getColonyStats(state: GameState, flows?: TickFlows): ColonyStats
     revenuePerTick: taxes + commerce,
     maintenancePerTick: maintenance,
     crowdingPerTick: crowdingCostPerTick(state),
-    netMoneyPerTick: taxes + commerce - maintenance - crowdingCostPerTick(state),
+    netMoneyPerTick:
+      taxes + commerce - maintenance - crowdingCostPerTick(state) - waterBill,
     connectedWorkshops: connectedWorkshops(state),
     operationalBuildings: operationalBuildingCount(state),
   };

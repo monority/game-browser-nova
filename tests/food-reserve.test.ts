@@ -230,6 +230,18 @@ describe("food reserve doctrine", () => {
     // a reserve to spare (equilibrium ~117 = 9.8 ticks).
     const state = colony(6, 5, ["cropRotation"]);
     withResidences(state, 12);
+    // Step079 fixture fix (assertions unchanged): this colony owned no well and
+    // lived on its opening stock, so under the hydric consequences it now spends
+    // the run losing colonists to thirst — the food reserve would be measured on
+    // a dying colony. Six wells produce the 12 water/tick its full population
+    // drinks, which is what the doctrine test always assumed.
+    for (let i = 0; i < 6; i++) {
+      const spot = freeCell(state);
+      const road = adjacentFree(state, spot.x, spot.y);
+      mustOk(applyCommand(state, { kind: "placeRoads", cells: [`${road.x},${road.y}`] }));
+      mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: spot.x, y: spot.y }));
+    }
+    stepTicks(state, 3);
     let minFoodDuringGrowth = Number.POSITIVE_INFINITY;
     for (let i = 0; i < 150; i++) {
       stepTicks(state, 1);

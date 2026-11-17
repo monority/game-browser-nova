@@ -39,6 +39,22 @@ export interface GameState {
    * coverage is back to 100 % — persisted so a reload cannot launder a crisis.
    */
   waterPressure: number;
+  /**
+   * Consecutive ticks the gauge has spent at its maximum (Step081, Step080
+   * model B), 0–10. One colonist leaves when it reaches 10; it drops to 0 the
+   * moment coverage returns, so an interrupted crisis restarts its count
+   * instead of resuming on the global clock. Persisted: a reload must not
+   * postpone (or advance) a departure.
+   */
+  waterCrisisTicks: number;
+  /**
+   * Whether the hydric worker reserve is engaged (Step082b, Step082a model B1).
+   * Armed by the grave band (pressure 75); released only once the ordinary
+   * order can serve at least 75 % of the colony — the band where the gauge
+   * holds instead of rising, so a release can never be followed by a re-arm.
+   * Persisted: a reload must not re-run the release.
+   */
+  waterReserveLatched: boolean;
   /** Current civilization age (progression, Step016). */
   age: number;
   /** Researched technology ids (progression, Step016). */
@@ -74,6 +90,8 @@ export function createInitialState(config: WorldConfig): GameState {
     stoneDeposits: normalizeDeposits(config.stoneDeposits ?? []),
     pollution: 0,
     waterPressure: 0,
+    waterCrisisTicks: 0,
+    waterReserveLatched: false,
     age: STARTING_AGE,
     researchedTechs: [],
     buildingCounter: 1,

@@ -1,8 +1,13 @@
 import type { GameState } from "./state.js";
 import { produceFood, produceWater, consumeFood, consumeWater } from "@/domain/production/production.js";
-import { updatePopulation } from "@/domain/population/population.js";
-import { assignJobs } from "@/domain/jobs/jobs.js";
-import { collectRevenue, payCrowding, payMaintenance } from "@/domain/economy/economy.js";
+import { updatePopulation, updateWaterCrisis } from "@/domain/population/population.js";
+import { assignJobs, updateWaterReserveLatch } from "@/domain/jobs/jobs.js";
+import {
+  collectRevenue,
+  payCrowding,
+  payMaintenance,
+  payWaterEmergency,
+} from "@/domain/economy/economy.js";
 import { updateEnvironment } from "@/domain/environment/environment.js";
 import { resolveEvents } from "@/domain/events/events.js";
 import { produceStone, produceWood } from "@/domain/production/extraction.js";
@@ -52,14 +57,18 @@ export function emptyTickFlows(): TickFlows {
  *   6. clampStorage (Step031: food/water capped, true surplus lost —
  *       runs after consumption so the clamp never eats what colonists
  *       would have consumed this tick)
- *   7. updatePopulation (gradual starvation + admission)
+ *   7. updatePopulation (gradual starvation + admission) then the hydric gauge
+ *       and applyWaterDepartures (Step079: departures read the gauge the tick
+ *       just wrote, and the next phase staffs with the smaller colony)
  *   8. updateEnvironment (pollution flows + park wood regrowth). Runs
  *       BEFORE assignJobs so emission follows the staffing set that
  *       produced THIS tick's output (assigned at the end of the previous
  *       tick, Step064) — an idling workshop emits nothing
  *   9. assignJobs (next tick's staffing)
- *   10. collectRevenue → payMaintenance → payCrowding (money model, same-tick inflow;
- *       commerce comes only from staffed workshops, Step065)
+ *   10. collectRevenue → payMaintenance → payWaterEmergency → payCrowding (money
+ *       model, same-tick inflow; commerce comes only from staffed workshops,
+ *       Step065; the emergency water bill is paid before the people's crowding
+ *       charge — survival before comfort, Step079)
  *   11. resolveEvents (Step047: expire + seeded draws; canonical phase 12
  *       of 05-SIMULATION §3 — active events feed the NEXT tick's
  *       production/commerce phases, same timing contract as staffing)
@@ -87,11 +96,25 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
   // before admission: an admitted colonist drinks from the NEXT tick.
   const waterNeed = state.population;
   const waterServed = consumeWater(state);
+  // Step079: the bill's basis is this tick's own shortfall, captured on the
+  // gauge's basis (pre-admission). A colonist admitted this tick drinks next
+  // tick, so charging for it here would bill a shortage nobody suffered.
+  const waterUnserved = Math.max(0, waterNeed - waterServed);
 
   const clamp = clampStorage(state);
 
   updatePopulation(state, fedColonists, waterServed);
   state.waterPressure = updateWaterPressure(state.waterPressure, waterServed, waterNeed);
+  // Rule C, Step081: ONE call advances the consecutive-critical counter and
+  // applies at most one departure. It reads the gauge the tick just wrote — the
+  // tick that reaches 100 is the first critical tick — and the staffing that
+  // follows already uses the smaller colony.
+  updateWaterCrisis(state);
+  // Step082b: the reserve latch is decided once per tick, on the gauge this
+  // tick wrote and on the colony the departures left behind — the assignment
+  // below must use this tick's latch, and the order it probes is the one that
+  // assignment would apply.
+  updateWaterReserveLatch(state);
 
   updateEnvironment(state);
 
@@ -99,6 +122,7 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
 
   collectRevenue(state, planksProduced);
   payMaintenance(state);
+  payWaterEmergency(state, waterUnserved); // Step079 rule B
   payCrowding(state); // Step072: the people cost more than the buildings
   resolveEvents(state);
 

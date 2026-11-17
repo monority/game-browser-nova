@@ -6,7 +6,11 @@ import type { Road } from "@/domain/road/road.js";
 import { depositCapacities, type Deposits } from "@/domain/world/deposits.js";
 import { createWorld, inBounds, isBlocked } from "@/domain/world/world.js";
 import { POLLUTION_MAX } from "@/domain/environment/environment.js";
-import { WATER_PRESSURE_MAX } from "@/domain/water/water.js";
+import {
+  WATER_DEPARTURE_INTERVAL_TICKS,
+  WATER_PRESSURE_GRAVE_THRESHOLD,
+  WATER_PRESSURE_MAX,
+} from "@/domain/water/water.js";
 import {
   EVENT_FREQUENCIES,
   EVENT_KINDS,
@@ -30,7 +34,7 @@ import type { WorldConfig } from "@/domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 20;
+export const SAVE_VERSION = 22;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 /** The single localStorage slot this game reads and writes. */
@@ -50,6 +54,10 @@ interface SaveDocument {
   pollution: number;
   /** Hydric pressure gauge, 0–100 integer (Step078). */
   waterPressure: number;
+  /** Consecutive critical ticks, 0–10 (Step081). */
+  waterCrisisTicks: number;
+  /** Hydric reserve latch (Step082b). */
+  waterReserveLatched: boolean;
   age: number;
   researchedTechs: string[];
   tick: number;
@@ -91,6 +99,8 @@ export function serialize(state: GameState): SaveDocument {
     },
     pollution: state.pollution,
     waterPressure: state.waterPressure,
+    waterCrisisTicks: state.waterCrisisTicks,
+    waterReserveLatched: state.waterReserveLatched,
     age: state.age,
     researchedTechs: [...state.researchedTechs],
     tick: state.tick,
@@ -120,7 +130,7 @@ export function parseSave(input: unknown): GameState {
       `unsupported save version: ${String(version)} (expected ${SAVE_VERSION}, migratable from ${MIGRATABLE_SAVE_VERSION})`,
     );
   }
-  // sequential migration chain: v13 -> v14 -> v15 -> v16 -> v17 -> v18 -> v19
+  // sequential migration chain: v13 -> ... -> v21 -> v22
   let doc: Record<string, unknown> = input;
   if (Number(doc.formatVersion) === 13) doc = migrateV13ToV14(doc);
   if (Number(doc.formatVersion) === 14) doc = migrateV14ToV15(doc);
@@ -129,6 +139,8 @@ export function parseSave(input: unknown): GameState {
   if (Number(doc.formatVersion) === 17) doc = migrateV17ToV18(doc);
   if (Number(doc.formatVersion) === 18) doc = migrateV18ToV19(doc);
   if (Number(doc.formatVersion) === 19) doc = migrateV19ToV20(doc);
+  if (Number(doc.formatVersion) === 20) doc = migrateV20ToV21(doc);
+  if (Number(doc.formatVersion) === 21) doc = migrateV21ToV22(doc);
 
   const world = doc.world;
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
@@ -298,6 +310,17 @@ export function parseSave(input: unknown): GameState {
       `waterPressure must be <= ${WATER_PRESSURE_MAX}`,
     );
   }
+  // Critical-tick counter (Step081): a bounded integer. A value it can never
+  // hold is corrupt data, not a plausible crisis.
+  const waterCrisisTicks = expectNonNegativeInt(doc.waterCrisisTicks, "save.waterCrisisTicks");
+  if (waterCrisisTicks > WATER_DEPARTURE_INTERVAL_TICKS) {
+    throw new SaveValidationError(
+      `waterCrisisTicks must be <= ${WATER_DEPARTURE_INTERVAL_TICKS}`,
+    );
+  }
+  // Reserve latch (Step082b): a pure boolean. Anything else is corrupt data,
+  // never a plausible staffing decision.
+  const waterReserveLatched = expectBoolean(doc.waterReserveLatched, "save.waterReserveLatched");
   // Tier1: the domain documents pollution as a 0–100 stock
   // (domain/environment/environment.ts); reject out-of-range saves.
   if (pollution > POLLUTION_MAX) {
@@ -356,6 +379,8 @@ export function parseSave(input: unknown): GameState {
     stoneDeposits,
     pollution,
     waterPressure,
+    waterCrisisTicks,
+    waterReserveLatched,
     age,
     researchedTechs,
     buildingCounter,
@@ -384,6 +409,38 @@ export function saveToString(state: GameState): string {
  * Value-preserving: a colony carried no pressure before the gauge existed, and
  * inventing a non-zero one would turn a reload into a crisis.
  */
+/**
+ * v20 -> v21 (Step081, Step080 model B): add the consecutive-critical-tick
+ * counter, defaulting to 0. Value-preserving: a Step079 save never counted
+ * ticks of crisis, and inventing progress would turn a reload into a departure.
+ * Effect: a colony saved mid-crisis restarts its ten ticks — a delay, never a
+ * departure the player did not live through.
+ */
+/**
+ * v21 -> v22 (Step082b, Step082a model B1): add the hydric reserve latch.
+ * Not a free default: before the latch, the reserve engaged whenever the gauge
+ * sat in the grave band, so a colony saved in crisis must reload armed and one
+ * saved outside it unarmed — exactly what `waterPressure >= 75` expresses.
+ * Value-preserving: a migrated colony staffs what it staffed before the load.
+ */
+function migrateV21ToV22(document: Record<string, unknown>): Record<string, unknown> {
+  const pressure = document.waterPressure;
+  return {
+    ...document,
+    formatVersion: 22,
+    waterReserveLatched:
+      typeof pressure === "number" && pressure >= WATER_PRESSURE_GRAVE_THRESHOLD,
+  };
+}
+
+function migrateV20ToV21(document: Record<string, unknown>): Record<string, unknown> {
+  return {
+    ...document,
+    formatVersion: 21,
+    waterCrisisTicks: 0,
+  };
+}
+
 function migrateV19ToV20(document: Record<string, unknown>): Record<string, unknown> {
   return {
     ...document,

@@ -69,6 +69,9 @@ export function createStatsPanel(callbacks: {
     // Step072: the people's upkeep, separate from the buildings' — the line
     // that explains why a big colony stops getting richer by itself.
     crowding: liveStatRow("  people"),
+    // Step079: the emergency water bill sits with the other expenses, where the
+    // money is read: how much, and on how many thirsty colonists (0 = inactive).
+    waterBill: liveStatRow("  water"),
     net: liveStatRow("Net money/tick"),
   };
   for (const row of Object.values(statRows)) element.appendChild(row.element);
@@ -128,8 +131,12 @@ export function createStatsPanel(callbacks: {
       `${stats.waterCoveragePercent} %`,
       stats.waterCoveragePercent < 100 ? "nova-value--danger" : "nova-value--ok",
     );
+    // Step081: at the maximum the counter is the departure clock the player is
+    // waiting on — shown as the simulation's own number, never a re-derivation.
     statRows.waterPressure.set(
-      `${stats.waterPressure} / 100 · ${stats.waterPressureLevel}`,
+      stats.waterPressureLevel === "critical"
+        ? `${stats.waterPressure} / 100 · ${stats.waterPressureLevel} · ${stats.waterCrisisTicks}/10`
+        : `${stats.waterPressure} / 100 · ${stats.waterPressureLevel}`,
       stats.waterPressureLevel === "normal" ? "nova-value--ok" : "nova-value--danger",
     );
     statRows.wood.set(String(Math.floor(stats.resources.wood)));
@@ -156,6 +163,12 @@ export function createStatsPanel(callbacks: {
     statRows.commerce.set(String(stats.commercePerTick));
     statRows.maintenance.set(String(stats.maintenancePerTick));
     statRows.crowding.set(String(stats.crowdingPerTick));
+    statRows.waterBill.set(
+      stats.waterEmergencyCostPerTick === 0
+        ? "0 · inactive"
+        : `${stats.waterEmergencyCostPerTick}/tick · ${stats.waterUnserved} unserved`,
+      stats.waterEmergencyCostPerTick > 0 ? "nova-value--danger" : "nova-value--ok",
+    );
     statRows.net.set(
       String(stats.netMoneyPerTick),
       stats.netMoneyPerTick >= 0 ? "nova-value--ok" : "nova-value--danger",

@@ -5,6 +5,8 @@ import type { BuildingType } from "@/content/buildings.js";
 import { addMoney } from "@/domain/resource/resource.js";
 import { techLevel } from "@/domain/progression/progression.js";
 import { isEventActive } from "@/domain/events/events.js";
+import { waterEmergencyCost, waterServed } from "@/domain/water/water.js";
+import { waterProductionPerTick } from "@/domain/production/production.js";
 
 /**
  * Step001 money model: revenue = 1 tax/inhabitant + 2 commerce per
@@ -168,6 +170,35 @@ export function crowdingCostPerTick(state: GameState): number {
 export function payMaintenance(state: GameState): number {
   const owed = maintenancePerTick(state);
   addMoney(state.resources, -owed); // clamps at 0: partial payment, never negative
+  return owed;
+}
+
+/**
+ * Emergency water bill, projection side (Step079 rule A): what the coming tick
+ * will charge, on the same basis as `waterCoveragePercent` — the served count
+ * of the water law, never a second estimate of the shortage. Zero below 75 and
+ * zero when nobody is thirsty, so the panel can never announce a bill that is
+ * not being paid.
+ */
+export function waterEmergencyCostPerTick(state: GameState): number {
+  const served = waterServed(
+    state.resources.water,
+    waterProductionPerTick(state),
+    state.population,
+  );
+  return waterEmergencyCost(state.waterPressure, state.population - served);
+}
+
+/**
+ * The bill itself, in the money phase (Step079 rule B). `unservedThisTick` is
+ * the tick's OWN served count (captured before admission, on the gauge's basis),
+ * not a re-derivation: a colonist admitted this tick drinks from the next one.
+ * addMoney clamps at 0, so an unpayable bill empties the treasury and stops
+ * there — no debt, and the simulation keeps running (measured scenario 3).
+ */
+export function payWaterEmergency(state: GameState, unservedThisTick: number): number {
+  const owed = waterEmergencyCost(state.waterPressure, unservedThisTick);
+  addMoney(state.resources, -owed);
   return owed;
 }
 
