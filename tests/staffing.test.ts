@@ -6,6 +6,7 @@ import { stepTicks } from "@/domain/simulation/tick.js";
 import { getStaffingOverview } from "@/application/queries/staffing.js";
 import { getAlerts } from "@/application/queries/analysis.js";
 import { getColonyStats } from "@/application/queries/stats.js";
+import { assignJobs } from "@/domain/jobs/jobs.js";
 import { mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "staffing-test", width: 16, height: 16 };
@@ -112,6 +113,60 @@ describe("getStaffingOverview (Step025)", () => {
     // at all, so an empty list is the claim — and `.every` over an empty list
     // would have said the same thing about any implementation.
     expect(getStaffingOverview(homes).entries).toHaveLength(0);
+  });
+
+
+  it("ranks by priority class, not by cell, and reports what the phase actually staffed", () => {
+    // Cell order and staffing order disagree: the well sits on x=0, the farm on
+    // x=2. Ranked by cell, the overview used to call the well first and
+    // "staffed" while the phase staffed the farm.
+    const state = bare();
+    state.resources.money = 500;
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 3), cellKey(1, 3), cellKey(2, 3)] }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 0, y: 2 }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 2, y: 2 }));
+    stepTicks(state, 2);
+
+    // One free colonist: the granary before the cistern.
+    state.population = 1;
+    stepTicks(state, 1);
+    const farm = Object.values(state.buildings).find((b) => b.type === "farm");
+    const well = Object.values(state.buildings).find((b) => b.type === "well");
+    if (!farm || !well) throw new Error("workplaces missing");
+    expect([farm.staffed, well.staffed]).toEqual([true, false]);
+
+    const overview = getStaffingOverview(state);
+    expect(overview.entries.map((e) => e.type)).toEqual(["farm", "well"]);
+    expect(overview.entries.map((e) => e.order)).toEqual([1, 2]);
+    expect(overview.entries[0]).toMatchObject({ state: "staffed", reason: null });
+    expect(overview.entries[1]).toMatchObject({ state: "idle", reason: "no-workers" });
+  });
+
+  it("mirrors the hydric reserve instead of reporting the inverse assignment", () => {
+    // During a water crisis the wells take ceil(pop/2) workers first. The old
+    // overview ignored that pass, so it showed the farm staffed and the well
+    // idle while the phase did the opposite.
+    const state = bare();
+    state.resources.money = 500;
+    mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(0, 3), cellKey(1, 3)] }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 0, y: 2 }));
+    mustOk(applyCommand(state, { kind: "placeBuilding", type: "well", x: 1, y: 2 }));
+    stepTicks(state, 2);
+
+    state.population = 1;
+    state.waterReserveLatched = true;
+    assignJobs(state);
+    const overview = getStaffingOverview(state);
+    expect(overview.staffed).toBe(1);
+    expect(overview.entries.find((e) => e.type === "well")).toMatchObject({ state: "staffed" });
+    expect(overview.entries.find((e) => e.type === "farm")).toMatchObject({
+      state: "idle",
+      reason: "no-workers",
+    });
+    // ...and the surface agrees with the flags the phase wrote.
+    const byType = new Map(Object.values(state.buildings).map((b) => [b.type, b.staffed]));
+    expect(byType.get("well")).toBe(true);
+    expect(byType.get("farm")).toBe(false);
   });
 
 });

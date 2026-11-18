@@ -15,8 +15,8 @@ import {
  * Aggregate workforce assignment (ADR-004).
  * Eligible workplace = active (operational, not mothballed), job capacity > 0,
  * road-adjacent (staffing requires road access). Colonists fill workplaces
- * greedily in canonical order (y asc, x asc, id); capacity 1 per documented
- * contract.
+ * greedily in priority-class order, then canonical order (y asc, x asc, id)
+ * inside a class; capacity 1 per documented contract.
  *
  * Timing contract: assignJobs runs as the LAST phase of a tick, so a
  * newly operational workplace is staffed next tick — production phases
@@ -31,11 +31,21 @@ export function isEligibleWorkplace(state: GameState, building: Building): boole
 }
 
 /**
- * Who gets the workers first (Step070). Placement order used to decide it: a
- * colony whose wells and shops happened to sit on lower cells could leave
- * farms idle next door, and since a staffed farm yields exactly one colonist's
- * food, one unstaffed farm means the granary can never fill. The colony eats
- * first, drinks second, and only then works the shops and the wood.
+ * Who gets the workers first (Step070, re-measured by the Phase 0 audit).
+ *
+ * Placement order used to decide it: a colony whose wells and shops happened to
+ * sit on lower cells could leave farms idle next door, and since a staffed farm
+ * yields exactly one colonist's food, one unstaffed farm means the granary can
+ * never fill. The colony eats first, drinks second.
+ *
+ * The third class is one bucket ranked by cell, and that is a MEASURED decision,
+ * not an oversight: ranking extraction before transformation was tried and
+ * rejected on the Phase 0 audit. It bought planks early (3 → 33 by t=400 on the
+ * governed line) but capped the run at 60 colonists instead of 86 and left Age 3
+ * unreachable, because a camp holding the last worker cannot feed a colony that
+ * has no free workers left. Name the cause, do not reorder the bucket: the
+ * overview reports an idle workplace as "no-workers", which is the truth a
+ * player can act on (build housing, mothball, or wait for a farm tech).
  */
 function staffPriority(type: Building["type"]): number {
   if (type === "farm") return 0;
@@ -44,8 +54,9 @@ function staffPriority(type: Building["type"]): number {
 }
 
 /** Eligible workplaces in staffing order — the ONE home of that order, read by
- *  the assignment and by the ordinary-order probe of the reserve latch. */
-function staffingOrder(state: GameState): Building[] {
+ *  the assignment, by the ordinary-order probe of the reserve latch and by the
+ *  read-only staffing overview — so the surface cannot disagree with the phase. */
+export function staffingOrder(state: GameState): Building[] {
   return Object.values(state.buildings)
     .filter((b) => isEligibleWorkplace(state, b))
     .sort((a, b) => staffPriority(a.type) - staffPriority(b.type) || compareCellsWithId(a, b));
@@ -139,11 +150,18 @@ export function waterWorkerReserve(state: GameState): number {
   return Math.ceil(state.population / 2);
 }
 
-export function assignJobs(state: GameState): void {
-  for (const building of Object.values(state.buildings)) {
-    building.staffed = false;
-  }
-
+/**
+ * The workplaces this tick's assignment gives, by id — pure, locals only.
+ *
+ * `assignJobs` and the read-only staffing overview both read it, so the surface
+ * cannot claim a workplace is staffed while the simulation leaves it idle.
+ * Before the Phase 0 audit the overview re-derived the order by cell alone (a
+ * workshop on y=1 came before the camp actually staffed on y=2) and knew
+ * nothing of the hydric reserve, so during a water crisis it reported the farms
+ * as staffed and the wells as idle — the exact inverse of the phase.
+ */
+export function staffingAssignment(state: GameState): Set<string> {
+  const assigned = new Set<string>();
   const ordered = staffingOrder(state);
 
   let remaining = state.population;
@@ -162,18 +180,29 @@ export function assignJobs(state: GameState): void {
       if (well.type !== "well") continue;
       const capacity = BUILDING_DEFINITIONS[well.type].jobCapacity;
       if (reserved + capacity > reserve) break;
-      well.staffed = true;
+      assigned.add(well.id);
       reserved += capacity;
       remaining -= capacity;
     }
   }
 
   // Second pass: the usual order (farms, then the wells the reserve did not
-  // cover, then everything else), skipping what the first pass already staffed.
+  // cover, then the single tail class ranked by cell), skipping what the first
+  // pass already staffed.
   for (const workplace of ordered) {
-    if (workplace.staffed) continue;
+    if (assigned.has(workplace.id)) continue;
     if (remaining <= 0) break;
-    workplace.staffed = true;
+    assigned.add(workplace.id);
     remaining -= BUILDING_DEFINITIONS[workplace.type].jobCapacity;
+  }
+
+  return assigned;
+}
+
+/** The tick's staffing phase: one source of truth, written onto the buildings. */
+export function assignJobs(state: GameState): void {
+  const assigned = staffingAssignment(state);
+  for (const building of Object.values(state.buildings)) {
+    building.staffed = assigned.has(building.id);
   }
 }

@@ -1,7 +1,7 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import type { Building } from "@/domain/building/building.js";
 import type { BuildingType } from "@/content/buildings.js";
-import { isEligibleWorkplace } from "@/domain/jobs/jobs.js";
+import { staffingAssignment, staffingOrder } from "@/domain/jobs/jobs.js";
 import { compareCellsWithId } from "@/domain/shared/cells.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 
@@ -10,10 +10,12 @@ import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
  * assignment computed by the simulation's assignJobs phase. Presentation
  * logic only — no rule is redefined here:
  *
- * - eligible mirrors assignJobs exactly: isActive (operational + not
- *   mothballed), jobCapacity > 0, road-adjacent;
- * - rank is the canonical staffing order (y asc, x asc, id) — the greedy
- *   order workers fill in;
+ * - eligible and rank come from `staffingOrder`, the simulation's own order
+ *   (priority class: food, water, then everything else; y, x, id inside a class);
+ * - staffed comes from `staffingAssignment`, the same greedy pass the tick's
+ *   last phase runs, hydric reserve included. Both used to be re-derived here
+ *   by cell order alone, which let the surface show a workshop as staffed while
+ *   the simulation staffed the camp behind it (Phase 0 audit);
  * - state/reason answer "why is this workplace not staffed?" with states,
  *   never instructions (design rule §7).
  */
@@ -27,7 +29,7 @@ interface StaffingEntry {
   type: BuildingType;
   x: number;
   y: number;
-  /** 1-based rank among eligible workplaces in canonical order; null when not eligible. */
+  /** 1-based rank among eligible workplaces in staffing order; null when not eligible. */
   order: number | null;
   state: StaffingState;
   reason: IdleReason;
@@ -52,17 +54,8 @@ export function getStaffingOverview(state: GameState): StaffingOverview {
     .filter((b) => BUILDING_DEFINITIONS[b.type].jobCapacity > 0)
     .sort(compareCellsWithId);
 
-  const eligible = workplaces.filter((b) => isEligibleWorkplace(state, b));
-
-  // Mirror the greedy assignment: workers fill eligible workplaces in rank
-  // order until the workforce is exhausted.
-  const staffedIds = new Set<string>();
-  let remaining = state.population;
-  for (const workplace of eligible) {
-    if (remaining <= 0) break;
-    staffedIds.add(workplace.id);
-    remaining -= BUILDING_DEFINITIONS[workplace.type].jobCapacity;
-  }
+  const eligible = staffingOrder(state);
+  const staffedIds = staffingAssignment(state);
 
   const rankById = new Map(eligible.map((b, index) => [b.id, index + 1]));
   const eligibleTotal = eligible.length;
