@@ -62,6 +62,12 @@ jobs:
       - name: Unit tests
         run: pnpm test
 
+      # Six journeys through the cockpit (idle hold, labour ceiling, farm repair,
+      # famine, save resume, determinism) — 4.1 s measured, so the gate that
+      # catches "the game stopped being a game" is cheap enough to run every push.
+      - name: Scenario playtests
+        run: pnpm test:scenarios
+
       # The probe reports whether the suite can still fail; the full table
       # (70 mutations in 12 batches, ~10 min) stays a local measurement, so CI
       # runs the five marked core laws (28.9-33.2 s measured). Without this step

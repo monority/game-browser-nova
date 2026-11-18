@@ -13,7 +13,7 @@
     "build": "tsc -p tsconfig.build.json && vite build",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "check": "pnpm run typecheck && pnpm run lint && pnpm run test:audit && pnpm run test && pnpm run test:mutations:fast",
+    "check": "pnpm run typecheck && pnpm run lint && pnpm run test:audit && pnpm run test && pnpm run test:scenarios && pnpm run test:mutations:fast",
     "verify": "pnpm run check && pnpm run build && pnpm run test:e2e",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -24,7 +24,8 @@
     "evaluate": "node tools/agent/evaluate.mjs",
     "test:mutations": "node tools/testing/probe-mutations.mjs",
     "test:mutations:fast": "node tools/testing/probe-mutations.mjs --fast",
-    "test:audit": "node tools/testing/audit-vacuity.mjs"
+    "test:audit": "node tools/testing/audit-vacuity.mjs",
+    "test:scenarios": "node tools/agent/check-scenarios.mjs"
   },
   "dependencies": {
     "three": "^0.170.0"
