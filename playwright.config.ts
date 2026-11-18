@@ -7,7 +7,10 @@ export default defineConfig({
   workers: 1,
   // The HTML report is always written (never auto-opened) so CI can upload
   // it on failure; traces/screenshots are kept for failing journeys only.
-  reporter: [["list"], ["html", { open: "never" }]],
+  // The JSON report is what `tools/testing/report-e2e-failures.mjs` replays into CI
+  // annotations: a red step otherwise says only "exit code 1", and the failing
+  // journey's name lives in an artifact that needs an authenticated download.
+  reporter: [["list"], ["html", { open: "never" }], ["json", { outputFile: "test-results/results.json" }]],
   use: {
     baseURL: "http://localhost:5273",
     headless: true,

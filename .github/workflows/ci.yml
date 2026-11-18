@@ -86,6 +86,14 @@ jobs:
       - name: E2E (Playwright)
         run: pnpm test:e2e
 
+      # A red E2E step records only "exit code 1": the journey's name lives in the
+      # artifact, which needs an authenticated download, so runs 95 and 97 were red
+      # with no public way to say which of the 17 journeys broke. Workflow commands
+      # become annotations, which are readable without a token.
+      - name: Name the failing journeys
+        if: failure()
+        run: node tools/testing/report-e2e-failures.mjs
+
       - name: Upload test artifacts on failure
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
