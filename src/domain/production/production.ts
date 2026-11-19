@@ -94,13 +94,26 @@ export function produceFood(state: GameState): void {
   addFood(state.resources, foodProductionPerTick(state));
 }
 
-/** Well yield includes the technology lever (+1 per `wellWater` tech) and the
- * drought event reduction (Step047: 2 → 1/tick, taper-aware P1 Step049; the
- * reduction is a flat -1, so a tech well goes 3 → 2 under drought). */
+/**
+ * What one well serves when nothing is going wrong: the base two plus the
+ * technology lever (+1 per `wellWater` tech). This is the number a BUILD PLAN
+ * must size on — capacity is nominal, and a drought is an event the water
+ * stock absorbs, not a reason to build twice the wells (D2, measured
+ * 2026-11-19: the yield-based target built 13 wells for 12 colonists and freed
+ * nobody). Never write the 2 down next to it: ask this function.
+ */
+export function nominalWaterPerWell(state: GameState): number {
+  return WATER_PER_WELL_PER_TICK + techLevel(state, "wellWater");
+}
+
+/** What one well serves THIS tick: the nominal yield minus the drought
+ * reduction (Step047: 2 → 1/tick, taper-aware P1 Step049; the reduction is a
+ * flat -1, so a tech well goes 3 → 2 under drought). This is the number the
+ * hydric reserve reads — during a drought the colony really needs more wells
+ * staffed to keep everybody drinking. */
 export function waterPerWell(state: GameState): number {
   return (
-    WATER_PER_WELL_PER_TICK +
-    techLevel(state, "wellWater") -
+    nominalWaterPerWell(state) -
     (isEventEffectTick(state, "drought") ? DROUGHT_WATER_REDUCTION_PER_WELL : 0)
   );
 }

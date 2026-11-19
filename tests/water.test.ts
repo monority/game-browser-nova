@@ -15,7 +15,11 @@ import {
 } from "@/domain/water/water.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { techLevel } from "@/domain/progression/progression.js";
-import { WATER_PER_WELL_PER_TICK, waterPerWell } from "@/domain/production/production.js";
+import {
+  WATER_PER_WELL_PER_TICK,
+  nominalWaterPerWell,
+  waterPerWell,
+} from "@/domain/production/production.js";
 import { waterWorkerReserve } from "@/domain/jobs/jobs.js";
 import { stripToAnchor } from "./helpers.js";
 
@@ -181,9 +185,14 @@ describe("well productivity (option C, out of the shipped catalogue — D1)", ()
     expect(techLevel(state, "wellWater")).toBe(1);
     expect(waterPerWell(state)).toBe(WATER_PER_WELL_PER_TICK + 1);
     expect(Math.ceil(10 / waterPerWell(state))).toBe(4);
+    // D2: the NOMINAL yield is what a build plan sizes on (capacity), and the
+    // drought is what the tick and the hydric reserve read (a stock event the
+    // cistern absorbs). Two questions, two numbers, both read from the law.
+    expect(nominalWaterPerWell(state)).toBe(WATER_PER_WELL_PER_TICK + 1);
     // Drought stays a flat removal, not a fraction: a shafted well goes 3 -> 2,
-    // exactly as the plain well went 2 -> 1.
+    // exactly as the plain well went 2 -> 1 — and the nominal is untouched.
     state.events = [{ kind: "drought", ticksLeft: 9 }];
+    expect(nominalWaterPerWell(state)).toBe(WATER_PER_WELL_PER_TICK + 1);
     expect(waterPerWell(state)).toBe(WATER_PER_WELL_PER_TICK);
   });
   // Step088: the grave-band reserve used to write the yield down as a 2, while

@@ -5,7 +5,7 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { allRoadCells } from "@/domain/road/road.js";
 import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
-import { foodProductionPerTick } from "@/domain/production/production.js";
+import { foodProductionPerTick, nominalWaterPerWell } from "@/domain/production/production.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
 import { canAdvanceAge } from "@/domain/progression/progression.js";
 import { foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
@@ -372,7 +372,10 @@ export function playGame(
       ],
       [!banking && housing < capNow && pop >= housing && money > 60, () => tryBuild("residence", false, 20)],
       [!banking && countType(state, "farm") < reserve.farms && money > 60, () => tryBuild("farm", true, 20)],
-      [!banking && countType(state, "well") < Math.ceil(pop / 2) + 1 && money > 60, () => tryBuild("well", true, 20)],
+      // D2 (2026-11-19): size on the NOMINAL yield read from the law, never on a
+      // written-down 2 — the +1 stays the margin, and a drought is absorbed by the
+      // water stock rather than by capacity.
+      [!banking && countType(state, "well") < Math.ceil(pop / nominalWaterPerWell(state)) + 1 && money > 60, () => tryBuild("well", true, 20)],
       [!banking && countType(state, "lumberCamp") < 1 && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
       [!banking && countType(state, "quarry") < 1 && state.resources.planks >= 5 && money > 60, () => tryBuildNearDeposit("quarry", state.stoneDeposits, true, 20)],
       // Step074: up to three parks. One was enough while growth stopped at
