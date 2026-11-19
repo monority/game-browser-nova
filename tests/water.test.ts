@@ -13,6 +13,10 @@ import {
   waterServed,
   waterState,
 } from "@/domain/water/water.js";
+import { applyCommand } from "@/domain/simulation/commands.js";
+import { techLevel } from "@/domain/progression/progression.js";
+import { WATER_PER_WELL_PER_TICK, waterPerWell } from "@/domain/production/production.js";
+import { waterWorkerReserve } from "@/domain/jobs/jobs.js";
 import { stripToAnchor } from "./helpers.js";
 
 /**
@@ -145,5 +149,59 @@ describe("water pressure in the tick", () => {
     expect(a.waterPressure).toBe(WATER_PRESSURE_MAX);
     expect(b.waterPressure).toBe(WATER_PRESSURE_MAX);
     expect(saveToString(a)).toBe(saveToString(b));
+  });
+});
+
+describe("well productivity (option C, out of the shipped catalogue — D1)", () => {
+  it("refuses to sell the third mouth per well while D2 and D4 are undecided", () => {
+    // docs/rebalance/v0.1/decisions/D1-option-c.md, decided 2026-11-19: the
+    // lever stays in the file (the measurements it produced must stay
+    // reproducible) but the player is never offered it. The refusal lives in
+    // the command, not only in the UI list, so a harness or a stale client
+    // cannot buy what the catalogue no longer shows.
+    const state = createInitialState(CONFIG);
+    stripToAnchor(state);
+    state.resources.money = 500;
+    const refused = applyCommand(state, { kind: "researchTech", techId: "wellShafts" });
+    expect(refused.ok).toBe(false);
+    expect(refused.ok ? "ok" : refused.reason).toBe("techNotAvailable");
+    expect(state.researchedTechs).not.toContain("wellShafts");
+    expect(state.resources.money).toBe(500); // nothing is deducted
+    expect(waterPerWell(state)).toBe(WATER_PER_WELL_PER_TICK);
+  });
+
+  it("still reads the third mouth from a save that carries the lever", () => {
+    // The arithmetic the option exists for: 10 colonists need 5 wells at
+    // 2/tick and 4 at 3/tick, so the third mouth hands one post back to
+    // industry. Measured the only way the lever can appear now — seeded the
+    // way a loaded save carries it, since nothing can buy it.
+    const state = createInitialState(CONFIG);
+    stripToAnchor(state);
+    state.researchedTechs.push("wellShafts");
+    expect(techLevel(state, "wellWater")).toBe(1);
+    expect(waterPerWell(state)).toBe(WATER_PER_WELL_PER_TICK + 1);
+    expect(Math.ceil(10 / waterPerWell(state))).toBe(4);
+    // Drought stays a flat removal, not a fraction: a shafted well goes 3 -> 2,
+    // exactly as the plain well went 2 -> 1.
+    state.events = [{ kind: "drought", ticksLeft: 9 }];
+    expect(waterPerWell(state)).toBe(WATER_PER_WELL_PER_TICK);
+  });
+  // Step088: the grave-band reserve used to write the yield down as a 2, while
+  // ordinaryWaterCapacity (same file) already read waterPerWell. One colony,
+  // two hypotheses, the closed loop the project forbids. The reserve now reads
+  // the law, so a shafted well serves three mouths and frees a post; drought
+  // (a flat -1) puts the count back where it was.
+  it("sizes the grave-band reserve from the yield, not from a written-down two", () => {
+    const state = createInitialState(CONFIG);
+    stripToAnchor(state);
+    state.population = 12;
+    state.waterReserveLatched = false;
+    expect(waterWorkerReserve(state)).toBe(0); // not latched, no reserve
+    state.waterReserveLatched = true;
+    expect(waterWorkerReserve(state)).toBe(6); // ceil(12 / 2), the plain well
+    state.researchedTechs.push("wellShafts");
+    expect(waterWorkerReserve(state)).toBe(4); // ceil(12 / 3), the shafted well
+    state.events = [{ kind: "drought", ticksLeft: 9 }];
+    expect(waterWorkerReserve(state)).toBe(6); // 3 -> 2 under drought
   });
 });

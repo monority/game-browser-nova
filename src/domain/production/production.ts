@@ -94,11 +94,13 @@ export function produceFood(state: GameState): void {
   addFood(state.resources, foodProductionPerTick(state));
 }
 
-/** Well yield includes the drought event reduction (Step047: 2 → 1/tick,
- * taper-aware P1 Step049). */
+/** Well yield includes the technology lever (+1 per `wellWater` tech) and the
+ * drought event reduction (Step047: 2 → 1/tick, taper-aware P1 Step049; the
+ * reduction is a flat -1, so a tech well goes 3 → 2 under drought). */
 export function waterPerWell(state: GameState): number {
   return (
-    WATER_PER_WELL_PER_TICK -
+    WATER_PER_WELL_PER_TICK +
+    techLevel(state, "wellWater") -
     (isEventEffectTick(state, "drought") ? DROUGHT_WATER_REDUCTION_PER_WELL : 0)
   );
 }
@@ -116,7 +118,7 @@ export function waterProductionPerTick(state: GameState): number {
   return produced;
 }
 
-/** Staffed operational wells produce water (drought halves each well, Step047). */
+/** Staffed operational wells produce water (tech-boosted; drought removes 1/well, Step047). */
 export function produceWater(state: GameState): void {
   addWater(state.resources, waterProductionPerTick(state));
 }

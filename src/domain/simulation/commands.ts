@@ -135,6 +135,9 @@ function applySetBuildingActive(state: GameState, id: string, active: boolean): 
 function applyResearchTech(state: GameState, techId: string): CommandResult {
   const definition = TECH_DEFINITIONS[techId];
   if (!definition) return { ok: false, reason: "unknownTech" };
+  // Out of the shipped catalogue (D1): refusing here, not only in the UI list,
+  // keeps a harness or a stale client from buying what the player cannot see.
+  if (definition.shipped === false) return { ok: false, reason: "techNotAvailable" };
   if (definition.age > state.age) return { ok: false, reason: "techRequiresLaterAge" };
   if (hasTech(state, techId)) return { ok: false, reason: "alreadyResearched" };
   if (state.resources.money < definition.cost) {

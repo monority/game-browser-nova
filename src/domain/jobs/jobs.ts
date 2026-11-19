@@ -136,8 +136,11 @@ export function updateWaterReserveLatch(state: GameState): void {
  * farms took the workers one by one as the colony shrank, water produced fell to
  * 2 then 0, and the population drained to the floor without ever recovering.
  *
- * The reserve is BOUNDED BY THE NEED, not by the number of wells: two water per
- * well serve two colonists, so `ceil(population / 2)` wells cover everybody.
+ * The reserve is BOUNDED BY THE NEED, not by the number of wells: a well serves
+ * `waterPerWell` colonists, so `ceil(population / waterPerWell)` wells cover
+ * everybody. The need is READ FROM THE LAW, never written down here (Step088):
+ * with the Well Shafts technology a well serves three, so the same colony needs
+ * one well fewer; under drought the flat -1 puts the count back where it was.
  * Armed only by the grave band or by a latch that has not been released yet
  * (Step082b) — below it, the colony keeps its Step070 farm-first order.
  *
@@ -147,7 +150,9 @@ export function updateWaterReserveLatch(state: GameState): void {
  */
 export function waterWorkerReserve(state: GameState): number {
   if (!state.waterReserveLatched) return 0;
-  return Math.ceil(state.population / 2);
+  // max(1, …) is a floor against a future effect that would zero the yield:
+  // the reserve then claims every well instead of dividing by zero.
+  return Math.ceil(state.population / Math.max(1, waterPerWell(state)));
 }
 
 /**

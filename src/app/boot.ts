@@ -98,7 +98,10 @@ export function boot(root: HTMLElement): { stop(): void } {
       milestones,
       canAdvance: canAdvanceAge(state),
       availableTechs: Object.values(TECH_DEFINITIONS)
-        .filter((t) => t.age <= state.age && !hasTech(state, t.id))
+        // D1: a prototype outside the shipped catalogue is never offered.
+        .filter(
+          (t) => t.shipped !== false && t.age <= state.age && !hasTech(state, t.id),
+        )
         .map((t) => ({ id: t.id, displayName: t.displayName, cost: t.cost })),
       researchedTechs: [...state.researchedTechs],
     });
