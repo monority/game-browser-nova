@@ -26,12 +26,12 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `main` (origin: https://github.com/monority/game-browser-nova; default branch on GitHub, CI on `main`) |
-| HEAD | `2602ce2` — the last commit this file describes (vitest 4.1, gate fixes, lint globals, 20/11). The docs are Git-ignored except this file, so there is no docs commit above it; this line names the code commit it vouches for. |
+| HEAD | `2602ce2` — the last code commit this file describes (vitest 4.1, gate fixes, lint globals, 20/11). `docs/` became versioned on 20/11 (§Documentation), so this table now travels with the code it describes instead of living only on one machine. |
 | Working tree | CLEAN, nothing held back as of 20/11 evening: `f3e7116` (D3/D6), `07c55f7` (W1 allocation + inspector), `77f73d9` (road adjacency by lookup, 4.9-5.4 s -> 2.8-2.9 s on a 3000-tick governed run), `cc55521` (save-loader bounds), `0a802b7` (vitest 4.1), `fa3374d` (probe and audit follow the road refactor), `2602ce2` (lint globals) are committed on `main`. Push state is whatever `git status` says — never encoded here. |
 
 | E2E on this sandbox | `LD_LIBRARY_PATH=~/.local/pwlibs/usr/lib/x86_64-linux-gnu:~/.local/lib node node_modules/@playwright/test/cli.js test e2e/<spec>.spec.ts` — without that path Chromium exits 127 on `libglib-2.0.so.0` and every journey fails at launch, not on an assertion. |
 | Package manager | `pnpm` 11.21.0 required. The global binary needs `libatomic.so.1`: it fails in the agent container until `LD_LIBRARY_PATH` points at the cached Debian trixie libraries (`~/.cache/nova-e2e/root`), which is how `pnpm verify` ran on 2026-11-11. Without that path the `./node_modules/.bin/*` equivalents perform the same steps. |
-| Documentation | Canonical durable copy in the project vault at `05-Projects/nova`; repository `docs/STATE.md` is the single versioned status exception; the rest of `docs/` is a local working mirror |
+| Documentation | **Versioned since 2026-11-20**: the whole `docs/` tree is in Git (146 files, 1.8 MB) — decisions, audits, roadmap, ADRs, the game design contract and this file. The project vault at `05-Projects/nova` remains a copy, no longer the only durable one; the earlier rule (only `STATE.md` published) is retired because it left measured decisions, including the W1 proof, on a single disk. |
 | D6 workshop rate (2026-11-20, evening) | Owner's ADR applied: `PLANKS_PER_WORKSHOP_PER_TICK = 1 → 2` (`transformation.ts`), palette label and `transformation.test.ts` recipe updated, governor tick budget made a parameter (default unchanged). Six-scenario grid at both rates in `tests/measure-throughput.test.ts` (`MEASURE_THROUGHPUT=1`, opt-in) and `rebalance/v0.1/decisions/D6-workshop-rate.md` §4: growing line 28 → 78 colonists, expansion 28 → 40, hydric scenario unchanged, 3 301 idle coins on a 3 000-tick run. No other law, cost or save touched. |
 | Design audit (2026-11-20) | `DESIGN-ALIGNMENT.md`, `GAMEPLAY-TRACEABILITY.md` and `DESIGN-DECISIONS.md` created; `rebalance/v0.1/REBALANCE-ROADMAP.md` revised to v0.3 (§11–§17); stale claims corrected with dated notes in `game/07` (milestones, tech count, save version), `game/00` §11 (tech count, save version), `decisions/D4` §1.2 (building costs) and `GAME-DESIGN-ECONOMY-RESOURCES` §9 (costs). No code, no balance, no save change. |
 | Node version | v24.22.2 used for the 2026-11-10 validation; `package.json` requires `>=24.19.0` |
@@ -88,7 +88,7 @@ Update these values from actual command output.
 Only confirmed issues belong here.
 
 The rows that are closed, superseded or resolved moved **verbatim**, with their
-measurements, to `docs/archive/known-issues.md` (local working mirror, not published —
+measurements, to `docs/archive/known-issues.md` (versioned since 20/11 —
 see the Documentation row above) on 2026-11-17: what remains below is what still needs
 a decision, so a reader no longer has to sort live problems from their history.
 

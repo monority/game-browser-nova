@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="fr">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Copier un bilan — NOVA</title>
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    margin: 0; padding: 24px;
+    font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    max-width: 62rem; margin-inline: auto;
+  }
+  h1 { font-size: 1.25rem; margin: 0 0 4px; }
+  .aide { margin: 0 0 20px; opacity: .7; font-size: .9rem; }
+  .barre {
+    display: flex; flex-wrap: wrap; gap: 10px; align-items: center;
+    position: sticky; top: 0; padding: 12px 0;
+    background: Canvas; border-bottom: 1px solid color-mix(in srgb, CanvasText 15%, Canvas);
+  }
+  select, button { font: inherit; padding: 9px 14px; border-radius: 8px; }
+  select { border: 1px solid color-mix(in srgb, CanvasText 25%, Canvas); background: Canvas; color: CanvasText; }
+  #copier {
+    border: 0; cursor: pointer; font-weight: 600;
+    background: #1f6feb; color: #fff;
+  }
+  #copier:hover { background: #1a5fd0; }
+  #copier:active { transform: translateY(1px); }
+  #etat { font-size: .9rem; min-height: 1.4em; }
+  #etat.ok { color: #1a7f37; font-weight: 600; }
+  #etat.ko { color: #b35900; font-weight: 600; }
+  pre {
+    margin: 16px 0 40px; padding: 16px; border-radius: 10px;
+    background: color-mix(in srgb, CanvasText 6%, Canvas);
+    border: 1px solid color-mix(in srgb, CanvasText 12%, Canvas);
+    white-space: pre-wrap; word-break: break-word;
+    font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    max-height: 60vh; overflow: auto;
+  }
+</style>
+<body>
+<h1>Copier un bilan</h1>
+<p class="aide">Choisis le bilan, clique sur « Copier le bilan », puis colle-le où tu veux (Ctrl+V / Cmd+V).</p>
+
+<div class="barre">
+  <select id="fichier" aria-label="Bilan à copier"></select>
+  <button id="copier" type="button">Copier le bilan</button>
+  <span id="etat" role="status" aria-live="polite"></span>
+</div>
+
+<pre id="texte"></pre>
+
+<script>
+const BILANS = [{"nom":"BILAN-2026-11-19.md","texte":"# NOVA — Bilan complet, 19 novembre 2026\n\n## 1. En une ligne\n\nLe jeu se joue, se gagne et se perd — mais deux ressources sur quatre ne servent\nà rien, et l'argent s'accumule sans emploi. Ce sont ces deux trous-là que la\nrebalance doit boucher, pas la survie.\n\n## 2. Le dépôt\n\n| | |\n|---|---|\n| Branche | `main`, à jour avec `origin/main` |\n| Dernier commit | `6e7e593` — la doctrine des puits lit le rendement nominal |\n| Arbre de travail | propre, rien en attente |\n| Historique | nettoyé : plus aucune trace de `Codebuff` ni de `nova-agent` |\n| Branches distantes | `main` seule (celle de Dependabot est supprimée) |\n\nValidation, mesurée le 19/11 :\n\n- 193 tests unitaires, tous verts, 5,1 s ;\n- `tsc` et `eslint` propres ;\n- audit de vacuité : 39 fichiers, 208 tests déclarés, 0 test qui ne peut pas échouer ;\n- 17 tests navigateur dans 8 fichiers — dernier passage complet vert, 1,8 min.\n\nDette de validation : la CI a rendu l'E2E rouge 2 fois sur 4 à cause de la\ncontention du runner, pas du code. Les deux causes ont été trouvées et\ncorrigées, mais ce harnais n'est pas encore de confiance — et 17 tests\nnavigateur, c'est peu pour un jeu de construction.\n\n## 3. Le jeu tel qu'il tourne\n\nLa boucle : tu construis (25 pièces), tu staffes, ça produit, tu paies\nl'entretien, tu montes d'âge.\n\n| Ce qui produit | Rendement | Coût |\n|---|---|---|\n| Ferme (1 ouvrier) | +2 nourriture/tick | 25 pièces |\n| Puits (1 ouvrier) | +2 eau/tick (1 en sécheresse) | 25 pièces |\n| Atelier | +3 pièces/tick même sans ouvrier | 25 pièces |\n| Camp de bûcherons | +bois | 25 pièces |\n| Carrière | +2 pierre/tick | 25 pièces + 5 planches |\n| Entrepôt | +60 nourriture, +40 eau de capacité | 25 pièces + 2 planches |\n\nL'argent : taxes + commerce − entretien − coût par tête. Les technologies\ncoûtent de 50 à 1 200 pièces. Les paliers d'âge demandent population, bâtiments,\nnourriture stockée et technologies.\n\nLa nourriture se perd : 3 % du stock par tick. C'est ce qui empêche de poser le\njeu et de laisser la réserve grossir.\n\n## 4. Ce qui tient\n\n- La survie est un vrai problème, correctement posé : eau, nourriture,\n  pollution, marge de main-d'œuvre. Le joueur peut échouer, et il comprend\n  pourquoi (les alertes disent la cause, pas seulement le symptôme).\n- La progression par âges fonctionne : âge 2 et âge 3 sont atteignables,\n  mesurés sur des parties réelles.\n- Le diagnostic en jeu est bon : chaque chiffre du panneau vient du tick\n  lui-même, pas d'une seconde approximation.\n- La qualité du code : TypeScript strict, une loi par fichier, 70 mutations\n  testées (le code est-il vraiment surveillé par les tests ?), 0 test creux.\n\n## 5. Ce qui ne tient pas\n\na) La pierre est morte. Aucun bâtiment ne la demande, aucune technologie, aucun\n   palier d'âge. On l'extrait, on la stocke, elle ne ressort jamais. La carrière\n   coûte 5 planches pour produire du néant.\n\nb) Les planches sont presque mortes. Deux usages : la carrière (5) et l'entrepôt\n   (2). Sur une partie mesurée : 443 planches produites, jamais dépensées.\n\nc) L'argent s'accumule. L'option C mesurée laissait près de 6 000 pièces sans\n   emploi, sur une carte remplie, sans achat restant. Ce n'est pas un problème\n   de montant : c'est qu'il n'y a rien à acheter avec.\n\nd) Le plafond de population à 60 n'est pas un plafond du jeu. Le diagnostic est\n   net : c'est un plafond de financement du logement. Le joueur n'a pas d'argent\n   pour construire les maisons, alors que 13 travailleurs sont libres. Ne pas\n   ajouter de plafond, ne pas viser 60 comme valeur : ce n'est pas une\n   constante.\n\ne) La bande de crise ne s'arme jamais. Sur 1 500 ticks avec sécheresses\n   fréquentes : 0 tick. Conséquence gênante — quand l'eau ne manque jamais, on\n   ne peut pas juger les décisions qui concernent l'eau (la marge des puits, le\n   retour de la techno de puits).\n\n## 6. Les cinq décisions\n\n| Fiche | Question | État |\n|---|---|---|\n| D1 — la techno de puits | La garder, la modifier, la retirer ? | Tranchée et appliquée : elle reste dans le code mais sort du catalogue livré. Refus propre, panneau filtré. Réouverture après D2/D4. |\n| D2 — la construction des puits | Compter les puits sur le rendement réel ? | Mesurée, doctrine arrêtée : on compte sur le rendement nominal, pas celui du jour. Restent ouverts : la marge +1 (non prouvée) et l'affichage au joueur. |\n| D3 — la pierre | Un consommateur, ou on retire la carrière ? | Ouverte. Recommandation : un bâtiment d'âge 2 qui exige de la pierre ; ne pas retirer la carrière avant de l'avoir mesuré. |\n| D4 — la monnaie | À quoi sert l'argent après l'ouverture ? | Ouverte. Recommandation : une dépense répétée liée au parc (entretien), jamais un palier de trésorerie à atteindre. |\n| D5 — la fin | Comment la partie se termine ? | Ouverte. Recommandation : objectif de développement à plusieurs critères ; la partie ne s'arrête que si la population tombe à zéro. |\n\nOrdre de dépendance : D1 → D2, et D1/D3 → D4 → D5.\n\n## 7. Ce qui est mesuré, et ce qui ne l'est pas\n\nMesuré, chiffres à l'appui :\n\n- compter les puits sur le rendement du jour, sous sécheresse : 13 puits au lieu\n  de 7, 1 917 pièces et 126 planches dépensées en plus, zéro colon servi en plus ;\n- la croissance est identique dans les deux doctrines : 43 puits (pop 86) contre\n  40 (pop 81) — parce que la contrainte réelle, c'est l'argent, pas la doctrine\n  de dimensionnement ;\n- la réserve hydrique sur-construisait de 2 puits à 12 colons, à cause d'un 2\n  écrit en dur au lieu d'être lu dans la loi. Corrigé.\n\nNon mesuré, donc supposé :\n\n- que la marge +1 du plan de construction protège de quelque chose ;\n- que le joueur sur-construit ou sous-construit des puits ;\n- la valeur d'une réserve d'eau, la sécheresse étant désactivée par défaut ;\n- qu'un bâtiment consommant de la pierre suffira à rendre la carrière utile.\n\n## 8. La dette technique nommée\n\n| Réf. | Problème | Impact |\n|---|---|---|\n| F14 | Les pertes de nourriture sont calculées mais jamais cumulées | Le joueur ne peut pas savoir combien il a perdu |\n| F15 | Pas de prévision « stock → plein » | Le joueur découvre le débordement quand il arrive |\n| F16 | L'entrepôt est une non-décision : « mon grenier est plein » → « achète de la capacité » | Une réponse mécanique à la place d'un choix |\n\n## 9. Ce que je ferais, dans l'ordre\n\n1. Fabriquer un cas où l'eau manque vraiment. Sans ça, la marge des puits et la\n   réouverture de D1 resteront des discussions sans preuve. C'est un trou dans le\n   harnais, pas dans le jeu.\n2. Trancher D3 (la pierre). Elle est indépendante, elle a une question simple :\n   les planches s'accumulent — soit un bâtiment les consomme, soit la carrière ne\n   sert à rien. Attention : si on met la pierre dans le coût des bâtiments\n   existants, on renchérit la croissance pour tout le monde. Et la pierre vient\n   de gisements finis : un bâtiment qui en dépend doit avoir une réponse quand la\n   carte est vide.\n3. Puis D4 (l'argent). Elle attend D3, parce que le débouché monétaire le plus\n   naturel — entretenir un parc — n'a de sens que si le parc produit quelque\n   chose de désiré.\n4. D5 en dernier, quand on saura à quoi ressemble une partie finie.\n\nDeux corrections de forme à noter : la feuille de route dit encore « arbitrage en attente » sur D2 (c'est maintenant « doctrine arrêtée, deux points ouverts »), et\nla ligne HEAD de docs/STATE.md nomme encore 88900bc au lieu de 6e7e593.\n"}];
+const choix = document.getElementById("fichier");
+const zone = document.getElementById("texte");
+const bouton = document.getElementById("copier");
+const etat = document.getElementById("etat");
+let courant = BILANS[0];
+
+for (const b of BILANS) {
+  const o = document.createElement("option");
+  o.value = b.nom;
+  o.textContent = b.nom;
+  choix.append(o);
+}
+
+function afficher() {
+  zone.textContent = courant.texte;
+  etat.textContent = "";
+  etat.className = "";
+}
+
+choix.addEventListener("change", () => {
+  courant = BILANS.find((b) => b.nom === choix.value) || BILANS[0];
+  afficher();
+});
+
+bouton.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(courant.texte);
+    etat.textContent = "Copié ✓ (" + courant.texte.length + " caractères) — colle avec Ctrl+V";
+    etat.className = "ok";
+    return;
+  } catch {
+    // Repli : sélectionne tout, l'utilisateur n'a plus qu'à faire Ctrl+C.
+    const plage = document.createRange();
+    plage.selectNodeContents(zone);
+    const sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(plage);
+    let fait = false;
+    try { fait = document.execCommand("copy"); } catch { fait = false; }
+    if (fait) {
+      etat.textContent = "Copié ✓ (" + courant.texte.length + " caractères)";
+      etat.className = "ok";
+    } else {
+      etat.textContent = "Texte sélectionné — appuie sur Ctrl+C (Cmd+C sur Mac)";
+      etat.className = "ko";
+    }
+  }
+});
+
+afficher();
+</script>
+</body>
+</html>

@@ -16,6 +16,3 @@ playwright-report/
 # local playtest harness and its generated artifacts (never published)
 playtest/
 
-# internal engineering docs (only the live state file is published)
-docs/*
-!docs/STATE.md
