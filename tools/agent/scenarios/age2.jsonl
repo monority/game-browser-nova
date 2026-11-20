@@ -22,10 +22,16 @@
 # Measured (Step068): HEALTHY at t=780 in Age 2 with pop 16/16, money 1152
 # (net +5/tick), 35 buildings, 6 farms = 19 food and 8 wells = 16 water,
 # 16 workplaces for 16 workers, pollution 0, every age-2 milestone done.
+# Re-measured 2026-11-20 (Step083 pollution rule + the W1 allocation law):
+# HEALTHY at t=780 in Age 2, pop 16/16, money 932 (net +4/tick), 34 buildings,
+# same food and water, 0 rejected command. The treasury is 220 lower than the
+# Step068 figure; the milestones still pass.
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
-{"cmd":"build","type":"park","x":11,"y":1}
+# The park this line used to buy is part of the shipped opening (D2):
+# building it again is refused as "occupied", so the step is gone rather than
+# left as a silent no-op.
 {"cmd":"tick","n":300}
 {"cmd":"report"}
 {"cmd":"do","command":{"kind":"placeRoads","cells":["19,2","21,2"]}}

@@ -2,7 +2,12 @@
 # Step064 side effect). Three workshops bought on day 0 for 75$ on cells that
 # already touch a road: the colony has 10 workers for 5 farms + 5 wells, so all
 # three idle. Under the shipped rule they still earn their 2/tick connection
-# floor and, since Step064, emit nothing — the park no longer prices industry.
+# floor AND they still cost the air: Step083 superseded Step064's staffing gate,
+# because free revenue with no labour and no emission was the park's counterweight
+# removed (see environment.ts). Measured 2026-11-20: pollution 100 by t=90,
+# admission frozen, verdict CRITICAL at t=300 with money +4/tick — i.e. this
+# line is the measured counter-example, not a bug. It is deliberately NOT in
+# `check-scenarios`; if you want it gated, assert `critical`.
 #
 # Run: node tools/agent/run.mjs --json --quiet \
 #        --script tools/agent/scenarios/idle-industry.jsonl

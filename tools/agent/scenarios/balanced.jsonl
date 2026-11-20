@@ -14,17 +14,26 @@
 #      point once conservation takes 3%/tick — the colony then starves on the
 #      boundary, one death and one admission per tick (measured).
 #   2. One park absorbs 2/tick against the workshops' 2/tick: net 0, quality
-#      100. The second park of the Step060 line was pure upkeep (Step068).
+#      100. The second park of the Step060 line was pure upkeep (Step068), and
+#      the one that is left now ships with the opening (D2) — see the note
+#      below, where the line used to build it.
 #   3. Capacity is bought in the order that gates admission: water first,
 #      then housing. Money is the tight constraint (~232$ on hand), so one
 #      road cell is shared by two wells and the last two residences wait for
 #      the tax of the first four to land.
 # End state (Step068, measured): pop 16/16, food 78 -> 81 (a 5.1-tick
 # reserve, 19 produced for 16 eaten), water 25, pollution 0, money 952.
+# Re-measured 2026-11-20 (Step083 pollution rule + the W1 allocation law):
+# HEALTHY at t=540 and t=660, pop 16/16, food 43 -> 40 (prod 19, eaten 16,
+# spoiled 2, net +1/tick), water 80, pollution 0, money 617 -> 857, 0 rejected
+# command. The money differs because the park is no longer bought here; the
+# refused step used to lay its 5$ approach road anyway (measured 612 -> 852).
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
-{"cmd":"build","type":"park","x":11,"y":1}
+# The park this line used to buy is part of the shipped opening (D2):
+# building it again is refused as "occupied", so the step is gone rather than
+# left as a silent no-op.
 {"cmd":"tick","n":300}
 {"cmd":"report"}
 {"cmd":"do","command":{"kind":"placeRoads","cells":["19,2","21,2"]}}

@@ -82,9 +82,10 @@ export function emptyTickFlows(): TickFlows {
  *       and applyWaterDepartures (Step079: departures read the gauge the tick
  *       just wrote, and the next phase staffs with the smaller colony)
  *   8. updateEnvironment (pollution flows + park wood regrowth). Runs
- *       BEFORE assignJobs so emission follows the staffing set that
- *       produced THIS tick's output (assigned at the end of the previous
- *       tick, Step064) — an idling workshop emits nothing
+ *       BEFORE assignJobs, so the flows of a tick settle before the next
+ *       staffing set is chosen. Emission is NOT gated on staffing (Step083,
+ *       superseding Step064): an idle connected workshop still earns its
+ *       2/tick floor, and what trades costs the air
  *   9. assignJobs (next tick's staffing)
  *   10. collectRevenue → payMaintenance → payWaterEmergency → payCrowding (money
  *       model, same-tick inflow; commerce comes only from staffed workshops,

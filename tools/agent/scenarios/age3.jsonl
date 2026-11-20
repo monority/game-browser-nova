@@ -21,7 +21,18 @@
 #      is in fact staffed here.
 #   3. Residences are upkeep-exempt (Step021): the 6 new ones raise housing to
 #      22 and cost nothing per tick.
-# Measured (Step068): HEALTHY at t=1140 with pop 22/22, money 3295
+# Re-measured 2026-11-20 (Step083 pollution rule + the W1 allocation law +
+# D3's plank-costed housing): HEALTHY at t=1140 in Age 2 (pop 17/17, money
+# 1160) and age 3 opens at t=1141 (HEALTHY, money 1161, 42 buildings). The
+# five residences at the end of this line are REFUSED with
+# `insufficientPlanks`: since D3 a residence costs 1 plank and no money, and
+# this colony makes no planks. A wood line (lumber camp + workshop) is not a
+# two-line patch — measured insertion at pop 17: upkeep -3/tick, money 0,
+# pollution 100, verdict CRITICAL — so re-planning this endgame is an open
+# decision, not a test fix. Until then the line settles at pop 17.
+#
+# Measured (Step068, superseded by the re-measurement above): HEALTHY at t=1140
+# with pop 22/22, money 3295
 # (net +7/tick), 47 buildings, food 75 (3.4 ticks) and water 15, 22 jobs for
 # 22 colonists, pollution 0 (2 parks against 3 staffed workshops, net -1);
 # every age-2 milestone done,
@@ -32,7 +43,9 @@
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
-{"cmd":"build","type":"park","x":11,"y":1}
+# The park this line used to buy is part of the shipped opening (D2):
+# building it again is refused as "occupied", so the step is gone rather than
+# left as a silent no-op.
 {"cmd":"tick","n":300}
 {"cmd":"report"}
 {"cmd":"do","command":{"kind":"placeRoads","cells":["19,2","21,2"]}}
