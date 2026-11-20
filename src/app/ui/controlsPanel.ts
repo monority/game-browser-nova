@@ -44,7 +44,12 @@ const OVERLAY_LEGENDS: Record<OverlayMode, string> = {
 /** Button label without the age suffix (base palette labels). */
 function paletteLabel(type: BuildingType): string {
   const definition = BUILDING_DEFINITIONS[type];
-  return `${definition.displayName} (${definition.moneyCost}$${definition.plankCost > 0 ? ` +${definition.plankCost}pl` : ""})`;
+  const cost = [
+    definition.moneyCost > 0 ? `${definition.moneyCost}$` : "",
+    definition.plankCost > 0 ? `${definition.plankCost}pl` : "",
+    definition.stoneCost > 0 ? `${definition.stoneCost}st` : "",
+  ].filter((part) => part.length > 0);
+  return `${definition.displayName} (${cost.join(" + ")})`;
 }
 
 /** Mark one button active in its row; clears the siblings' data-active. */

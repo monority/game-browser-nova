@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cellKey, parseCellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import {
@@ -13,12 +13,12 @@ import {
 } from "@/domain/environment/environment.js";
 import { getColonyStats } from "@/application/queries/stats.js";
 import { parseSave, serialize } from "@/application/persistence/save.js";
-import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { stockedState, adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "env-test", width: 16, height: 16 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 /** Matured connected workshop + residence (the polluting pair), pop 1. */

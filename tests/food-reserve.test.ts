@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { FOOD_PER_COLONY_CENTER_PER_TICK, foodPerFarm } from "@/domain/production/production.js";
 import { planFoodReserve, forecastFoodReserve, FOOD_RESERVE_TICKS } from "@/domain/storage/reserve.js";
 import { foodEquilibriumStock } from "@/domain/storage/spoilage.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
-import { mustOk, stripToAnchor, freeCell, adjacentFree } from "./helpers.js";
+import { stockedState, mustOk, stripToAnchor, freeCell, adjacentFree } from "./helpers.js";
 import type { WorldConfig } from "@/domain/world/world.js";
 
 /**
@@ -33,7 +33,7 @@ const CONFIG: WorldConfig = {
  * it — the question here is food, not growth).
  */
 function colony(population: number, farms: number, techs: string[] = []): GameState {
-  const state = createInitialState(CONFIG);
+  const state = stockedState(CONFIG);
   stripToAnchor(state);
   state.researchedTechs = [...techs];
   state.resources.money = 1000;
@@ -102,7 +102,7 @@ describe("food reserve doctrine", () => {
   it("never plans production equal to consumption", () => {
     for (const population of [6, 10, 12, 16, 18, 22, 24]) {
       for (const techs of [[], ["cropRotation"], ["cropRotation", "irrigation"]]) {
-        const state = createInitialState(CONFIG);
+        const state = stockedState(CONFIG);
         state.population = population;
         state.researchedTechs = techs;
         const plan = planFoodReserve(state);
@@ -157,7 +157,7 @@ describe("food reserve doctrine", () => {
   it("asks for storage when the target reserve cannot fit", () => {
     // pop 42 needs a 210-unit reserve; the base granary is 180 (Step070, three
     // day-0 stocks), so the target genuinely does not fit.
-    const state = createInitialState(CONFIG);
+    const state = stockedState(CONFIG);
     state.population = 42;
     state.researchedTechs = ["cropRotation", "irrigation"]; // 4 food/farm
     const tight = planFoodReserve(state);
@@ -232,7 +232,7 @@ describe("food reserve doctrine", () => {
     // 0..12 warehouses × yields 2..5, the first equilibrium that reaches the
     // target never lands in the last unit below the cap (0 cases) — the ladder steps by
     // yield / spoilage rate, i.e. 67 units or more, across a one-unit window.
-    const state = createInitialState(CONFIG);
+    const state = stockedState(CONFIG);
     state.population = 36;
     const plan = planFoodReserve(state);
     expect(plan.target).toBe(180);
@@ -248,7 +248,7 @@ describe("food reserve doctrine", () => {
     // in the candidate scan) only shows here, not in the choice above the
     // target: measured over pop 1..40 × 0..12 warehouses × yields 2..5, the
     // first equilibrium that reaches the target never lands in the last unit below the cap.
-    const state = createInitialState(CONFIG);
+    const state = stockedState(CONFIG);
     state.population = 79;
     const plan = planFoodReserve(state);
     expect(plan.farms).toBe(42);

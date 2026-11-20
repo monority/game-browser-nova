@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { getResourceSummaries } from "@/application/queries/analysis.js";
 import { foodProductionPerTick } from "@/domain/production/production.js";
 import { waterCapacity } from "@/domain/storage/storage.js";
-import { adjacentFree, freeCell, mustOk } from "./helpers.js";
+import { stockedState, adjacentFree, freeCell, mustOk } from "./helpers.js";
 
 /**
  * Step054 scenario E — famine recovery (F13 option B), deterministic
@@ -105,7 +105,7 @@ interface Run {
 }
 
 function run(spec: Spec): Run {
-  const state = createInitialState(CONFIG);
+  const state = stockedState(CONFIG);
   state.resources.money = 5000;
   restFactories(state);
   build(state, "farm", spec.farms);

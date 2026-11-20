@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import type { GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { isAdjacentToRoad } from "@/domain/network/network.js";
 import type { BuildingType } from "@/content/buildings.js";
-import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { freeCell, mustOk, stockedState, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "build-test", width: 16, height: 16 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 function buildingOf(state: GameState, id: string) {
@@ -40,9 +40,25 @@ describe("building placement", () => {
       ok: false,
       reason: "unknownBuildingType",
     });
-    state.resources.money = 10;
+    // Materials are checked before money (D3): planks for a farm, stone for
+    // a warehouse, money only for the civic park.
+    state.resources.planks = 0;
     const poor = freeCell(state);
     expect(applyCommand(state, { kind: "placeBuilding", type: "farm", x: poor.x, y: poor.y })).toEqual({
+      ok: false,
+      reason: "insufficientPlanks",
+    });
+    state.resources.planks = 200;
+    state.resources.stone = 7;
+    const stonePoor = freeCell(state);
+    expect(applyCommand(state, { kind: "placeBuilding", type: "warehouse", x: stonePoor.x, y: stonePoor.y })).toEqual({
+      ok: false,
+      reason: "insufficientStone",
+    });
+    state.resources.stone = 200;
+    state.resources.money = 10;
+    const moneyPoor = freeCell(state);
+    expect(applyCommand(state, { kind: "placeBuilding", type: "park", x: moneyPoor.x, y: moneyPoor.y })).toEqual({
       ok: false,
       reason: "insufficientMoney",
     });

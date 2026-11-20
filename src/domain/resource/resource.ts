@@ -84,3 +84,9 @@ export function deductPlanks(stock: ResourceStock, amount: number): number {
   stock.planks -= taken;
   return taken;
 }
+
+export function deductStone(stock: ResourceStock, amount: number): number {
+  const taken = Math.min(stock.stone, amount);
+  stock.stone -= taken;
+  return taken;
+}

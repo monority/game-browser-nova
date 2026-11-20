@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { allRoadCells } from "@/domain/road/road.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
-import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { stockedState, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 /**
  * Road-specific contracts (Step048 backfill, audit coverage gap): the
@@ -22,7 +22,7 @@ const CONFIG = {
 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 describe("road placement validation", () => {

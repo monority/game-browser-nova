@@ -6,7 +6,7 @@ export const BUILDING_DETAIL: Record<BuildingType, string> = {
   residence: "Houses 1 colonist",
   farm: "+2 food/tick when staffed (tech adds more)",
   well: "+2 water/tick when staffed",
-  workshop: "+2 commerce/tick when connected (works without workers) · +1/tick while producing planks · 2 Wood → 1 Plank · emits 1 pollution/tick",
+  workshop: "+2 commerce/tick when connected (works without workers) · +2/tick while producing planks · 2 Wood → 2 Planks · emits 1 pollution/tick",
   lumberCamp: "+2 Wood/tick from adjacent deposits (staffed)",
   quarry: "+2 Stone/tick from adjacent deposits (staffed; tech adds more) · emits pollution",
   park: "Absorbs 2 pollution/tick, regrows 1 adjacent wood/tick",

@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import type { GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { getColonyStats } from "@/application/queries/stats.js";
 import { clampStorage, foodCapacity, waterCapacity } from "@/domain/storage/storage.js";
-import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { freeCell, mustOk, stripToAnchor , stockedState} from "./helpers.js";
 
 const CONFIG = { seed: "storage-test", width: 16, height: 16 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 /** Funded isolated colony, then an operational warehouse (2-tick build). */

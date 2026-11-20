@@ -1,18 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { addWater } from "@/domain/resource/resource.js";
 import { consumeWater, waterProductionPerTick } from "@/domain/production/production.js";
 import { getResourceSummaries, getAlerts } from "@/application/queries/analysis.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
-import { mustOk, stripToAnchor } from "./helpers.js";
+import { stockedState, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "analysis-test", width: 16, height: 16 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 /** Matured farm + residence + road; pop 1 staffs the farm. */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { emptyTickFlows, stepSimulation, stepTicks } from "@/domain/simulation/tick.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
@@ -13,7 +13,7 @@ import { getResourceSummaries } from "@/application/queries/analysis.js";
 import { getColonyStats } from "@/application/queries/stats.js";
 import { saveToString } from "@/application/persistence/save.js";
 import { run } from "../tools/agent/play.js";
-import { mustOk, stripToAnchor, freeCell, adjacentFree } from "./helpers.js";
+import { stockedState, mustOk, stripToAnchor, freeCell, adjacentFree } from "./helpers.js";
 import type { WorldConfig } from "@/domain/world/world.js";
 
 /**
@@ -55,7 +55,7 @@ interface ColonySpec {
  * state, not the tick that built it.
  */
 function colony(spec: ColonySpec): GameState {
-  const state = createInitialState(CONFIG);
+  const state = stockedState(CONFIG);
   stripToAnchor(state);
   state.eventsEnabled = false; // the forecast measures the law, not a windfall
   state.researchedTechs = [...(spec.techs ?? [])];

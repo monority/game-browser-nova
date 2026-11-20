@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { housingCapacity } from "@/domain/population/population.js";
@@ -10,13 +10,13 @@ import {
   MIGRATABLE_SAVE_VERSION,
   SaveValidationError,
 } from "@/application/persistence/save.js";
-import { freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { stockedState, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 import { allRoadCells } from "@/domain/road/road.js";
 
 const CONFIG = { seed: "deactivate-test", width: 16, height: 16 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 /** First free vertical 3-cell strip with a free adjacent column, deterministically. */

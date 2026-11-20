@@ -21,7 +21,8 @@ export type PlacementValidation =
         | "ageLocked"
         | "insufficientMoney"
         | "insufficientWater"
-        | "insufficientPlanks";
+        | "insufficientPlanks"
+        | "insufficientStone";
     };
 
 export function validatePlacement(
@@ -73,6 +74,11 @@ export function validatePlacement(
   // (mirrors the Water rule, Step006).
   if (state.resources.planks < definition.plankCost) {
     return { ok: false, reason: "insufficientPlanks" };
+  }
+  // Stone mirrors the plank rule: a direct stock check, never masked by the
+  // same-tick quarry output (D3, 2026-11-20).
+  if (state.resources.stone < definition.stoneCost) {
+    return { ok: false, reason: "insufficientStone" };
   }
 
   return { ok: true };

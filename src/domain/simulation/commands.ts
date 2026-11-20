@@ -3,7 +3,7 @@ import { validatePlacement, validateRoads, validateRemoval, validateRoadRemoval,
 import { createBuilding } from "@/domain/building/building.js";
 import { createRoad } from "@/domain/road/road.js";
 import { parseCellKey } from "@/domain/shared/cells.js";
-import { deductMoney, deductPlanks, deductWater } from "@/domain/resource/resource.js";
+import { deductMoney, deductPlanks, deductStone, deductWater } from "@/domain/resource/resource.js";
 import { canAdvanceAge, hasTech } from "@/domain/progression/progression.js";
 import { TECH_DEFINITIONS } from "@/content/techs.js";
 import type { EventFrequency } from "@/domain/events/events.js";
@@ -67,6 +67,7 @@ function applyPlaceBuilding(
   deductMoney(state.resources, definition.moneyCost);
   deductWater(state.resources, definition.waterCost);
   deductPlanks(state.resources, definition.plankCost); // atomic, clamped >= 0
+  deductStone(state.resources, definition.stoneCost); // atomic, clamped >= 0
 
   const id = `building-${state.buildingCounter}`;
   state.buildingCounter += 1;

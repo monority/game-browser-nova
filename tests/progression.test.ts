@@ -1,16 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { hasTech } from "@/domain/progression/progression.js";
 import { SAVE_VERSION, parseSave, serialize } from "@/application/persistence/save.js";
-import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { stockedState, adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 const CONFIG = { seed: "progression-test", width: 16, height: 16 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 function staffedBuilding(state: GameState, type: "farm" | "workshop"): void {

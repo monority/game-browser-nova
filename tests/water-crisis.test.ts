@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
 import { allRoadCells } from "@/domain/road/road.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepSimulation, stepTicks } from "@/domain/simulation/tick.js";
 import {
@@ -40,7 +40,7 @@ import {
   taxesPerTick,
   waterEmergencyCostPerTick,
 } from "@/domain/economy/economy.js";
-import { adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
+import { stockedState, adjacentFree, freeCell, mustOk, stripToAnchor } from "./helpers.js";
 
 /**
  * Step079 — the consequences of a prolonged hydric crisis, on the tick's own
@@ -56,7 +56,7 @@ const CONFIG = { seed: "water-crisis-test", width: 16, height: 16 };
 
 /** Anchor-only colony with no wells: the tick serves exactly the stock. */
 function crisisState(population: number, water: number): GameState {
-  const state = createInitialState(CONFIG);
+  const state = stockedState(CONFIG);
   stripToAnchor(state);
   state.population = population;
   state.resources.food = 1000;
@@ -448,7 +448,7 @@ describe("hydric worker reserve (Step081 rule C)", () => {
     pressure: number,
     wellsWithRoad = true,
   ): GameState {
-    const state = createInitialState(CONFIG);
+    const state = stockedState(CONFIG);
     stripToAnchor(state);
     state.resources.money = 10000;
     state.resources.food = 1000;
@@ -678,7 +678,7 @@ describe("hydric worker reserve (Step081 rule C)", () => {
 
 describe("save v22 (Step082b latch)", () => {
   it("round-trips the latch exactly", () => {
-    const state = createInitialState(CONFIG);
+    const state = stockedState(CONFIG);
     state.waterReserveLatched = true;
     expect(parseSaveString(saveToString(state)).waterReserveLatched).toBe(true);
     state.waterReserveLatched = false;
@@ -686,7 +686,7 @@ describe("save v22 (Step082b latch)", () => {
   });
 
   it("migrates a v21 save: armed in the grave band, unarmed below it", () => {
-    const state = createInitialState(CONFIG);
+    const state = stockedState(CONFIG);
     const legacy: Record<string, unknown> = { ...serialize(state), formatVersion: 21 };
     delete legacy.waterReserveLatched;
     expect(parseSave({ ...legacy, waterPressure: 75 }).waterReserveLatched).toBe(true);
@@ -695,7 +695,7 @@ describe("save v22 (Step082b latch)", () => {
 
   it("rejects a latch that is not a boolean", () => {
     const doc: Record<string, unknown> = {
-      ...serialize(createInitialState(CONFIG)),
+      ...serialize(stockedState(CONFIG)),
       waterReserveLatched: 1,
     };
     expect(() => parseSave(doc)).toThrow();

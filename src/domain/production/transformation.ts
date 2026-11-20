@@ -6,8 +6,9 @@ import { compareCellsWithId } from "@/domain/shared/cells.js";
 
 /**
  * First physical transformation (Step006 contract, corrected Step039).
- * Every staffed operational Workshop consumes 2 Wood and produces 1 Plank
- * per tick. The batch is per workshop: a workshop with no full batch
+ * Every staffed operational Workshop consumes 2 Wood and produces 2 Planks
+ * per tick (ADR atelier, 2026-11-20). The batch is per workshop: a workshop
+ * with no full batch
  * produces nothing (no partial plank), but a wood shortfall stops only the
  * workshops it cannot feed — it never zeroes the whole chain.
  *
@@ -22,7 +23,13 @@ import { compareCellsWithId } from "@/domain/shared/cells.js";
  */
 
 export const WOOD_PER_PLANK_BATCH = 2;
-export const PLANKS_PER_WORKSHOP_PER_TICK = 1;
+/**
+ * 2 planks per tick (ADR atelier, 2026-11-20, owner's decision). At 1/tick the
+ * colony's survival jobs ate every worker and industry never opened: measured
+ * 24-28 inhabitants at the housing cap, 287 ticks with four unstaffed
+ * workshops. The wood cost stays 2, so the recipe is 2 Wood → 2 Planks.
+ */
+export const PLANKS_PER_WORKSHOP_PER_TICK = 2;
 
 /** Staffed operational workshops, canonical order (y, x, id). */
 function transformingCandidates(state: GameState): Building[] {

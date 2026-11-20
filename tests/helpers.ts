@@ -1,5 +1,5 @@
 import { cellKey } from "@/domain/shared/cells.js";
-import type { GameState } from "@/domain/simulation/state.js";
+import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { allRoadCells } from "@/domain/road/road.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 
@@ -69,4 +69,17 @@ export function stripToAnchor(state: GameState): void {
     const result = applyCommand(state, { kind: "removeRoads", cells: [...road.cells] });
     if (!result.ok) throw new Error("strip roads failed: " + result.reason);
   }
+}
+
+/**
+ * Fixture state for tests that are NOT about construction cost. Since D3
+ * (2026-11-20) placement is paid in planks and stone, so a fixture that builds
+ * freely is granted a stock. Cost tests keep calling createInitialState and set
+ * their own materials, or assert the day-0 stock.
+ */
+export function stockedState(config: Parameters<typeof createInitialState>[0]): GameState {
+  const state = createInitialState(config);
+  state.resources.planks += 200;
+  state.resources.stone += 200;
+  return state;
 }

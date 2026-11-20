@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
-import { createInitialState, type GameState } from "@/domain/simulation/state.js";
+import { type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { WOOD_PER_LUMBER_CAMP_PER_TICK } from "@/domain/production/extraction.js";
 import { normalizeDeposits } from "@/domain/world/deposits.js";
-import { mustOk, neighborsOf, stripToAnchor } from "./helpers.js";
+import { stockedState, mustOk, neighborsOf, stripToAnchor } from "./helpers.js";
 
 /**
  * Tick timeline (verified): a 2-tick building placed before stepTicks(2)
@@ -22,7 +22,7 @@ const CONFIG = {
 };
 
 function freshState(): GameState {
-  return createInitialState(CONFIG);
+  return stockedState(CONFIG);
 }
 
 /** Staffed extraction building adjacent to a given deposit cell; 1 production tick ready. */
@@ -90,7 +90,7 @@ describe("wood extraction (Step003 contract)", () => {
 
 describe("deposit placement protection", () => {
   it("refuses buildings on deposits and normalizes + dedupes deposit seeds", () => {
-    const base = createInitialState({ seed: "protect-test", width: 16, height: 16 });
+    const base = stockedState({ seed: "protect-test", width: 16, height: 16 });
     const free = (skip: Set<string>) => {
       for (let y = 0; y < 16; y++) {
         for (let x = 0; x < 16; x++) {
@@ -102,7 +102,7 @@ describe("deposit placement protection", () => {
     };
     const c1 = free(new Set());
     const c2 = free(new Set([cellKey(c1.x, c1.y)]));
-    const state = createInitialState({
+    const state = stockedState({
       seed: "protect-test",
       width: 16,
       height: 16,

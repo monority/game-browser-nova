@@ -171,6 +171,15 @@ const D2_FARMS = 5;
 const D2_WELLS = 5;
 const D2_WORKSHOPS = 2;
 const D2_PARKS = 1;
+/**
+ * Starter planks (D3, 2026-11-20). Construction is paid in materials and the
+ * workshops need wood the colony does not stock on day 0, while day 0 has 10
+ * inhabitants for 12 job slots: without a stock, no workshop is staffed, no
+ * plank is made, no residence is built — a closed loop. Measured at 12 planks
+ * (six light buildings), the opening breaks by building one residence, which
+ * frees the eleventh worker for a workshop.
+ */
+const D2_PLANKS = 12;
 // Tier1: exported as the single source of truth — storage derives its
 // base capacities from these (storage.ts), so the two can no longer drift.
 export const D2_FOOD = 60;
@@ -237,4 +246,5 @@ function composeD2Colony(state: GameState): void {
   state.population = D2_POPULATION;
   state.resources.food = D2_FOOD;
   state.resources.water = D2_WATER;
+  state.resources.planks = D2_PLANKS;
 }
