@@ -246,4 +246,28 @@ describe("save rejection (corrupt data never loads as valid)", () => {
       })),
     ).toThrow(/blocked cell/);
   });
+
+  it("refuses a save that asks for more work than a colony could hold", () => {
+    const doc = serialize(state);
+    // Terrain is regenerated from the config before any field is validated, so
+    // an unbounded world is a way to freeze the loader rather than corrupt it.
+    expect(() =>
+      parseSave({ ...doc, world: { ...doc.world, width: 100000, height: 100000 } }),
+    ).toThrow(/too large/);
+    expect(() =>
+      parseSave({
+        ...doc,
+        world: {
+          ...doc.world,
+          blockedCells: Array.from({ length: doc.world.width * doc.world.height + 1 }, () => "0,0"),
+        },
+      }),
+    ).toThrow(/more than the .* cells the world has/);
+    expect(() =>
+      parseSave({
+        ...doc,
+        events: Array.from({ length: 1_025 }, () => ({ kind: "drought", ticksLeft: 1 })),
+      }),
+    ).toThrow(/a colony can carry/);
+  });
 });

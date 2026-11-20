@@ -37,6 +37,16 @@ import type { WorldConfig } from "@/domain/world/world.js";
 export const SAVE_VERSION = 22;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
+/**
+ * Sanity bound on a loaded map, in cells — NOT a design limit (the shipped
+ * worlds are 16×16). Terrain is regenerated from the config before any other
+ * field is validated, so a corrupt document asking for a 100000×100000 world
+ * would spend the whole budget seeding obstacles before a single field could be
+ * rejected. A map this large is corrupt data, never a colony.
+ */
+const MAX_SAVE_CELLS = 65_536;
+/** Same reasoning for a list a corrupt document could inflate without bound. */
+const MAX_SAVE_EVENTS = 1_024;
 /** The single localStorage slot this game reads and writes. */
 export const SAVE_STORAGE_KEY = "nova-save";
 
@@ -146,7 +156,17 @@ export function parseSave(input: unknown): GameState {
   if (!isRecord(world)) throw new SaveValidationError("save.world missing");
   const width = expectPositiveInt(world.width, "world.width");
   const height = expectPositiveInt(world.height, "world.height");
+  if (width * height > MAX_SAVE_CELLS) {
+    throw new SaveValidationError(
+      `world is too large: ${width}×${height} exceeds ${MAX_SAVE_CELLS} cells`,
+    );
+  }
   const blockedCells = expectCellKeyArray(world.blockedCells, "world.blockedCells");
+  if (blockedCells.length > width * height) {
+    throw new SaveValidationError(
+      `world.blockedCells holds ${blockedCells.length} entries, more than the ${width * height} cells the world has`,
+    );
+  }
   const woodSeeds = expectDepositSeeds(world.woodDeposits, "world.woodDeposits");
   const stoneSeeds = expectDepositSeeds(world.stoneDeposits, "world.stoneDeposits");
   const bounds = { width, height };
@@ -347,6 +367,11 @@ export function parseSave(input: unknown): GameState {
   // Controlled events (Step047): strict shape — unknown kinds/frequencies
   // are corrupt data, never plausible state.
   if (!Array.isArray(doc.events)) throw new SaveValidationError("save.events must be an array");
+  if (doc.events.length > MAX_SAVE_EVENTS) {
+    throw new SaveValidationError(
+      `save.events holds ${doc.events.length} events, more than the ${MAX_SAVE_EVENTS} a colony can carry`,
+    );
+  }
   const events: ActiveEvent[] = [];
   for (const raw of doc.events) {
     if (!isRecord(raw)) throw new SaveValidationError("event must be an object");
