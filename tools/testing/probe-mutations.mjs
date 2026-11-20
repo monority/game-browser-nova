@@ -182,7 +182,7 @@ const MUTATIONS = [
     batch: 3,
     fast: true,
     file: "src/domain/jobs/jobs.ts",
-    find: "    BUILDING_DEFINITIONS[building.type].jobCapacity > 0 &&\n    isAdjacentToRoad(state.roads, building.x, building.y)",
+    find: "    BUILDING_DEFINITIONS[building.type].jobCapacity > 0 &&\n    isAdjacentToCells(roadCells, building.x, building.y)",
     replace: "    BUILDING_DEFINITIONS[building.type].jobCapacity > 0",
   },
   {

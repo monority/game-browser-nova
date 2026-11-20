@@ -503,8 +503,11 @@ function measure(scenario: Scenario): Metrics {
   return m;
 }
 
-describe.skipIf(!ENABLED)("ADR atelier — grille multi-scénarios", () => {
-  it("mesure chaque scénario au débit courant", () => {
+describe("ADR atelier — grille multi-scénarios", () => {
+  // The env gate sits on the test, not on the describe: a blocked describe reads
+  // as a block with no test to the vacuity audit, and an off probe must still
+  // leave `pnpm check` green (vitest 4 also refuses a file with no test).
+  it.skipIf(!ENABLED)("mesure chaque scénario au débit courant", () => {
     const results = [
       ...SCENARIOS_BASELINE,
       ...C1_SCENARIOS,

@@ -127,7 +127,17 @@ function blocks(src) {
   const re = /\b(describe|it|test)(\.\w+)?\s*\(/g;
   let match;
   while ((match = re.exec(src))) {
-    const openParen = src.indexOf("(", match.index);
+    let openParen = src.indexOf("(", match.index);
+    // `it.skipIf(cond)(name, fn)` (and `it.each(table)(name, fn)`, `it.fails(...)`)
+    // spell the modifier as a call of its own: the first parenthesis group holds
+    // the modifier's arguments, the declaration's follow. Reading the first one
+    // as the declaration made a real, asserting test look anonymous and
+    // assertion-free (measured 2026-11-20 on `it.skipIf(!ENABLED)`).
+    if (/^\.(skipIf|runIf|fails|each)$/.test(match[2] ?? "")) {
+      const modifierArgs = balanced(src, openParen);
+      const nextParen = src.indexOf("(", openParen + modifierArgs.length);
+      if (nextParen >= 0) openParen = nextParen;
+    }
     const args = balanced(src, openParen); // starts with "("
     const inner = args.slice(1);
     const nameMatch = /^\s*(["'`])(.*?)\1\s*/.exec(inner);
@@ -320,6 +330,10 @@ function selftest() {
     [
       null,
       'it("url in a string", () => {\n  const doc = "https://example.com/it(";\n  expect(doc).toHaveLength(22);\n});',
+    ],
+    [
+      null,
+      'it.skipIf(flag)("conditionally skipped but real", () => {\n  expect(1).toBe(1);\n});',
     ],
     [null, 'it("clean", () => {\n  const all = load();\n  expect(all).toHaveLength(2);\n  if (a) {\n    expect(b).toBe(1);\n  } else {\n    expect(b).toBe(2);\n  }\n  for (const x of all) {\n    expect(x).toBe(1);\n  }\n});'],
   ];
