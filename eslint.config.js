@@ -19,7 +19,10 @@ export default tseslint.config(
     },
   },
   {
-    files: ["tools/agent/*.mjs", "tools/testing/*.mjs"],
+    // Node scripts, wherever they live: the rebalance bilan copier under
+    // `docs/` is a real script too, and linting it without the Node globals
+    // failed `pnpm check` for four `no-undef` errors nobody could act on.
+    files: ["tools/agent/*.mjs", "tools/testing/*.mjs", "docs/**/*.mjs"],
     languageOptions: {
       globals: {
         process: "readonly",
