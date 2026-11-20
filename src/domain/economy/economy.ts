@@ -1,5 +1,6 @@
 import type { GameState } from "@/domain/simulation/state.js";
-import { isAdjacentToRoad } from "@/domain/network/network.js";
+import { isAdjacentToCells } from "@/domain/network/network.js";
+import { allRoadCells } from "@/domain/road/road.js";
 import { countActiveOfType, isActive } from "@/domain/building/building.js";
 import type { BuildingType } from "@/content/buildings.js";
 import { addMoney } from "@/domain/resource/resource.js";
@@ -51,8 +52,9 @@ export const MAINTENANCE_PER_OPERATIONAL_BUILDING_PER_TICK = 1;
 
 /** Active buildings of one type that have road access. */
 function countConnectedOfType(state: GameState, type: BuildingType): number {
+  const roadCells = allRoadCells(state.roads);
   return countActiveOfType(state.buildings, type, (building) =>
-    isAdjacentToRoad(state.roads, building.x, building.y),
+    isAdjacentToCells(roadCells, building.x, building.y),
   );
 }
 

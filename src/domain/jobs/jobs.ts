@@ -1,6 +1,7 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import type { Building } from "@/domain/building/building.js";
-import { isAdjacentToRoad } from "@/domain/network/network.js";
+import { isAdjacentToCells } from "@/domain/network/network.js";
+import { allRoadCells } from "@/domain/road/road.js";
 import { isActive } from "@/domain/building/building.js";
 import { compareCellsWithId } from "@/domain/shared/cells.js";
 import { buildLogisticsMap } from "@/domain/logistics/logistics.js";
@@ -28,11 +29,12 @@ import {
  * newly operational workplace is staffed next tick — production phases
  * read the previous assignment.
  */
-export function isEligibleWorkplace(state: GameState, building: Building): boolean {
+/** One workplace against a road-cell set the caller gathered once. */
+function isEligibleWorkplace(building: Building, roadCells: Set<string>): boolean {
   return (
     isActive(building) &&
     BUILDING_DEFINITIONS[building.type].jobCapacity > 0 &&
-    isAdjacentToRoad(state.roads, building.x, building.y)
+    isAdjacentToCells(roadCells, building.x, building.y)
   );
 }
 
@@ -63,8 +65,11 @@ function staffPriority(type: Building["type"]): number {
  *  the assignment, by the ordinary-order probe of the reserve latch and by the
  *  read-only staffing overview — so the surface cannot disagree with the phase. */
 export function staffingOrder(state: GameState): Building[] {
+  // Gathered once per order, not once per building: the road graph is shared
+  // and this order is rebuilt on every tick.
+  const roadCells = allRoadCells(state.roads);
   return Object.values(state.buildings)
-    .filter((b) => isEligibleWorkplace(state, b))
+    .filter((b) => isEligibleWorkplace(b, roadCells))
     .sort((a, b) => staffPriority(a.type) - staffPriority(b.type) || compareCellsWithId(a, b));
 }
 
