@@ -15,6 +15,11 @@ export interface RemoveBuildingInfo {
   active: boolean;
   /** Staffing state line for workplaces (states only, Step025). */
   staffing?: string;
+  /**
+   * Why the building is not producing, in the player's words (W1). Comes from
+   * the simulation's own assignment verdict — the panel never derives it.
+   */
+  activity?: string;
   /** Logistics line for extraction worksites (states only, Step050). */
   logistics?: string;
   /** Per-tick pollution contribution line (states only, Step056). */
@@ -124,6 +129,11 @@ export function createInspectionPanel(callbacks: {
         const staffing = staticNote(info.staffing, "nova-note--mb");
         staffing.dataset.staffing = info.id;
         element.appendChild(staffing);
+      }
+      if (info.activity) {
+        const activity = staticNote(info.activity, "nova-note--mb");
+        activity.dataset.activity = info.id;
+        element.appendChild(activity);
       }
       if (info.logistics) {
         element.appendChild(staticNote(info.logistics, "nova-note--mb"));

@@ -122,6 +122,7 @@ export function attachInput(ctx: InputContext): {
           detail: BUILDING_DETAIL[building.type],
           active: building.active,
           staffing: staffing?.staffingLine,
+          activity: staffing?.activityLine,
           logistics: logisticsLine(state, building),
           pollution: pollutionLine(building),
         });

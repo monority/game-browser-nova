@@ -1,7 +1,11 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import type { Building } from "@/domain/building/building.js";
 import type { BuildingType } from "@/content/buildings.js";
-import { staffingAssignment, staffingOrder } from "@/domain/jobs/jobs.js";
+import { staffingDecision, staffingOrder } from "@/domain/jobs/jobs.js";
+import {
+  buildingActivity,
+  type BuildingActivityReason,
+} from "@/domain/building/activity.js";
 import { compareCellsWithId } from "@/domain/shared/cells.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 
@@ -18,7 +22,26 @@ import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
  *   the simulation staffed the camp behind it (Phase 0 audit);
  * - state/reason answer "why is this workplace not staffed?" with states,
  *   never instructions (design rule §7).
+ *
+ * W1 finalisation: `activity`/`activityLine` answer "why is this building not
+ * PRODUCING?" from the assignment decision itself (`buildingActivity`) — the
+ * same verdict the tick applied, so the panel cannot invent a cause. Labels
+ * are the player-facing French names of those causes.
  */
+
+/**
+ * W1: the player-facing names of the activity verdicts (owner's labels). Kept
+ * beside the reason type so a new cause cannot be added without a name, and so
+ * the panel never invents its own wording.
+ */
+const ACTIVITY_LABEL: Record<BuildingActivityReason, string> = {
+  operational: "Opérationnel",
+  no_workers: "Aucun travailleur disponible",
+  insufficient_input: "Matière première insuffisante",
+  disconnected: "Connexion logistique manquante",
+  inactive: "Bâtiment au repos",
+  under_construction: "En construction",
+};
 
 type StaffingState = "staffed" | "idle" | "mothballed" | "no-road" | "under-construction";
 
@@ -35,6 +58,10 @@ interface StaffingEntry {
   reason: IdleReason;
   /** Human-readable state line for inspection (states only). */
   staffingLine: string;
+  /** Why the building is not producing — the assignment's own verdict. */
+  activity: BuildingActivityReason;
+  /** Player-facing name of that verdict (French, owner's mission W1). */
+  activityLine: string;
 }
 
 interface StaffingOverview {
@@ -55,34 +82,40 @@ export function getStaffingOverview(state: GameState): StaffingOverview {
     .sort(compareCellsWithId);
 
   const eligible = staffingOrder(state);
-  const staffedIds = staffingAssignment(state);
+  // ONE decision for the whole overview: every line comes from the same pass.
+  const decision = staffingDecision(state);
+  const staffedIds = decision.assigned;
 
   const rankById = new Map(eligible.map((b, index) => [b.id, index + 1]));
   const eligibleTotal = eligible.length;
 
   const entryFor = (building: Building): StaffingEntry => {
     const order = rankById.get(building.id) ?? null;
+    const activity = buildingActivity(state, building, decision);
+    const activityLine = ACTIVITY_LABEL[activity];
     if (order !== null) {
       if (staffedIds.has(building.id)) {
         return {
           id: building.id, type: building.type, x: building.x, y: building.y,
           order, state: "staffed", reason: null,
           staffingLine: `staffing ${order}/${eligibleTotal} · staffed`,
+          activity, activityLine,
         };
       }
       return {
         id: building.id, type: building.type, x: building.x, y: building.y,
         order, state: "idle", reason: "no-workers",
         staffingLine: `staffing ${order}/${eligibleTotal} · idle`,
+        activity, activityLine,
       };
     }
     if (building.status === "underConstruction") {
-      return ineligible(building, "under-construction", "under-construction", "staffing · under construction");
+      return ineligible(building, "under-construction", "under-construction", "staffing · under construction", activity, activityLine);
     }
     if (!building.active) {
-      return ineligible(building, "mothballed", "mothballed", "staffing · mothballed");
+      return ineligible(building, "mothballed", "mothballed", "staffing · mothballed", activity, activityLine);
     }
-    return ineligible(building, "no-road", "no-road", "staffing · no road access");
+    return ineligible(building, "no-road", "no-road", "staffing · no road access", activity, activityLine);
   };
 
   const entries = workplaces.map(entryFor);
@@ -106,6 +139,11 @@ function ineligible(
   state: StaffingState,
   reason: IdleReason,
   staffingLine: string,
+  activity: BuildingActivityReason,
+  activityLine: string,
 ): StaffingEntry {
-  return { id: building.id, type: building.type, x: building.x, y: building.y, order: null, state, reason, staffingLine };
+  return {
+    id: building.id, type: building.type, x: building.x, y: building.y,
+    order: null, state, reason, staffingLine, activity, activityLine,
+  };
 }

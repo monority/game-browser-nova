@@ -3,6 +3,12 @@ import type { Building } from "@/domain/building/building.js";
 import { isAdjacentToRoad } from "@/domain/network/network.js";
 import { isActive } from "@/domain/building/building.js";
 import { compareCellsWithId } from "@/domain/shared/cells.js";
+import { buildLogisticsMap } from "@/domain/logistics/logistics.js";
+import {
+  WOOD_PER_LUMBER_CAMP_PER_TICK,
+  projectedExtraction,
+} from "@/domain/production/extraction.js";
+import { WOOD_PER_PLANK_BATCH } from "@/domain/production/transformation.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 import { waterPerWell } from "@/domain/production/production.js";
 import {
@@ -156,17 +162,92 @@ export function waterWorkerReserve(state: GameState): number {
 }
 
 /**
+ * W1 — loi officielle d'allocation industrielle (adoptée le 20 novembre 2026,
+ * après l'expérience C1 ; référence comportementale :
+ * `docs/rebalance/v0.1/decisions/W1-conditional-allocation-experiment.md`).
+ *
+ * Le harnais a mesuré un cercle vicieux (W1-workforce-allocation.md §5) : le
+ * bûcheron et l'atelier partagent le seau « reste », ordonné par cellule ;
+ * l'atelier prend le dernier bras, le bois ne rentre plus, et les ateliers
+ * tournent à vide (bûcheron staffé 2 % des ticks, ateliers 3,07 sur 4 en
+ * standard). L'atelier capturait un bras qu'il ne pouvait pas employer.
+ *
+ * La règle n'invente PAS d'ordre nouveau : c'est le MÊME ordre canonique, avec
+ * une seule condition — un atelier ne prend un bras que si le bois disponible
+ * couvre son lot (`WOOD_PER_PLANK_BATCH`). Le bûcheron, lui, n'est jamais
+ * prioritaire : il alimente le budget quand son tour arrive dans l'ordre
+ * habituel, ce qui laisse un tick de retard la première fois et rien d'autre.
+ *
+ * Pourquoi une projection et pas un simple `state.resources.wood` : la phase
+ * d'affectation est la DERNIÈRE du tick, donc le stock lu ici est le résidu
+ * d'après-transformation. Le tick suivant produit le bois (phase 3) AVANT de
+ * transformer (phase 4) : un contrôle sur le seul stock refuserait tous les
+ * ateliers à jamais, alors que le camp qu'on vient de staffer va livrer. Le
+ * budget ajoute donc la coupe du camp au moment où on lui donne son bras,
+ * bornée par la logistique et par le gisement adjacent restant
+ * (`projectedExtraction`).
+ *
+ * Le budget est DÉBITÉ à chaque atelier doté, dans l'ordre où la phase 4
+ * consommera : deux ateliers ne peuvent pas se voir promettre le même lot. Il
+ * n'y a ni ressource fantôme ni réservation persistée — le bois reste celui du
+ * stock, et la phase de transformation ne consomme que ce qui existe.
+ *
+ * `conditional-wood` est le défaut ; `baseline` n'existe plus que comme
+ * référence de mesure pour la sonde, jamais comme chemin joueur. Aucune
+ * sauvegarde, aucune constante, aucun rendement n'est touché.
+ */
+export type IndustryAllocationPolicy = "baseline" | "conditional-wood";
+
+/** Pourquoi un poste que l'affectation a croisé n'a pas reçu de bras. */
+export type AllocationRejection =
+  /** Le seau de bras était vide quand son tour est arrivé. */
+  | "no-workers"
+  /** Atelier sans budget bois pour son lot (loi conditionnelle). */
+  | "no-input";
+
+/**
+ * The assignment's own verdict for one tick: who is staffed, and why the others
+ * are not. The inspector reads THIS, never a re-derivation — a surface that
+ * re-computes the reason can disagree with the phase that made the decision.
+ */
+export interface StaffingDecision {
+  assigned: Set<string>;
+  rejected: Map<string, AllocationRejection>;
+}
+
+/** Coupe qu'un camp staffé apportera au prochain tick — lecture PURE.
+ *  Même loi que `produceWood` (logistique × gisement adjacent), sans écrire.
+ *  Deux camps sur le même gisement peuvent surestimer : c'est une borne
+ *  haute assumée, jamais un crédit gratuit (la transformation vérifie). */
+function projectedCampWood(
+  state: GameState,
+  camp: Building,
+  map: ReturnType<typeof buildLogisticsMap>,
+): number {
+  return projectedExtraction(state, camp, state.woodDeposits, WOOD_PER_LUMBER_CAMP_PER_TICK, map);
+}
+
+/**
  * The workplaces this tick's assignment gives, by id — pure, locals only.
  *
- * `assignJobs` and the read-only staffing overview both read it, so the surface
- * cannot claim a workplace is staffed while the simulation leaves it idle.
+ * `assignJobs`, the read-only staffing overview and the inspector's inactivity
+ * reason all read it, so the surface cannot claim a workplace is staffed while
+ * the simulation leaves it idle, nor name a cause the phase did not apply.
  * Before the Phase 0 audit the overview re-derived the order by cell alone (a
  * workshop on y=1 came before the camp actually staffed on y=2) and knew
  * nothing of the hydric reserve, so during a water crisis it reported the farms
  * as staffed and the wells as idle — the exact inverse of the phase.
+ *
+ * W1: `rejected` carries the reason for EVERY workplace the pass did not staff
+ * (it used to stop reading at the first empty worker), so the inspector can tell
+ * "no worker left" from "no wood to work with" without guessing.
  */
-export function staffingAssignment(state: GameState): Set<string> {
+export function staffingDecision(
+  state: GameState,
+  policy: IndustryAllocationPolicy = "conditional-wood",
+): StaffingDecision {
   const assigned = new Set<string>();
+  const rejected = new Map<string, AllocationRejection>();
   const ordered = staffingOrder(state);
 
   let remaining = state.population;
@@ -194,19 +275,53 @@ export function staffingAssignment(state: GameState): Set<string> {
   // Second pass: the usual order (farms, then the wells the reserve did not
   // cover, then the single tail class ranked by cell), skipping what the first
   // pass already staffed.
+  //
+  // W1 (official): `conditional-wood` keeps this exact order and adds one
+  // condition on the workshop — it is skipped, not reordered, when the wood
+  // budget cannot cover its batch, and a skipped workshop consumes no budget. A
+  // staffed camp adds its projected cut to the budget at the moment it takes its
+  // worker; nothing else changes.
+  const conditional = policy === "conditional-wood";
+  const logisticsMap = conditional ? buildLogisticsMap(state) : null;
+  let woodBudget = state.resources.wood;
   for (const workplace of ordered) {
     if (assigned.has(workplace.id)) continue;
-    if (remaining <= 0) break;
+    if (remaining <= 0) {
+      rejected.set(workplace.id, "no-workers");
+      continue;
+    }
+    const capacity = BUILDING_DEFINITIONS[workplace.type].jobCapacity;
+    if (conditional && workplace.type === "workshop") {
+      if (woodBudget < WOOD_PER_PLANK_BATCH) {
+        rejected.set(workplace.id, "no-input");
+        continue;
+      }
+      woodBudget -= WOOD_PER_PLANK_BATCH;
+    }
     assigned.add(workplace.id);
-    remaining -= BUILDING_DEFINITIONS[workplace.type].jobCapacity;
+    remaining -= capacity;
+    if (conditional && workplace.type === "lumberCamp" && logisticsMap) {
+      woodBudget += projectedCampWood(state, workplace, logisticsMap);
+    }
   }
 
-  return assigned;
+  return { assigned, rejected };
+}
+
+/** The staffed ids alone — the shape most callers want. */
+export function staffingAssignment(
+  state: GameState,
+  policy: IndustryAllocationPolicy = "conditional-wood",
+): Set<string> {
+  return staffingDecision(state, policy).assigned;
 }
 
 /** The tick's staffing phase: one source of truth, written onto the buildings. */
-export function assignJobs(state: GameState): void {
-  const assigned = staffingAssignment(state);
+export function assignJobs(
+  state: GameState,
+  policy: IndustryAllocationPolicy = "conditional-wood",
+): void {
+  const { assigned } = staffingDecision(state, policy);
   for (const building of Object.values(state.buildings)) {
     building.staffed = assigned.has(building.id);
   }

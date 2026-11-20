@@ -1,7 +1,11 @@
 import type { GameState } from "./state.js";
 import { produceFood, produceWater, consumeFood, consumeWater } from "@/domain/production/production.js";
 import { updatePopulation, updateWaterCrisis } from "@/domain/population/population.js";
-import { assignJobs, updateWaterReserveLatch } from "@/domain/jobs/jobs.js";
+import {
+  assignJobs,
+  updateWaterReserveLatch,
+  type IndustryAllocationPolicy,
+} from "@/domain/jobs/jobs.js";
 import {
   collectRevenue,
   payCrowding,
@@ -34,10 +38,27 @@ export interface TickFlows {
   foodWasted: number;
   /** Water destroyed by the storage cap at the end of the tick. */
   waterWasted: number;
+  /** Wood really taken out of the deposits this tick (W1-C1, 2026-11-20).
+   *  Read as the deposits' remaining delta across phase 3 — the flow itself,
+   *  never a re-derivation from stocks. */
+  woodProduced: number;
+  /** Wood really consumed by the workshops this tick (phase 4 delta). */
+  woodConsumed: number;
+  /** Planks really produced this tick (what producePlanks returned). */
+  planksProduced: number;
 }
 
 export function emptyTickFlows(): TickFlows {
-  return { foodProduced: 0, foodConsumed: 0, foodSpoiled: 0, foodWasted: 0, waterWasted: 0 };
+  return {
+    foodProduced: 0,
+    foodConsumed: 0,
+    foodSpoiled: 0,
+    foodWasted: 0,
+    waterWasted: 0,
+    woodProduced: 0,
+    woodConsumed: 0,
+    planksProduced: 0,
+  };
 }
 
 /**
@@ -73,7 +94,19 @@ export function emptyTickFlows(): TickFlows {
  *       of 05-SIMULATION §3 — active events feed the NEXT tick's
  *       production/commerce phases, same timing contract as staffing)
  */
-export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
+/** Bois encore dans le sol — sert uniquement à mesurer le flux de la phase 3
+ *  quand l'appelant demande des flux (W1-C1). Lecture pure, aucun effet. */
+function totalWoodRemaining(state: GameState): number {
+  let total = 0;
+  for (const deposit of Object.values(state.woodDeposits)) total += deposit.remaining;
+  return total;
+}
+
+export function stepSimulation(
+  state: GameState,
+  flows?: TickFlows,
+  policy: IndustryAllocationPolicy = "conditional-wood",
+): GameState {
   state.tick += 1;
 
   advanceConstruction(state);
@@ -82,9 +115,13 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
   produceFood(state);
   const foodProduced = state.resources.food - foodBeforeHarvest;
   produceWater(state);
+  const depositsBeforeExtraction = flows ? totalWoodRemaining(state) : 0;
   produceWood(state);
   produceStone(state);
+  const woodProduced = flows ? depositsBeforeExtraction - totalWoodRemaining(state) : 0;
+  const woodBeforeTransformation = state.resources.wood;
   const planksProduced = producePlanks(state);
+  const woodConsumed = flows ? woodBeforeTransformation - state.resources.wood : 0;
 
   const foodSpoiled = applyFoodSpoilage(state);
 
@@ -118,7 +155,7 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
 
   updateEnvironment(state);
 
-  assignJobs(state);
+  assignJobs(state, policy);
 
   collectRevenue(state, planksProduced);
   payMaintenance(state);
@@ -134,6 +171,9 @@ export function stepSimulation(state: GameState, flows?: TickFlows): GameState {
     flows.foodSpoiled = foodSpoiled;
     flows.foodWasted = clamp.foodWasted;
     flows.waterWasted = clamp.waterWasted;
+    flows.woodProduced = woodProduced;
+    flows.woodConsumed = woodConsumed;
+    flows.planksProduced = planksProduced;
   }
 
   return state;
@@ -152,9 +192,14 @@ function advanceConstruction(state: GameState): void {
   }
 }
 
-export function stepTicks(state: GameState, count: number, flows?: TickFlows): GameState {
+export function stepTicks(
+  state: GameState,
+  count: number,
+  flows?: TickFlows,
+  policy: IndustryAllocationPolicy = "conditional-wood",
+): GameState {
   for (let i = 0; i < count; i++) {
-    stepSimulation(state, flows);
+    stepSimulation(state, flows, policy);
   }
   return state;
 }

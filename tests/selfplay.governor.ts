@@ -2,7 +2,8 @@ import { expect } from "vitest";
 import { cellKey } from "@/domain/shared/cells.js";
 import { createInitialState, type GameState } from "@/domain/simulation/state.js";
 import { applyCommand } from "@/domain/simulation/commands.js";
-import { stepTicks } from "@/domain/simulation/tick.js";
+import { stepTicks, type TickFlows } from "@/domain/simulation/tick.js";
+import type { IndustryAllocationPolicy } from "@/domain/jobs/jobs.js";
 import { allRoadCells } from "@/domain/road/road.js";
 import { BUILDING_DEFINITIONS, type BuildingType } from "@/content/buildings.js";
 import { foodProductionPerTick, nominalWaterPerWell } from "@/domain/production/production.js";
@@ -211,6 +212,21 @@ export function playGame(
   events: false | EventFrequency = false,
   onTick?: (state: GameState) => void,
   config: WorldConfig = SELFPLAY_CONFIG,
+  // ADR atelier (2026-11-20): a long run needs a longer budget than the gate.
+  // Default unchanged, so every existing caller keeps its 1 500-tick horizon.
+  tickBudget: number = SELFPLAY_TICK_BUDGET,
+  // Dossier workforce-allocation (2026-11-20): the reference policy builds
+  // ONE lumber camp and FOUR workshops, and those two caps decide whether the
+  // measured wood shortage is a law or a harness choice. Parameterised with
+  // the defaults unchanged, exactly like tickBudget above, so every existing
+  // caller and the three reference assertions keep their behaviour.
+  campCap: number = 1,
+  workshopCap: number = 4,
+  // W1-C1 (2026-11-20): the experimental allocation policy and the per-tick
+  // flow record. Both default to the shipped behaviour — no existing caller
+  // moves, and the three reference assertions keep their baseline.
+  policy: IndustryAllocationPolicy = "conditional-wood",
+  flows?: TickFlows,
 ): PlayResult {
   const state = createInitialState(config);
   if (events) {
@@ -303,7 +319,7 @@ export function playGame(
     return false;
   };
 
-  for (let t = 0; t < SELFPLAY_TICK_BUDGET; t++) {
+  for (let t = 0; t < tickBudget; t++) {
     if (t === crisisAt) {
       state.resources.money = 0;
       state.resources.food = 8;
@@ -362,7 +378,7 @@ export function playGame(
           return false;
         },
       ],
-      [!banking && countType(state, "workshop") < 4 && money > 50, () => tryBuild("workshop", true, 0)],
+      [!banking && countType(state, "workshop") < workshopCap && money > 50, () => tryBuild("workshop", true, 0)],
       [
         !banking &&
           (foodPinned || waterPinned || (reserve.capacityShort && reserve.autonomy < reserve.targetTicks * 0.8)) &&
@@ -376,7 +392,7 @@ export function playGame(
       // written-down 2 — the +1 stays the margin, and a drought is absorbed by the
       // water stock rather than by capacity.
       [!banking && countType(state, "well") < Math.ceil(pop / nominalWaterPerWell(state)) + 1 && money > 60, () => tryBuild("well", true, 20)],
-      [!banking && countType(state, "lumberCamp") < 1 && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
+      [!banking && countType(state, "lumberCamp") < campCap && money > 60, () => tryBuildNearDeposit("lumberCamp", state.woodDeposits, true, 20)],
       [!banking && countType(state, "quarry") < 1 && state.resources.planks >= 5 && money > 60, () => tryBuildNearDeposit("quarry", state.stoneDeposits, true, 20)],
       // Step074: up to three parks. One was enough while growth stopped at
       // pop 24 for other reasons; with housing open the measured blocker is
@@ -388,7 +404,7 @@ export function playGame(
       if (cond && fn()) break;
     }
 
-    stepTicks(state, 1);
+    stepTicks(state, 1, flows, policy);
     checkInvariants(state);
     onTick?.(state);
     if (state.tick % 150 === 0 || state.tick <= 6) {

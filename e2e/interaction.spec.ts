@@ -7,7 +7,8 @@ test.describe("NOVA interaction flows", () => {
     await pause(page);
 
     // planks are a physical resource: injecting them proves the quarry gate
-    // opens through the palette, and the deduction is atomic
+    // opens through the palette, and the deduction is atomic. D3: resources
+    // build, money only arbitrates — the quarry is paid in 4 planks, never 25 $.
     await page.evaluate(() => {
       window.__nova!.getState().resources.planks = 5;
     });
@@ -23,18 +24,25 @@ test.describe("NOVA interaction flows", () => {
       };
     });
     expect(quarry.count).toBe(1);
-    expect(quarry.planks).toBe(0);
-    expect(quarry.money).toBe(money - 25);
+    expect(quarry.planks).toBe(1); // 5 seeded − 4 for the quarry (D3)
+    expect(quarry.money).toBe(money); // placement never bills money (D3)
 
     // selecting announces the guidance; a successful placement confirms and deselects
     const farm = page.locator("button[data-build-type='farm']");
     await farm.click();
     await expect(page.locator(".nova-status")).toHaveText("Placing Farm — click a free cell");
-    const before = await page.evaluate(() => window.__nova!.getState().resources.money);
+    const stock = () =>
+      page.evaluate(() => ({
+        money: window.__nova!.getState().resources.money,
+        planks: window.__nova!.getState().resources.planks,
+      }));
+    const before = await stock();
     await page.locator("#app canvas").click({ position: { x: 700, y: 300 } });
     await expect(page.locator(".nova-status")).toHaveText("Farm placed.");
     await expect(farm).not.toHaveAttribute("data-selected", "true");
-    expect(await page.evaluate(() => window.__nova!.getState().resources.money)).toBe(before - 25);
+    const placed = await stock();
+    expect(placed.planks).toBe(before.planks - 1); // one plank per farm (D3)
+    expect(placed.money).toBe(before.money);
 
     // an invalid cell states the reason and keeps the selection armed
     await farm.click();
@@ -48,6 +56,11 @@ test.describe("NOVA interaction flows", () => {
   }) => {
     await page.goto("/");
     await pause(page);
+    // D3: a farm costs one plank and no money. Seeded, then the ticks stay
+    // paused, so the deductions asserted below are exact.
+    await page.evaluate(() => {
+      window.__nova!.getState().resources.planks = 3;
+    });
     const base = await page.evaluate(() => window.__nova!.stats().maintenancePerTick);
     const farms = () =>
       page.evaluate(
@@ -74,21 +87,31 @@ test.describe("NOVA interaction flows", () => {
     await expect(page.locator("#inspection")).toContainText(
       /staffing · (no road access|\d+\/\d+ · (staffed|idle))/,
     );
-    const money = await page.evaluate(() => window.__nova!.getState().resources.money);
+    const spent = await page.evaluate(() => ({
+      money: window.__nova!.getState().resources.money,
+      planks: window.__nova!.getState().resources.planks,
+    }));
     await remove.click();
     const removed = await page.evaluate(() => ({
       money: window.__nova!.getState().resources.money,
+      planks: window.__nova!.getState().resources.planks,
       maintenance: window.__nova!.stats().maintenancePerTick,
     }));
     expect(await farms()).toBe(farmsBefore - 1);
-    expect(removed.money).toBe(money); // no refund
+    expect(removed.money).toBe(spent.money); // no refund
+    expect(removed.planks).toBe(spent.planks); // the plank is gone for good
     expect(removed.maintenance).toBe(base); // relief
 
     // the cell is reusable: same spot, same price
     await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    const again = await page.evaluate(() => ({
+      money: window.__nova!.getState().resources.money,
+      planks: window.__nova!.getState().resources.planks,
+    }));
     expect(await farms()).toBe(farmsBefore);
-    expect(await page.evaluate(() => window.__nova!.getState().resources.money)).toBe(money - 25);
+    expect(again.money).toBe(spent.money); // same spot, same price: one plank
+    expect(again.planks).toBe(spent.planks - 1);
 
     // mothball the matured farm: upkeep stops, the worker frees; reactivate restores
     await page.getByRole("button", { name: "8x", exact: true }).click();
@@ -220,6 +243,10 @@ test.describe("NOVA interaction flows", () => {
   test("save/load round-trip, overlay coherence, and preference persistence", async ({ page }) => {
     await page.goto("/");
     await pause(page);
+    // D3: a residence and a farm cost one plank each; money is not billed.
+    await page.evaluate(() => {
+      window.__nova!.getState().resources.planks = 3;
+    });
 
     // a player change, saved, then reverted by a second placement
     await page.locator("button[data-build-type='residence']").click();
@@ -230,14 +257,18 @@ test.describe("NOVA interaction flows", () => {
       const s = window.__nova!.getState();
       return {
         money: s.resources.money,
+        planks: s.resources.planks,
         residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
       };
     });
     await page.locator("button[data-build-type='farm']").click();
     await page.locator("#app canvas").click({ position: { x: 700, y: 300 } });
-    expect(await page.evaluate(() => window.__nova!.getState().resources.money)).toBe(
-      saved.money - 25,
-    );
+    const afterPlacement = await page.evaluate(() => {
+      const s = window.__nova!.getState();
+      return { money: s.resources.money, planks: s.resources.planks };
+    });
+    expect(afterPlacement.money).toBe(saved.money); // D3: no money cost
+    expect(afterPlacement.planks).toBe(saved.planks - 1); // one plank for the farm
 
     await page.locator("button[data-action='load']").click();
     await expect(page.locator(".nova-status")).toHaveText("Colony loaded.");
@@ -246,6 +277,7 @@ test.describe("NOVA interaction flows", () => {
         const s = window.__nova!.getState();
         return {
           money: s.resources.money,
+          planks: s.resources.planks,
           residences: Object.values(s.buildings).filter((b) => b.type === "residence").length,
         };
       }),
@@ -288,5 +320,109 @@ test.describe("NOVA interaction flows", () => {
       );
     }
     expect(await page.evaluate(() => window.__nova!.overlay())).toBe("none");
+  });
+});
+
+test.describe("W1 inactivity reason in the inspector", () => {
+  test("names the cause, and follows it when the cause changes", async ({ page }) => {
+    await page.goto("/");
+    await pause(page);
+
+    // Make the cause under test unambiguous: ONE tail post (the workshop we
+    // build) and ONE spare worker. The day-0 colony employs exactly one colonist
+    // per vital post, so free a seat by removing one well (its water is buffered
+    // for the few ticks this test runs). The status line is what is being
+    // measured, not survival.
+    await page.evaluate(() => {
+      const state = window.__nova!.getState();
+      state.resources.planks = 20;
+      state.resources.wood = 0;
+      state.resources.food = 180;
+      state.resources.water = 80;
+      let freed = false;
+      for (const b of Object.values(state.buildings)) {
+        if (b.type === "workshop") window.__nova!.command({ kind: "removeBuilding", id: b.id });
+        if (!freed && b.type === "well") {
+          window.__nova!.command({ kind: "removeBuilding", id: b.id });
+          freed = true;
+        }
+      }
+    });
+
+    // Place a workshop through the real palette, then inspect the same cell.
+    await page.locator("button[data-build-type='workshop']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+
+    const activity = page.locator("#inspection [data-activity]");
+    await expect(activity).toHaveText("En construction");
+
+    // Give it road access: staffing requires it, and the click position is not a
+    // promised road cell. A real road command on a free neighbour of the new
+    // workshop — the same law the campaign follows.
+    await page.evaluate(() => {
+      const state = window.__nova!.getState();
+      const shop = Object.values(state.buildings).find(
+        (b) => b.type === "workshop" && b.status === "underConstruction",
+      );
+      if (!shop) throw new Error("workshop missing");
+      const cells: string[] = [];
+      for (const road of Object.values(state.roads)) cells.push(...road.cells);
+      const neighbours = [
+        { x: shop.x + 1, y: shop.y },
+        { x: shop.x - 1, y: shop.y },
+        { x: shop.x, y: shop.y + 1 },
+        { x: shop.x, y: shop.y - 1 },
+      ];
+      const free = neighbours.find((c) => {
+        const key = `${c.x},${c.y}`;
+        if (c.x < 0 || c.y < 0 || c.x >= state.world.width || c.y >= state.world.height) return false;
+        if (cells.includes(key)) return false;
+        return !Object.values(state.buildings).some((b) => b.x === c.x && b.y === c.y);
+      });
+      if (!free) throw new Error("no free neighbour for a road");
+      const result = window.__nova!.command({ kind: "placeRoads", cells: [`${free.x},${free.y}`] });
+      if (!result.ok) throw new Error("road refused: " + result.reason);
+    });
+
+    // Finish the shell: under the official law a workshop with no wood is NOT
+    // staffed — the status line is the very thing that has to explain it.
+    await page.getByRole("button", { name: "8x", exact: true }).click();
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            Object.values(window.__nova!.getState().buildings).some(
+              (b) => b.type === "workshop" && b.status === "operational",
+            ),
+          ),
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    await pause(page);
+
+    // No wood: the panel names the INPUT, not the workforce.
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    await expect(activity).toHaveText("Matière première insuffisante");
+
+    // The wood arrives: the same building is staffed, then transforms on the
+    // following tick (assignment decides, the phase consumes). 1x so the stock
+    // cannot be eaten before the panel is read.
+    const tickBefore = await page.evaluate(() => window.__nova!.getState().tick);
+    await page.evaluate(() => {
+      // Enough for many batches: the panel is read after a few ticks, and a
+      // stock that ran dry would (correctly) flip the reason back to input.
+      window.__nova!.getState().resources.wood = 100;
+    });
+    await page.getByRole("button", { name: "1x", exact: true }).click();
+    await waitForTick(page, tickBefore + 2);
+    await pause(page);
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    await expect(activity).toHaveText("Opérationnel");
+
+    // Resting is a decision, not a shortage: the panel says so.
+    await page.locator("button[data-action='deactivate-building']").click();
+    await page.locator("#app canvas").click({ position: { x: 300, y: 400 } });
+    await expect(activity).toHaveText("Bâtiment au repos");
   });
 });

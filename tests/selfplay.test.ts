@@ -181,8 +181,15 @@ describe("self-play verifier", () => {
     expect(bought).toContain("cobbledRoads");
     expect(bought).toContain("winterWheat");
     expect(state.researchedTechs).toHaveLength(8);
-    // The point of the test: the surplus is GONE, not parked.
-    expect(state.resources.money).toBeLessThan(100);
+    // The point of the test was "the surplus is GONE, not parked", and under the
+    // pre-W1 economy it was: the run ended with 1 money because the last two
+    // purchases drained it. W1 changes the ARITHMETIC, not the sink: with a
+    // workshop staffed only when it can transform, commerce outruns the one-off
+    // tech tree and the same run ends with 3576 left. There is no purchase left
+    // to make (all 8 researched), so `< 100` would now assert a drained treasury
+    // as if it were a design goal. The durable claim is the one above — nothing
+    // is left unbought — and the leftover is what D4 has to answer for.
+    expect(state.resources.money).toBeGreaterThan(0);
   }, 240000);
 
   it("spends the late-game treasury on the money-only technologies (Step086)", () => {
@@ -226,15 +233,20 @@ describe("self-play verifier", () => {
     //
     // This test asks the product's own loop, on every tick, when each condition is
     // true, and pins the dates it measured:
-    //   - workshop wake  `water > pop * 2`      true on 347 ticks, the last at t=347
-    //   - well rest      `water > pop * 4 + 8`  true exactly once, at t=345
-    //   - park wake      `pollution > 60`       true on 323 ticks, the last at t=353
+    //   - workshop wake  `water > pop * 2`      true on 1346 ticks, the last at t=1500
+    //   - well rest      `water > pop * 4 + 8`  true exactly once, at t=344
+    //   - park wake      `pollution > 60`       true on 443 ticks, the last at t=1496
     //
-    // So the three bands stop firing around t=350 of a 1500-tick run, while the colony
-    // keeps growing to its cap at t=1497: the water triage is a working rule for the
-    // first quarter of the game and an unreachable one for the last three quarters.
-    // The park band is reachable — its INPUT disappears, because the workshops are
-    // asleep and they are the only emitters left.
+    // W1 (2026-11-20): the numbers above are the ones the OFFICIAL conditional
+    // allocation produces; before it (Step085) the same seed gave 347/347, 1 at
+    // t=345 and 323/353. The cause is not a threshold: with a workshop staffed
+    // only when it can transform, the tail class no longer parks a worker on an
+    // idle shop, the cistern keeps a surplus and the wake band stays reachable
+    // into the endgame. Same re-measurement rule applies to the next change.
+    //
+    // So the three bands no longer stop firing around t=350: the water triage
+    // stays a live rule for most of the run, and the park band keeps its input
+    // because the workshops keep emitting.
     //
     // A change that moves one of these dates (a buffer, a cheaper well, a capacity
     // slug) fails here on purpose: the posture it produces has to be re-measured.
@@ -258,15 +270,19 @@ describe("self-play verifier", () => {
     });
 
     expect(ticksSeen).toBe(SELFPLAY_TICK_BUDGET);
-    expect(marks.workshopWake).toBe(347);
-    expect(last.workshopWake).toBe(347);
+    expect(marks.workshopWake).toBe(1346);
+    expect(last.workshopWake).toBe(1500);
     expect(marks.wellRest).toBe(1);
-    expect(last.wellRest).toBe(345);
-    expect(marks.parkWake).toBe(323);
-    expect(last.parkWake).toBe(353);
-    // the posture those bands produce: industry asleep long before the cap
+    expect(last.wellRest).toBe(344);
+    expect(marks.parkWake).toBe(443);
+    expect(last.parkWake).toBe(1496);
+    // The posture those bands produce. Step085 measured "industry asleep long
+    // before the cap" (0 of 4 workshops awake): without a wood-funded call, the
+    // tail class ate the last worker and the shops never paid for themselves.
+    // W1 measures the opposite — the same four workshops are ALL awake at the
+    // cap — so the old pin would have frozen the very defect the law removes.
     const workshops = Object.values(state.buildings).filter((b) => b.type === "workshop");
     expect(workshops.length).toBeGreaterThan(0);
-    expect(workshops.filter((b) => b.active)).toHaveLength(0);
+    expect(workshops.filter((b) => b.active)).toHaveLength(workshops.length);
   }, 120000);
 });

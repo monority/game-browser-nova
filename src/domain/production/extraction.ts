@@ -3,7 +3,9 @@ import { isActive } from "@/domain/building/building.js";
 import { techLevel } from "@/domain/progression/progression.js";
 import { extractAdjacent } from "@/domain/world/deposits.js";
 import { addStone, addWood } from "@/domain/resource/resource.js";
-import { compareCellCoords } from "@/domain/shared/cells.js";
+import { cellKey, compareCellCoords, orthogonalNeighbors } from "@/domain/shared/cells.js";
+import type { Building } from "@/domain/building/building.js";
+import type { Deposits } from "@/domain/world/deposits.js";
 import { applyLogistics, buildLogisticsMap } from "@/domain/logistics/logistics.js";
 
 /**
@@ -22,6 +24,35 @@ export const WOOD_PER_COLONY_CENTER_PER_TICK = 1;
 /** Quarry yield includes technology (masonry/deepMining: +1 each, Step016). */
 export function stonePerQuarry(state: GameState): number {
   return STONE_PER_QUARRY_PER_TICK + techLevel(state, "quarryStone");
+}
+
+/**
+ * Upper bound of what an extraction building could take next tick: its
+ * logistics share of the nominal yield, capped by the deposits it actually
+ * reaches. PURE — reads the deposits, writes nothing.
+ *
+ * The same law the phase applies (`produceWood` / `produceStone`), kept in one
+ * place so a reader can ask "could this building produce at all?" without
+ * inventing a second rule: the W1 allocation budget funds a workshop with the
+ * cut of the camp it just staffed, and the inspector names a worksite with an
+ * empty gisement as short of input. Two worksites on the same deposit can both
+ * see the full remainder — a high bound, never a free credit: the phase still
+ * consumes only what exists.
+ */
+export function projectedExtraction(
+  state: GameState,
+  building: Building,
+  deposits: Deposits,
+  nominal: number,
+  map: ReturnType<typeof buildLogisticsMap>,
+): number {
+  const share = applyLogistics(state, building, nominal, map);
+  if (share <= 0) return 0;
+  let adjacent = 0;
+  for (const neighbour of orthogonalNeighbors(building.x, building.y)) {
+    adjacent += deposits[cellKey(neighbour.x, neighbour.y)]?.remaining ?? 0;
+  }
+  return Math.min(share, adjacent);
 }
 
 function extractShares(
