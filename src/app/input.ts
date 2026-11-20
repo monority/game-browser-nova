@@ -14,6 +14,7 @@ import {
 import { getStaffingOverview } from "@/application/queries/staffing.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 import { BUILDING_DETAIL } from "./details.js";
+import { refusalLine } from "./refusals.js";
 import type { Ui } from "./ui.js";
 
 /**
@@ -187,7 +188,7 @@ export function attachInput(ctx: InputContext): {
     const validation = validatePlacement(state, buildType ?? "residence", cell.x, cell.y);
     renderer.setHover(cell, validation.ok);
     // hover messages are transient pointer context — never announced
-    ui.setStatus(validation.ok ? "" : `Cannot place here: ${validation.reason}`, false);
+    ui.setStatus(validation.ok ? "" : `Cannot place here — ${refusalLine(validation.reason)}.`, false);
   }
 
   function onPointerDown(event: PointerEvent): void {
@@ -220,7 +221,7 @@ export function attachInput(ctx: InputContext): {
       placedThisInteraction = true; // the matching click event must not inspect
     } else {
       placedThisInteraction = false;
-      ui.setStatus(`Cannot place: ${result.reason}`);
+      ui.setStatus(`Cannot place — ${refusalLine(result.reason)}.`);
     }
     renderer.update(state);
     ctx.refreshStats();
@@ -232,7 +233,7 @@ export function attachInput(ctx: InputContext): {
     if (roadPath.length > 0) {
       const state = ctx.getState();
       const result = applyCommand(state, { kind: "placeRoads", cells: roadPath });
-      ctx.getUi().setStatus(result.ok ? "" : `Road rejected: ${result.reason}`);
+      ctx.getUi().setStatus(result.ok ? "" : `Road rejected — ${refusalLine(result.reason)}.`);
     }
     roadPath = [];
     ctx.getRenderer().update(ctx.getState());

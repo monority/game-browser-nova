@@ -25,6 +25,7 @@ import {
   savePreferences,
 } from "@/application/persistence/preferences.js";
 import { attachInput } from "./input.js";
+import { refusalLine } from "./refusals.js";
 import { nextEventFrequency } from "@/domain/events/events.js";
 import { startFixedTimestepLoop } from "./loop.js";
 import { attachDiagnostics } from "./diagnostics.js";
@@ -172,14 +173,14 @@ export function boot(root: HTMLElement): { stop(): void } {
     onRemoveBuilding: (id) => {
       if (!ui) return;
       const result = applyCommand(state, { kind: "removeBuilding", id });
-      ui.setStatus(result.ok ? "Removed." : `Cannot remove: ${result.reason}`);
+      ui.setStatus(result.ok ? "Removed." : `Cannot remove — ${refusalLine(result.reason)}.`);
       renderer.update(state);
       refreshStats();
     },
     onRemoveRoadCell: (cell) => {
       if (!ui) return;
       const result = applyCommand(state, { kind: "removeRoads", cells: [cell] });
-      ui.setStatus(result.ok ? "Road cell removed." : `Cannot remove road: ${result.reason}`);
+      ui.setStatus(result.ok ? "Road cell removed." : `Cannot remove road — ${refusalLine(result.reason)}.`);
       renderer.update(state);
       refreshStats();
     },
@@ -187,7 +188,7 @@ export function boot(root: HTMLElement): { stop(): void } {
       if (!ui) return;
       const result = applyCommand(state, { kind: "setBuildingActive", id, active });
       ui.setStatus(
-        result.ok ? (active ? "Reactivated — takes effect next tick." : "Mothballed — maintenance relief next tick.") : `Cannot change state: ${result.reason}`,
+        result.ok ? (active ? "Reactivated — takes effect next tick." : "Mothballed — maintenance relief next tick.") : `Cannot change state — ${refusalLine(result.reason)}.`,
       );
       renderer.update(state);
       refreshStats();
@@ -212,14 +213,14 @@ export function boot(root: HTMLElement): { stop(): void } {
     onResearchTech: (techId) => {
       if (!ui) return;
       const result = applyCommand(state, { kind: "researchTech", techId });
-      ui.setStatus(result.ok ? `Researched ${techId}.` : `Cannot research: ${result.reason}`);
+      ui.setStatus(result.ok ? `Researched ${techId}.` : `Cannot research — ${refusalLine(result.reason)}.`);
       refreshStats();
       renderer.update(state);
     },
     onAdvanceAge: () => {
       if (!ui) return;
       const result = applyCommand(state, { kind: "advanceAge" });
-      ui.setStatus(result.ok ? `Welcome to ${AGE_NAMES[state.age] ?? "Age " + state.age}.` : `Cannot advance: ${result.reason}`);
+      ui.setStatus(result.ok ? `Welcome to ${AGE_NAMES[state.age] ?? "Age " + state.age}.` : `Cannot advance — ${refusalLine(result.reason)}.`);
       renderer.update(state);
       refreshStats();
     },
