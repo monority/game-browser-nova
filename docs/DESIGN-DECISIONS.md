@@ -76,6 +76,7 @@ surplus sans conséquence — ne dépendent pas du débit).
 | **O4** | Le commerce doit-il dépendre du staffing ? | ouverte (R4) | oui, mais après mesure du budget d'ouverture | mesure manquante |
 | **W1** | Où part la main-d'œuvre, et comment en libérer ? | **tranchée le 20/11 : modèle C livré** (allocation conditionnelle) | le blocage mesuré n'était pas la dotation mais l'ordre du seau « reste » : le bûcheron était staffé 2 % des ticks, les ateliers 3,07 sur 4 ; la loi fait 0,74 et 0,39 et supprime les ateliers-ticks sans bois | `decisions/W1-conditional-workforce-allocation.md` ; reste D4 et la langue des libellés |
 | **O5** | Quels besoins après l'eau et la nourriture ? | ouverte | une catégorie de biens d'abord, puis les services | P1-1 : sans marge de main-d'œuvre, un atelier de biens ne serait jamais staffé |
+| **D7** | L'usure des bâtiments remplace-t-elle un besoin de confort ? | ouverte : principe retenu le 21/11, **valeurs non tranchées** | 1 outil par poste tous les 20 ticks, pris sur le **bois** ; un poste sans outil rate son tick (ordre canonique) | la filière bois n'est jamais ouverte (0 camp, gisements 100/100) et `age3` tourne à `workforce 17/22` — fiche `decisions/D7-tools-wear.md` §3 |
 
 **D4 est le verrou du projet.** O1 (débit de l'atelier) est tranchée et
 appliquée depuis le 20/11 : elle a fait passer la ligne de croissance de 28 à
