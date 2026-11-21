@@ -84,7 +84,7 @@ interface SaveDocument {
   eventFrequency: EventFrequency;
   eventsDrawn: number;
   nextEventTick: number;
-  /** v23: whether tools wear out. Absent in older saves (no wear). */
+  /** v23: whether tools wear out. Absent in older saves: the shipped law. */
   wearEnabled?: boolean;
 }
 
@@ -398,9 +398,10 @@ export function parseSave(input: unknown): GameState {
   }
   const eventsDrawn = expectNonNegativeInt(doc.eventsDrawn, "save.eventsDrawn");
   const nextEventTick = expectNonNegativeInt(doc.nextEventTick, "save.nextEventTick");
-  // v23 (D7, 2026-11-21): wear is off in the shipped game, so an older save
-  // loads with the law it was played under.
-  const wearEnabled = doc.wearEnabled === undefined ? false : expectBoolean(doc.wearEnabled, "save.wearEnabled");
+  // v23 (D7, 2026-11-21): wear ships ON (from Age 2), so a save written before
+  // the flag existed adopts the shipped law instead of freezing a law the game
+  // no longer plays. Age 1 is unaffected either way — the bill starts at 2.
+  const wearEnabled = doc.wearEnabled === undefined ? true : expectBoolean(doc.wearEnabled, "save.wearEnabled");
 
   return {
     world: generated,

@@ -73,10 +73,10 @@ export interface GameState {
   /** Tick at which the next draw fires; 0 = fires on the next resolution. */
   nextEventTick: number;
   /**
-   * Whether tools wear out (D7, 2026-11-21). OFF in the shipped game: the bill
-   * is implemented and measured, but the reference lines run at an exact
-   * equilibrium and every one of them turns CRITICAL under it. A decision for
-   * the owner, not a default — see the D7 card.
+   * Whether tools wear out (D7, 2026-11-21). ON in the shipped game, from Age 2
+   * (`WEAR_START_AGE`): Age 1 cannot pay the bill at all — no wood, no free
+   * worker — and the measurement is in the D7 card §7. The flag stays so an
+   * experiment (and a test) can read the colony without the bill.
    */
   wearEnabled: boolean;
   /**
@@ -113,7 +113,7 @@ export function createInitialState(config: WorldConfig): GameState {
     eventFrequency: "normal",
     eventsDrawn: 0,
     nextEventTick: 0,
-    wearEnabled: false,
+    wearEnabled: true,
     restingWorkplaces: {},
   };
 

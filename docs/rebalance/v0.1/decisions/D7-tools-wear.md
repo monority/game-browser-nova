@@ -124,8 +124,10 @@ un réglage par bâtiment ; la seconde est invisible et donc à éviter.
 | Bâtiments qui s'usent | **ceux qui produisent** (ferme, puits, atelier, camp, carrière) | une résidence exonérée d'entretien ne peut pas être, en plus, la seule à s'user |
 | Comportement sans outil | **un tick raté**, ordre canonique | seule forme exacte avec des productions entières (§1) |
 | Premier outil | **inclus dans la construction** ; l'échéance tombe `W` ticks après la fin du chantier | pas de falaise au tick 0, pas de stock initial à inventer |
-| Recette de l'atelier | **choisie par le joueur**, planches par défaut | le jeu ne décide pas à sa place, et D6 reste valable sans re-mesure |
-| Outil en coût de pose | **non** | le premier outil est déjà inclus ; un coût en plus ferait payer deux fois l'entrée |
+| Recette de l'atelier | **réserve automatique** : un lot d'outils, puis des planches | la recette manuelle mesurée injouable (une bascule toutes les 20 images) ; même doctrine que l'ordre de staffing — une politique énoncée, pas de la micro-gestion |
+| Outil en coût de pose | **non** | la facture tombe au tick ; un coût de pose ferait payer deux fois l'entrée |
+| Premier âge facturé | **âge 3** (`WEAR_START_AGE`) | mesuré : l'âge 1 ne peut pas payer (ni bois ni ouvrier), l'âge 2 le paie mais perd le plafond de croissance ; fiche §7 |
+| Rendement d'un lot | **4 outils** par lot de 2 bois | à 1 par lot la facture prenait 80 % de l'atelier ; à 4, 20 % (mesuré, fiche §7) |
 
 ## 6. Ce que le code porterait
 
@@ -164,11 +166,12 @@ meurt de faim. Ce n'est pourtant pas une question de marge de nourriture — la
 mesure du 21/11 ci-dessous montre que **la facture est impayable** au départ,
 pas qu'elle est chère.
 
-**Décision de livraison :** la loi est écrite, testée, et **éteinte par défaut**
-(`GameState.wearEnabled = false`, enregistrée en expérimentation E3). Le jeu
-livré ne change pas d'un iota — c'est une exigence, pas un confort : expédier
-la facture active aurait cassé les quatre lignes et l'ouverture du jeu. La
-bascule est une décision d'équilibrage, elle appartient au propriétaire.
+**Décision de livraison :** la loi est écrite, testée, et **allumée en âge 3**
+(`WEAR_START_AGE = 3`, `wearEnabled: true`). Les deux âges du dessous ne
+peuvent pas la payer, et les deux murs sont mesurés (ci-dessous, « la marge
+mesurée ») : l'âge 1 n'a ni bois ni ouvrier libre, l'âge 2 la paie mais elle
+coûte le plafond de croissance (86 → 50 sur la ligne d'auto-jeu). En âge 3 la
+ligne de référence garde ses chiffres et aucun poste ne repose.
 
 Deuxième mesure au passage : la recette manuelle (le joueur choisit planches ou
 outils) est injouable — il faudrait basculer toutes les 20 images. La loi la
@@ -234,7 +237,32 @@ sans qu'aucun poste ne repose.
    fermes nourrissent 16 bouches. Avant, la population est saturée à l'unité près
    et le camp ne peut pas être staffé.
 
-Sans les trois, l'usure reste une expérimentation (E3) : c'est le statut livré.
+**4. Le mur de l'échelle (mesuré en allumant).** La facture vaut 0,05 outil par
+poste et par tick, soit **0,1 bois/tick/poste** : une colonie de ~100 postes a
+besoin d'un camp par 20 postes pour l'entretien seul, en plus du bois que mangent
+ses ateliers. Mesuré sur la ligne d'auto-jeu (plafond 86, politique de référence
+à un camp) :
+
+| Verrou | Fin de ligne | Garde-fous |
+|---|---|---|
+| âge 2, facture à 20 ticks | pop **50** au lieu de 86 | 5 rouges |
+| âge 2, facture à 40 ticks | plafond toujours cassé | 2 rouges |
+| **âge 3, facture à 20 ticks** | inchangée | **10/10 verts** |
+
+D'où `WEAR_START_AGE = 3` : c'est le seul verrou où l'entretien se paie sans
+changer le plafond du jeu. L'âge 2 reste faisable, mais il faudrait alors une
+politique qui construit un camp par 20 postes — une décision de harness **et** de
+jeu, pas un réglage de constante.
+
+**Vérification dans le vrai jeu (navigateur, 21/11).** Save d'âge 3 chargée dans
+l'app (bouton Load), 24 ticks à 1× : outils 8 → 18 dans la réserve, panneau
+« Tools 18 », aucun poste au repos, aucune erreur console, capture
+`playtest/artifacts/agent/wear-age3.png`. La capture d'ouverture (t=60) montre
+« Tools 0 », c'est-à-dire la loi présente et muette avant l'âge 3.
+
+Les lignes de référence restent **HEALTHY** : `opening` t=300, `balanced` t=660,
+`age2` t=780, `age3` t=1141 (planches 944, outils 0 à la bascule), et 160 ticks
+de plus en âge 3 gardent outils 22↔24 sans qu'aucun poste ne repose.
 
 ## 8. Ce qui sera mesuré avant toute affirmation
 
@@ -247,11 +275,13 @@ explication est un rouge, pas un réglage à retoucher.
 Sonde attendue : un test unitaire de la loi (poste sans outil = tick raté, ordre
 canonique, un lot de 2 bois ne nourrit qu'un atelier d'outils) + la grille des
 scénarios. Aucun test existant ne sera réécrit pour faire vert.
-## 9. Ce que la loi est devenue (livré le 2026-11-21)
+## 9. Ce que la loi est devenue (livré le 2026-11-21, allumé en âge 3)
 
 - `src/domain/building/tools.ts` : facture (`WEAR_INTERVAL_TICKS = 20`, 1 outil
-par poste staffé, ordre canonique, les non-payés reposent ce tick), réserve
-(`toolReserveTarget`) et `isRestingForTools`.
+par poste staffé, ordre canonique, les non-payés reposent ce tick), **démarrage
+en âge 3** (`WEAR_START_AGE`), **4 outils par lot** d'atelier
+(`TOOLS_PER_WORKSHOP_BATCH`), réserve (`toolReserveTarget`) et
+`isRestingForTools`.
 - `src/domain/resource/resource.ts` : `tools` dans `ResourceStock` (seul état
 nouveau ; l'horloge est le numéro de tick, donc **aucun compteur par bâtiment**
 à migrer).
@@ -262,10 +292,11 @@ avant les planches.
 - `src/domain/building/activity.ts` : raison `no_tools`, distincte de
 `no_workers` et d'`insufficient_input`.
 - Persistence `v23` : `tools` + `wearEnabled` (absent d'une sauvegarde
-antérieure = pas d'usure, ce qui est exactement la loi sous laquelle elle a été
-jouée). Le repos est dérivé chaque tick, jamais sauvegardé.
-- `tests/wear.test.ts` : 8 tests (facture au bon tick, un outil par poste, pas
-de facture pour un poste vide, repos d'un seul tick, réserve, persistance).
+antérieure = la loi livrée, donc allumée ; l'âge 1-2 ne facture de toute façon
+rien). Le repos est dérivé chaque tick, jamais sauvegardé.
+- `tests/wear.test.ts` : 9 tests (facture au bon tick, un outil par poste, pas
+de facture pour un poste vide, repos d'un seul tick, **rien avant l'âge 3**,
+réserve d'un lot, persistance).
 
 ### Déjà livré le 2026-11-21 (le système du bois, avant l'usure)
 

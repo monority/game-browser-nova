@@ -4,7 +4,12 @@ import { applyCommand } from "@/domain/simulation/commands.js";
 import { stepTicks } from "@/domain/simulation/tick.js";
 import { saveToString, parseSaveString } from "@/application/persistence/save.js";
 import { buildingActivity } from "@/domain/building/activity.js";
-import { WEAR_INTERVAL_TICKS, toolReserveTarget } from "@/domain/building/tools.js";
+import {
+  TOOLS_PER_WORKSHOP_BATCH,
+  WEAR_INTERVAL_TICKS,
+  WEAR_START_AGE,
+  toolReserveTarget,
+} from "@/domain/building/tools.js";
 import { cellKey } from "@/domain/shared/cells.js";
 import { mustOk, stockedState, stripToAnchor } from "./helpers.js";
 
@@ -13,6 +18,9 @@ import { mustOk, stockedState, stripToAnchor } from "./helpers.js";
  * tool per staffed workplace, and the ones it cannot pay for rest that tick.
  * The bill is on the tick number, so there is no per-building counter to save
  * and the penalty is a lost tick, never a fraction of an integer yield.
+ *
+ * The bill starts in Age 2 (`WEAR_START_AGE`): Age 1 cannot pay it — no wood,
+ * no free worker — so the fixtures here are Age 2 unless the test says otherwise.
  */
 
 const CONFIG = {
@@ -27,8 +35,8 @@ const CONFIG = {
 function stateWithFarm(tools: number): { state: GameState; id: string } {
   const state = stockedState(CONFIG);
   stripToAnchor(state);
-  // The law ships OFF; these tests are the ones that turn it on.
   state.wearEnabled = true;
+  state.age = WEAR_START_AGE;
   state.resources.tools = tools;
   const road = { x: 4, y: 2 };
   mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(road.x, road.y)] }));
@@ -63,6 +71,15 @@ describe("the wear bill", () => {
     expect(buildingActivity(state, state.buildings[id]!)).toBe("operational");
   });
 
+  it("charges nothing in Age 1: the bill is an Age-2 cost", () => {
+    const { state, id } = stateWithFarm(0);
+    state.age = WEAR_START_AGE - 1;
+    stepTicks(state, WEAR_INTERVAL_TICKS - state.tick);
+    expect(state.tick).toBe(WEAR_INTERVAL_TICKS);
+    expect(state.restingWorkplaces).toEqual({});
+    expect(buildingActivity(state, state.buildings[id]!)).toBe("operational");
+  });
+
   it("does not charge for a workplace nobody works in", () => {
     const { state } = stateWithFarm(0);
     state.population = 0;
@@ -86,6 +103,7 @@ describe("the tool reserve", () => {
     const state = stockedState({ ...CONFIG, woodDeposits: [] });
     stripToAnchor(state);
     state.wearEnabled = true;
+    state.age = WEAR_START_AGE;
     state.resources.wood = 40;
     mustOk(applyCommand(state, { kind: "placeRoads", cells: [cellKey(4, 2)] }));
     mustOk(applyCommand(state, { kind: "placeBuilding", type: "farm", x: 4, y: 3 }));
@@ -100,16 +118,15 @@ describe("the tool reserve", () => {
     const state = colony();
     const toolsBefore = state.resources.tools;
     stepTicks(state, 1);
-    expect(state.resources.tools).toBe(toolsBefore + 1);
-    // The bill is the number of staffed workplaces (farm + workshop).
+    // One workshop batch yields TOOLS_PER_WORKSHOP_BATCH, capped by the reserve
+    // it is filling: the bill is the number of staffed workplaces (farm + shop).
     expect(toolReserveTarget(state)).toBe(2);
+    expect(state.resources.tools).toBe(toolsBefore + TOOLS_PER_WORKSHOP_BATCH);
 
-    stepTicks(state, 3);
-    expect(state.resources.tools).toBe(2);
     const planksBefore = state.resources.planks;
     stepTicks(state, 1);
     expect(state.resources.planks).toBeGreaterThan(planksBefore);
-    expect(state.resources.tools).toBe(2);
+    expect(state.resources.tools).toBe(TOOLS_PER_WORKSHOP_BATCH);
   });
 
   it("reserves nothing while the wear law is off", () => {
@@ -133,12 +150,12 @@ describe("persistence", () => {
     expect(loaded.restingWorkplaces).toEqual({});
   });
 
-  it("loads an older save with the law it was played under (wear off)", () => {
+  it("loads an older save with the shipped law (wear on)", () => {
     const { state } = stateWithFarm(3);
     const doc = JSON.parse(saveToString(state)) as { wearEnabled?: boolean };
     delete doc.wearEnabled;
     const loaded = parseSaveString(JSON.stringify(doc));
-    expect(loaded.wearEnabled).toBe(false);
+    expect(loaded.wearEnabled).toBe(true);
     expect(loaded.resources.tools).toBe(3);
   });
 });
