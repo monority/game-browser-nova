@@ -94,6 +94,7 @@ const GLYPHS: Record<string, string> = {
 const HELP = [
   "NOVA agent play — JSONL on stdin, one object per line.",
   "  {\"cmd\":\"init\",\"seed\":\"agent-1\",\"width\":24,\"height\":24,\"woodDeposits\":[{\"x\":4,\"y\":4,\"amount\":60}]}",
+  "  {\"cmd\":\"init\",\"wear\":true}  (D7 experiment: the tool bill on, shipped off)",
   "  {\"cmd\":\"tick\",\"n\":200}",
   "  {\"cmd\":\"build\",\"type\":\"farm\",\"x\":3,\"y\":5,\"road\":true}",
   "  {\"cmd\":\"plan\",\"buildings\":[{\"type\":\"residence\",\"x\":10,\"y\":3},{\"type\":\"farm\",\"x\":12,\"y\":3}]}",
@@ -175,6 +176,10 @@ async function handle(
   switch (kind) {
     case "init": {
       session.state = createInitialState(worldConfigFrom(message));
+      // D7 measurement knob: the wear law ships off (docs/rebalance/v0.1/
+      // decisions/D7-tools-wear.md §7). An agent measuring it turns it on here,
+      // on the real state and the real tick pipeline — no copy of the law.
+      if (message.wear === true) session.state.wearEnabled = true;
       session.history = [sampleOf(session.state)];
       return { ok: true, text: formatReport(session) };
     }
@@ -198,6 +203,12 @@ async function handle(
       return build(session, message);
     case "plan":
       return plan(session, message);
+    case "wear": {
+      // D7 measurement knob (same reason as init): flip the bill on a state
+      // that was played without it, to ask "is it payable NOW?".
+      session.state.wearEnabled = message.enabled !== false;
+      return { ok: true, text: `wear=${session.state.wearEnabled} · t=${session.state.tick}` };
+    }
     case "report":
       return { ok: true, text: formatReport(session) };
     case "assess":

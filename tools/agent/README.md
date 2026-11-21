@@ -42,6 +42,7 @@ Exit code is `1` if any command was rejected, so a script can gate on it.
 | line | effect |
 |---|---|
 | `{"cmd":"init","seed":"agent-1","width":24,"height":24,"woodDeposits":[{"x":4,"y":4,"amount":60}],"stoneDeposits":[…]}` | new game (defaults mirror `DEFAULT_CONFIG` in `src/app/boot.ts`, so the default is the shipped game) |
+| `{"cmd":"init","wear":true}` | same, with the D7 tool bill ON — it ships off, so measuring it needs this knob (fiche §7) |
 | `{"cmd":"tick","n":200}` | advance the simulation, then print the report |
 | `{"cmd":"build","type":"farm","x":3,"y":5,"road":true}` | place a road on a free orthogonal neighbour, then the building (what a player does); the road stays if the building is refused, and the reason is reported |
 | `{"cmd":"plan","buildings":[{"type":"residence","x":10,"y":3}]}` | dry-run on a clone: places the plan through the real command layer, ticks it with the population pinned, and reports the cost, the food/water production and the resident capacity the plan sustains, with the binding constraint |

@@ -145,6 +145,108 @@ un réglage par bâtiment ; la seconde est invisible et donc à éviter.
   manquera, ce qui est le comportement voulu).
 - `src/app/details.ts` : état d'un poste (outils dus dans N ticks / au repos).
 
+## 7. La mesure du 21/11 : la loi est écrite, et elle tue les lignes
+
+La loi livrée (voir §9) a été activée sur les quatre lignes de référence. Résultat,
+sans ambiguïté : **les quatre passent en CRITICAL**, et pas pour un détail.
+
+| Ligne | Sans usure | Avec la facture | Ce qui casse |
+|---|---|---|---|
+| `opening` | HEALTHY t=300 | **CRITICAL** | nourriture 1, eau 0 : chaque 20ᵉ tick plus rien ne sort |
+| `balanced` | HEALTHY t=660 | **CRITICAL** | idem |
+| `age2` | HEALTHY t=780 | **CRITICAL** | idem |
+| `age3` | HEALTHY t=1141 | **CRITICAL** | idem |
+
+La cause est structurelle et déjà connue ailleurs dans ce dépôt : **l'ouverture
+tourne à l'équilibre exact** (11 nourritures pour 10 bouches, eau au plafond).
+Un poste qui rate un tick ne coûte pas 2,5 % : il vide la réserve et la colonie
+meurt de faim. Ce n'est pourtant pas une question de marge de nourriture — la
+mesure du 21/11 ci-dessous montre que **la facture est impayable** au départ,
+pas qu'elle est chère.
+
+**Décision de livraison :** la loi est écrite, testée, et **éteinte par défaut**
+(`GameState.wearEnabled = false`, enregistrée en expérimentation E3). Le jeu
+livré ne change pas d'un iota — c'est une exigence, pas un confort : expédier
+la facture active aurait cassé les quatre lignes et l'ouverture du jeu. La
+bascule est une décision d'équilibrage, elle appartient au propriétaire.
+
+Deuxième mesure au passage : la recette manuelle (le joueur choisit planches ou
+outils) est injouable — il faudrait basculer toutes les 20 images. La loi la
+remplace par une **réserve automatique** : les ateliers remplissent d'abord un
+lot d'outils (un par poste staffé), puis font des planches. Même doctrine que
+l'ordre de staffing ou le loquet hydrique : une politique énoncée, pas une
+micro-gestion.
+
+### La marge mesurée (21/11)
+
+Trois expériences, toutes jouées sur l'état réel et le vrai pipeline de tick
+(`node tools/agent/run.mjs`, `{"cmd":"init","wear":true}` ou
+`{"cmd":"wear","enabled":true}`).
+
+**1. L'ouverture, facture allumée.**
+
+| t | postes au repos | outils | bois | nourriture | eau |
+|---|---|---|---|---|---|
+| 0 | 0 | 0 | 0 | 60 | 40 |
+| 20 | 10 | 0 | 0 | 28 | 20 |
+| 40 | 10 | 0 | 0 | 16 | 10 |
+| 100 | 10 | 0 | 0 | 3 | **0** |
+
+Verdict CRITICAL dès t=100 (« stock 3 → 1 ticks »). La raison n'est pas le prix :
+**il n'y a rien pour payer ni personne pour produire**. 10 bouches = 5 fermes +
+5 puits = **10 ouvriers**, zéro libre ; l'ordre canonique sert les fermes et les
+puits avant les camps et les ateliers, donc un camp ne peut jamais prendre son
+ouvrier, donc aucun bois, donc aucun outil. C'est le mur du §3, mesuré au tick 0
+et non en âge 3. À ce rythme (2 par ouvrier, 1 par bouche), nourriture et eau
+saturent la population **à l'unité près, quelle que soit sa taille** : ajouter
+une ferme ne libère pas un ouvrier, elle en demande un.
+
+**2. Le premier état qui paie.** `balanced` à t=660 (16 bouches, 6 fermes = 19
+nourritures, un camp sur le gisement (4,4), 17 postes dont 1 sans ouvrier) :
+facture allumée sur cet état et rejoué 300 ticks — t=679 l'atelier a stocké sa
+réserve de 16 outils, t=680 la facture tombe et 16 postes sont payés (1 outil
+restant), t=960 : **HEALTHY, aucun poste n'a jamais reposé**, nourriture 40, eau
+80, pop 16. Le mou apparaît avec le rendement agricole (6 fermes pour 16
+bouches, +1/tick), pas avant.
+
+**3. Ce qu'elle coûte** (même état, mêmes 300 ticks, planches à t=960) :
+
+| Régime | Planches | Débit |
+|---|---|---|
+| facture éteinte | 958 | +2,0/tick |
+| facture allumée, 1 outil par lot (livré) | 476 | +0,4/tick |
+| facture allumée, 4 outils par lot (essai) | 836 | +1,6/tick |
+
+L'arithmétique explique la mesure : la facture vaut 16 outils / 20 ticks =
+**0,8 outil/tick**, et un atelier fait **un** outil par tick — il passait donc
+80 % de son temps à l'entretien. À 4 outils par lot (le lot reste 2 bois, seul
+le rendement change) il n'y consacre plus que 20 % et rend 1,6 planche/tick,
+sans qu'aucun poste ne repose.
+
+**Conclusion pour la bascule** — trois conditions, dans cet ordre :
+
+1. **un bois** : la facture n'est payable que dans une colonie qui a un camp (ou
+   un stock d'outils). Le Centre n'y supplée pas : son ruissellement exige un
+   gisement adjacent et l'ancre n'en a aucun dans le monde livré.
+2. **des outils à 4 par lot** : à 1 par lot la facture prend 80 % du seul atelier
+   (mesuré) ; c'est un curseur de rendement, pas de structure.
+3. **après le rendement agricole** : le premier état qui paie est celui où 6
+   fermes nourrissent 16 bouches. Avant, la population est saturée à l'unité près
+   et le camp ne peut pas être staffé.
+
+Sans les trois, l'usure reste une expérimentation (E3) : c'est le statut livré.
+
+## 8. Ce qui sera mesuré avant toute affirmation
+
+Rien de ce qui précède n'est une mesure d'effet : ce sont des débits lus dans
+les lois existantes. La livraison devra rejouer les **cinq lignes** et
+comparer, ligne par ligne, verdict / population / argent net / bâtiments
+opérationnels / planches, à la grille du 2026-11-20. Une ligne qui baisse sans
+explication est un rouge, pas un réglage à retoucher.
+
+Sonde attendue : un test unitaire de la loi (poste sans outil = tick raté, ordre
+canonique, un lot de 2 bois ne nourrit qu'un atelier d'outils) + la grille des
+scénarios. Aucun test existant ne sera réécrit pour faire vert.
 ## 9. Ce que la loi est devenue (livré le 2026-11-21)
 
 - `src/domain/building/tools.ts` : facture (`WEAR_INTERVAL_TICKS = 20`, 1 outil
@@ -181,47 +283,3 @@ portée (**warning**, il tient un ouvrier pour rien), et budget de forêt qui se
 vide (**info**, avec l'horizon).
 - `tests/forest.test.ts` : 10 tests (portée, place libre, point fixe, ancre sans
 gisement, copies des deux alertes).
-
-## 7. La mesure du 21/11 : la loi est écrite, et elle tue les lignes
-
-La loi livrée (voir §9) a été activée sur les quatre lignes de référence. Résultat,
-sans ambiguïté : **les quatre passent en CRITICAL**, et pas pour un détail.
-
-| Ligne | Sans usure | Avec la facture | Ce qui casse |
-|---|---|---|---|
-| `opening` | HEALTHY t=300 | **CRITICAL** | nourriture 1, eau 0 : chaque 20ᵉ tick plus rien ne sort |
-| `balanced` | HEALTHY t=660 | **CRITICAL** | idem |
-| `age2` | HEALTHY t=780 | **CRITICAL** | idem |
-| `age3` | HEALTHY t=1141 | **CRITICAL** | idem |
-
-La cause est structurelle et déjà connue ailleurs dans ce dépôt : **l'ouverture
-tourne à l'équilibre exact** (11 nourritures pour 10 bouches, eau au plafond).
-Un poste qui rate un tick ne coûte pas 2,5 % : il vide la réserve et la colonie
-meurt de faim. Aucune ligne ne peut absorber la facture dans son état actuel ; il
-faudrait d'abord leur donner de la marge (une ferme de plus partout) ou décaler
-l'usure après l'ouverture.
-
-**Décision de livraison :** la loi est écrite, testée, et **éteinte par défaut**
-(`GameState.wearEnabled = false`, enregistrée en expérimentation E3). Le jeu
-livré ne change pas d'un iota — c'est une exigence, pas un confort : expédier
-la facture active aurait cassé les quatre lignes et l'ouverture du jeu. La
-bascule est une décision d'équilibrage, elle appartient au propriétaire.
-
-Deuxième mesure au passage : la recette manuelle (le joueur choisit planches ou
-outils) est injouable — il faudrait basculer toutes les 20 images. La loi la
-remplace par une **réserve automatique** : les ateliers remplissent d'abord un
-lot d'outils (un par poste staffé), puis font des planches. Même doctrine que
-l'ordre de staffing ou le loquet hydrique : une politique énoncée, pas une
-micro-gestion.
-
-## 8. Ce qui sera mesuré avant toute affirmation
-
-Rien de ce qui précède n'est une mesure d'effet : ce sont des débits lus dans
-les lois existantes. La livraison devra rejouer les **cinq lignes** et
-comparer, ligne par ligne, verdict / population / argent net / bâtiments
-opérationnels / planches, à la grille du 2026-11-20. Une ligne qui baisse sans
-explication est un rouge, pas un réglage à retoucher.
-
-Sonde attendue : un test unitaire de la loi (poste sans outil = tick raté, ordre
-canonique, un lot de 2 bois ne nourrit qu'un atelier d'outils) + la grille des
-scénarios. Aucun test existant ne sera réécrit pour faire vert.
