@@ -12,6 +12,7 @@ import {
   LEAN_SEASON_IDLE_FARM_SHARE,
 } from "@/content/seasons.js";
 import { foodCapacity } from "@/domain/storage/storage.js";
+import { isRestingForTools } from "@/domain/building/tools.js";
 
 export const FOOD_PER_FARM_PER_TICK = 2;
 export const WATER_PER_WELL_PER_TICK = 2;
@@ -51,7 +52,9 @@ export function foodPerFarm(state: GameState): number {
 export function workingFarms(state: GameState, tick: number = state.tick): number {
   let farms = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.type === "farm" && isActive(building) && building.staffed) farms += 1;
+    if (building.type === "farm" && isActive(building) && building.staffed && !isRestingForTools(state, building)) {
+      farms += 1;
+    }
   }
   if (!isLeanSeason(tick) || farms === 0) return farms;
   // What the colony must harvest to eat today: the Center's trickle covers one
@@ -124,7 +127,12 @@ export function waterPerWell(state: GameState): number {
 export function waterProductionPerTick(state: GameState): number {
   let produced = 0;
   for (const building of Object.values(state.buildings)) {
-    if (building.type === "well" && isActive(building) && building.staffed) {
+    if (
+      building.type === "well" &&
+      isActive(building) &&
+      building.staffed &&
+      !isRestingForTools(state, building)
+    ) {
       produced += waterPerWell(state);
     }
   }

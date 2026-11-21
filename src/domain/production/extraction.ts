@@ -1,5 +1,6 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import { isActive } from "@/domain/building/building.js";
+import { isRestingForTools } from "@/domain/building/tools.js";
 import { techLevel } from "@/domain/progression/progression.js";
 import { extractAdjacent } from "@/domain/world/deposits.js";
 import { addStone, addWood } from "@/domain/resource/resource.js";
@@ -73,7 +74,7 @@ export function produceWood(state: GameState): void {
   const sources: Array<{ x: number; y: number; share: number }> = [];
   for (const building of Object.values(state.buildings)) {
     if (!isActive(building)) continue;
-    if (building.type === "lumberCamp" && building.staffed) {
+    if (building.type === "lumberCamp" && building.staffed && !isRestingForTools(state, building)) {
       sources.push({
         x: building.x,
         y: building.y,
@@ -98,7 +99,8 @@ export function produceStone(state: GameState): void {
     if (
       building.type === "quarry" &&
       isActive(building) &&
-      building.staffed
+      building.staffed &&
+      !isRestingForTools(state, building)
     ) {
       sources.push({
         x: building.x,

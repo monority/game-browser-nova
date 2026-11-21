@@ -42,8 +42,9 @@ function mutating(
 }
 
 describe("save format", () => {
-  it("is SAVE_VERSION 22", () => {
-    expect(SAVE_VERSION).toBe(22);
+  it("is SAVE_VERSION 23", () => {
+    // v23 (D7, 2026-11-21): the tool stock and the wear flag.
+    expect(SAVE_VERSION).toBe(23);
   });
 
   it("migrates a v19 save to an empty gauge, keeps a v20 reading exact, and rejects impossible ones", () => {

@@ -12,6 +12,13 @@ export interface ResourceStock {
   wood: number;
   stone: number;
   planks: number;
+  /**
+   * Workshop-made tools (D7, 2026-11-21). A workplace spends one every
+   * `WEAR_INTERVAL_TICKS` ticks; without one it rests the tick. The stock is
+   * the only new state: the wear clock is the global tick, not a counter per
+   * building (see `domain/building/tools.ts`).
+   */
+  tools: number;
 }
 
 export const INITIAL_TREASURY = 100;
@@ -26,6 +33,7 @@ export function createInitialResourceStock(): ResourceStock {
     wood: 0,
     stone: 0,
     planks: 0,
+    tools: 0,
   };
 }
 
@@ -88,5 +96,15 @@ export function deductPlanks(stock: ResourceStock, amount: number): number {
 export function deductStone(stock: ResourceStock, amount: number): number {
   const taken = Math.min(stock.stone, amount);
   stock.stone -= taken;
+  return taken;
+}
+
+export function addTools(stock: ResourceStock, amount: number): void {
+  stock.tools = Math.max(0, stock.tools + amount);
+}
+
+export function deductTools(stock: ResourceStock, amount: number): number {
+  const taken = Math.min(stock.tools, amount);
+  stock.tools -= taken;
   return taken;
 }

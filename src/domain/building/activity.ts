@@ -8,6 +8,7 @@ import {
   stonePerQuarry,
 } from "@/domain/production/extraction.js";
 import { staffingDecision, type StaffingDecision } from "@/domain/jobs/jobs.js";
+import { isRestingForTools } from "@/domain/building/tools.js";
 
 /**
  * W1 finalisation — « pourquoi ce bâtiment ne produit-il pas ? » (2026-11-20).
@@ -39,7 +40,8 @@ export type BuildingActivityReason =
   | "insufficient_input"
   | "disconnected"
   | "inactive"
-  | "under_construction";
+  | "under_construction"
+  | "no_tools";
 
 /**
  * The tick's verdict for one building. `decision` is threaded in so a caller
@@ -60,6 +62,10 @@ export function buildingActivity(
   const rejection = decision.rejected.get(building.id);
   if (rejection === "no-input") return "insufficient_input";
   if (!decision.assigned.has(building.id)) return "no_workers";
+  // D7: the tool bill is settled before production, so a workplace that could
+  // not pay it is already resting — and that is a different cause from a
+  // missing worker or a missing input, so it gets its own reason.
+  if (isRestingForTools(state, building)) return "no_tools";
 
   // Staffed extraction is only "operational" if there is something left to
   // take: a camp or a quarry drawing on an exhausted gisement holds a worker

@@ -57,6 +57,8 @@ export function createStatsPanel(callbacks: {
     wood: liveStatRow("Wood"),
     stone: liveStatRow("Stone"),
     planks: liveStatRow("Planks"),
+    // D7: the workshop's other product, and the one the workplaces spend.
+    tools: liveStatRow("Tools"),
     pollution: liveStatRow("Pollution"),
     emitted: liveStatRow("  emitted/tick"),
     absorbed: liveStatRow("  absorbed/tick"),
@@ -142,6 +144,7 @@ export function createStatsPanel(callbacks: {
     statRows.wood.set(String(Math.floor(stats.resources.wood)));
     statRows.stone.set(String(Math.floor(stats.resources.stone)));
     statRows.planks.set(String(Math.floor(stats.resources.planks)));
+    statRows.tools.set(String(Math.floor(stats.resources.tools)));
     statRows.pollution.set(
       `${Math.round(stats.pollution)} · net ${stats.pollutionNetPerTick >= 0 ? "+" : ""}${stats.pollutionNetPerTick}/tick`,
       stats.pollutionNetPerTick > 0 ? "nova-value--danger" : "nova-value--ok",

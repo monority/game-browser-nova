@@ -17,6 +17,7 @@ import { resolveEvents } from "@/domain/events/events.js";
 import { produceStone, produceWood } from "@/domain/production/extraction.js";
 import { producePlanks } from "@/domain/production/transformation.js";
 import { updateWaterPressure } from "@/domain/water/water.js";
+import { maintainWorkplaces } from "@/domain/building/tools.js";
 import { clampStorage } from "@/domain/storage/storage.js";
 import { applyFoodSpoilage } from "@/domain/storage/spoilage.js";
 
@@ -111,6 +112,9 @@ export function stepSimulation(
   state.tick += 1;
 
   advanceConstruction(state);
+  // Wear bill (D7): settled before any production, so a workplace that cannot
+  // pay for its tool is already resting when the phases read it.
+  maintainWorkplaces(state);
 
   const foodBeforeHarvest = state.resources.food;
   produceFood(state);

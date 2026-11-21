@@ -72,7 +72,7 @@ describe("technology research", () => {
 
 describe("progression persistence", () => {
   it("round-trips age + techs, migrates v15, rejects unknown techs, and stays deterministic", () => {
-    expect(SAVE_VERSION).toBe(22);
+    expect(SAVE_VERSION).toBe(23);
     const state = freshState();
     state.age = 2;
     state.researchedTechs = ["cropRotation", "masonry"];

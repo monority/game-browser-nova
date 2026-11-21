@@ -34,7 +34,7 @@ import type { WorldConfig } from "@/domain/world/world.js";
  * (docs/ERROR-HANDLING.md §4).
  */
 
-export const SAVE_VERSION = 22;
+export const SAVE_VERSION = 23;
 /** Oldest save version this build can migrate forward. */
 export const MIGRATABLE_SAVE_VERSION = 13;
 /**
@@ -84,6 +84,8 @@ interface SaveDocument {
   eventFrequency: EventFrequency;
   eventsDrawn: number;
   nextEventTick: number;
+  /** v23: whether tools wear out. Absent in older saves (no wear). */
+  wearEnabled?: boolean;
 }
 
 export class SaveValidationError extends Error {}
@@ -126,6 +128,7 @@ export function serialize(state: GameState): SaveDocument {
     eventFrequency: state.eventFrequency,
     eventsDrawn: state.eventsDrawn,
     nextEventTick: state.nextEventTick,
+    wearEnabled: state.wearEnabled,
   };
 }
 
@@ -218,6 +221,11 @@ export function parseSave(input: unknown): GameState {
     wood: expectNonNegativeNumber(resources.wood, "resources.wood"),
     stone: expectNonNegativeNumber(resources.stone, "resources.stone"),
     planks: expectNonNegativeNumber(resources.planks, "resources.planks"),
+    // v23 (D7, 2026-11-21): absent in older saves, where nothing wore out.
+    tools:
+      resources.tools === undefined
+        ? 0
+        : expectNonNegativeNumber(resources.tools, "resources.tools"),
   };
 
   // Food conservation (Step067): the carry is a fraction of a unit. Values at
@@ -390,6 +398,9 @@ export function parseSave(input: unknown): GameState {
   }
   const eventsDrawn = expectNonNegativeInt(doc.eventsDrawn, "save.eventsDrawn");
   const nextEventTick = expectNonNegativeInt(doc.nextEventTick, "save.nextEventTick");
+  // v23 (D7, 2026-11-21): wear is off in the shipped game, so an older save
+  // loads with the law it was played under.
+  const wearEnabled = doc.wearEnabled === undefined ? false : expectBoolean(doc.wearEnabled, "save.wearEnabled");
 
   return {
     world: generated,
@@ -415,6 +426,9 @@ export function parseSave(input: unknown): GameState {
     eventFrequency: eventFrequency as EventFrequency,
     eventsDrawn,
     nextEventTick,
+    wearEnabled,
+    // Derived every tick by the wear phase; a reload recomputes it.
+    restingWorkplaces: {},
   };
 }
 

@@ -91,6 +91,7 @@ ce que la discipline du dépôt interdit.
 |---|---|---|---|---|
 | E1 | Option C : techno de puits (`wellShafts`) | `shipped: false` | `techs.ts:52-60` | la mesure qui l'a produite reste reproductible ; le joueur ne peut pas l'acheter |
 | E2 | Taux de conservation 3 %/tick | livré mais « expérimental » (contrat §11) | `conservation.ts:15` | 5/7 garde-fous passent, 2 échecs dus à une réserve de gouverneur |
+| E3 | Usure des postes et outils (D7) | **écrite, testée, `wearEnabled: false`** : le jeu livré est inchangé | `domain/building/tools.ts`, `tests/wear.test.ts` | la loi est prête et mesurée, mais la facture fait passer les quatre lignes en CRITICAL : l'ouverture tourne à l'équilibre exact (11 nourritures pour 10 bouches), donc tout tick perdu la tue. Activer = décision d'équilibrage, fiche `decisions/D7-tools-wear.md` §7 |
 | E3 | Événements (`bountifulHarvest`, `tradeClosure`, sécheresse) | implémentés, **désactivés par défaut** | `state.ts`, `analysis.ts:207` | pression systémique testable, pas de punition arbitraire |
 | E4 | Harnais d'auto-jeu (`playGame`) | outil de mesure | `tests/selfplay.test.ts` | seule façon de mesurer une ligne de 1 500 ticks |
 | E5 | Mode « haut débit d'atelier » | **livré le 20/11** (D6), mesure conservée | `D6-workshop-rate.md` §4, `tests/measure-throughput.test.ts` | rejouer la grille des six scénarios aux deux débits quand une loi change |

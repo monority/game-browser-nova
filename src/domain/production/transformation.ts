@@ -1,7 +1,12 @@
 import type { GameState } from "@/domain/simulation/state.js";
 import type { Building } from "@/domain/building/building.js";
 import { isActive } from "@/domain/building/building.js";
-import { addPlanks, deductWood } from "@/domain/resource/resource.js";
+import { addPlanks, addTools, deductWood } from "@/domain/resource/resource.js";
+import {
+  TOOLS_PER_WORKSHOP_BATCH,
+  isRestingForTools,
+  toolReserveTarget,
+} from "@/domain/building/tools.js";
 import { compareCellsWithId } from "@/domain/shared/cells.js";
 
 /**
@@ -34,7 +39,7 @@ export const PLANKS_PER_WORKSHOP_PER_TICK = 2;
 /** Staffed operational workshops, canonical order (y, x, id). */
 function transformingCandidates(state: GameState): Building[] {
   return Object.values(state.buildings)
-    .filter((b) => b.type === "workshop" && isActive(b) && b.staffed)
+    .filter((b) => b.type === "workshop" && isActive(b) && b.staffed && !isRestingForTools(state, b))
     .sort(compareCellsWithId);
 }
 
@@ -60,6 +65,20 @@ export function producePlanks(state: GameState): number {
   if (workshops.length === 0) return 0;
 
   deductWood(state.resources, workshops.length * WOOD_PER_PLANK_BATCH);
-  addPlanks(state.resources, workshops.length * PLANKS_PER_WORKSHOP_PER_TICK);
-  return workshops.length * PLANKS_PER_WORKSHOP_PER_TICK;
+  // D7 (2026-11-21): the same wood batch cannot feed the houses and the
+  // workbenches. The workshops fill the tool reserve first (one bill's worth),
+  // then make planks — a stated policy, like the staffing order, rather than a
+  // recipe the player would have to flip every twenty ticks.
+  const reserved = toolReserveTarget(state);
+  const missing = Math.max(0, reserved - state.resources.tools);
+  const toolBatches = Math.min(workshops.length, missing);
+  if (toolBatches > 0) {
+    addTools(state.resources, toolBatches * TOOLS_PER_WORKSHOP_BATCH);
+  }
+  const plankBatches = workshops.length - toolBatches;
+  if (plankBatches > 0) {
+    addPlanks(state.resources, plankBatches * PLANKS_PER_WORKSHOP_PER_TICK);
+    return plankBatches * PLANKS_PER_WORKSHOP_PER_TICK;
+  }
+  return 0;
 }

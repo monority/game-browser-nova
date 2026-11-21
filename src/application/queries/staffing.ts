@@ -41,6 +41,7 @@ const ACTIVITY_LABEL: Record<BuildingActivityReason, string> = {
   disconnected: "Connexion logistique manquante",
   inactive: "Bâtiment au repos",
   under_construction: "En construction",
+  no_tools: "Outils épuisés",
 };
 
 type StaffingState = "staffed" | "idle" | "mothballed" | "no-road" | "under-construction";

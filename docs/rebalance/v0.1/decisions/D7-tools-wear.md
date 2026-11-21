@@ -145,6 +145,26 @@ un réglage par bâtiment ; la seconde est invisible et donc à éviter.
   manquera, ce qui est le comportement voulu).
 - `src/app/details.ts` : état d'un poste (outils dus dans N ticks / au repos).
 
+## 9. Ce que la loi est devenue (livré le 2026-11-21)
+
+- `src/domain/building/tools.ts` : facture (`WEAR_INTERVAL_TICKS = 20`, 1 outil
+par poste staffé, ordre canonique, les non-payés reposent ce tick), réserve
+(`toolReserveTarget`) et `isRestingForTools`.
+- `src/domain/resource/resource.ts` : `tools` dans `ResourceStock` (seul état
+nouveau ; l'horloge est le numéro de tick, donc **aucun compteur par bâtiment**
+à migrer).
+- `src/domain/simulation/tick.ts` : phase d'usure avant toute production.
+- `src/domain/production/*` : les quatre producteurs (ferme, puits, camp,
+carrière) et l'atelier sautent un poste au repos ; l'atelier réserve les outils
+avant les planches.
+- `src/domain/building/activity.ts` : raison `no_tools`, distincte de
+`no_workers` et d'`insufficient_input`.
+- Persistence `v23` : `tools` + `wearEnabled` (absent d'une sauvegarde
+antérieure = pas d'usure, ce qui est exactement la loi sous laquelle elle a été
+jouée). Le repos est dérivé chaque tick, jamais sauvegardé.
+- `tests/wear.test.ts` : 8 tests (facture au bon tick, un outil par poste, pas
+de facture pour un poste vide, repos d'un seul tick, réserve, persistance).
+
 ### Déjà livré le 2026-11-21 (le système du bois, avant l'usure)
 
 - `src/domain/resource/forest.ts` : la loi du bois en **une** maison — sites
@@ -162,7 +182,39 @@ vide (**info**, avec l'horizon).
 - `tests/forest.test.ts` : 10 tests (portée, place libre, point fixe, ancre sans
 gisement, copies des deux alertes).
 
-## 7. Ce qui sera mesuré avant toute affirmation
+## 7. La mesure du 21/11 : la loi est écrite, et elle tue les lignes
+
+La loi livrée (voir §9) a été activée sur les quatre lignes de référence. Résultat,
+sans ambiguïté : **les quatre passent en CRITICAL**, et pas pour un détail.
+
+| Ligne | Sans usure | Avec la facture | Ce qui casse |
+|---|---|---|---|
+| `opening` | HEALTHY t=300 | **CRITICAL** | nourriture 1, eau 0 : chaque 20ᵉ tick plus rien ne sort |
+| `balanced` | HEALTHY t=660 | **CRITICAL** | idem |
+| `age2` | HEALTHY t=780 | **CRITICAL** | idem |
+| `age3` | HEALTHY t=1141 | **CRITICAL** | idem |
+
+La cause est structurelle et déjà connue ailleurs dans ce dépôt : **l'ouverture
+tourne à l'équilibre exact** (11 nourritures pour 10 bouches, eau au plafond).
+Un poste qui rate un tick ne coûte pas 2,5 % : il vide la réserve et la colonie
+meurt de faim. Aucune ligne ne peut absorber la facture dans son état actuel ; il
+faudrait d'abord leur donner de la marge (une ferme de plus partout) ou décaler
+l'usure après l'ouverture.
+
+**Décision de livraison :** la loi est écrite, testée, et **éteinte par défaut**
+(`GameState.wearEnabled = false`, enregistrée en expérimentation E3). Le jeu
+livré ne change pas d'un iota — c'est une exigence, pas un confort : expédier
+la facture active aurait cassé les quatre lignes et l'ouverture du jeu. La
+bascule est une décision d'équilibrage, elle appartient au propriétaire.
+
+Deuxième mesure au passage : la recette manuelle (le joueur choisit planches ou
+outils) est injouable — il faudrait basculer toutes les 20 images. La loi la
+remplace par une **réserve automatique** : les ateliers remplissent d'abord un
+lot d'outils (un par poste staffé), puis font des planches. Même doctrine que
+l'ordre de staffing ou le loquet hydrique : une politique énoncée, pas une
+micro-gestion.
+
+## 8. Ce qui sera mesuré avant toute affirmation
 
 Rien de ce qui précède n'est une mesure d'effet : ce sont des débits lus dans
 les lois existantes. La livraison devra rejouer les **cinq lignes** et

@@ -72,6 +72,18 @@ export interface GameState {
   eventsDrawn: number;
   /** Tick at which the next draw fires; 0 = fires on the next resolution. */
   nextEventTick: number;
+  /**
+   * Whether tools wear out (D7, 2026-11-21). OFF in the shipped game: the bill
+   * is implemented and measured, but the reference lines run at an exact
+   * equilibrium and every one of them turns CRITICAL under it. A decision for
+   * the owner, not a default — see the D7 card.
+   */
+  wearEnabled: boolean;
+  /**
+   * Workplaces resting this tick for want of a tool. DERIVED every tick by the
+   * wear phase and never saved: a reload must recompute it, not inherit it.
+   */
+  restingWorkplaces: Record<string, true>;
 }
 
 export function createInitialState(config: WorldConfig): GameState {
@@ -101,6 +113,8 @@ export function createInitialState(config: WorldConfig): GameState {
     eventFrequency: "normal",
     eventsDrawn: 0,
     nextEventTick: 0,
+    wearEnabled: false,
+    restingWorkplaces: {},
   };
 
   prePlaceColonyCenter(state);
