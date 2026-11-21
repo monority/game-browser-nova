@@ -80,6 +80,23 @@ mur que l'âge 3 refuse aujourd'hui avec ses cinq résidences en
 `insufficientPlanks`. Livrer les outils d'abord, c'est payer une taxe sur une
 colonie qui n'a pas encore de quoi la payer.
 
+### Suivi du 2026-11-21 : le mur 1 est tombé en le jouant
+
+Le mur 1 n'était pas une loi manquante, c'était une filière jamais construite.
+Mesuré sur la ligne : **1 camp + 2 parcs** sur le gisement (4,4) — le camp sort
+2 bois/tick, chaque parc en repousse 1, donc le gisement reste à **100/100**
+indéfiniment, pour 1 planche et 50 pièces une fois. Résultat sur `age3` :
+**âge 3 ouvert à t = 1141, pop 22/22, 51 bâtiments, nourriture 116, planches
+944** (les cinq résidences refusées sont construites), plus deux fermes pour le
+jalon `food60`, qui plafonnait à 40 avec 6 fermes.
+
+Ce que ça change pour D7 : le bois n'est plus le facteur limitant (2 bois/tick
+renouvelables), mais les outils en prendraient **1,1** — plus de la moitié — et
+les planches s'arrêteraient. Il faudra donc soit un troisième parc, soit lier
+l'outil à la planche. Le mur 2, lui, est intact et mesuré deux fois :
+`workforce 22/25` en âge 3, trois postes sans ouvrier dont un camp et un atelier
+d'outils.
+
 ## 4. La source des outils
 
 | Source | Effet mesuré / prévisible | Verdict |

@@ -26,6 +26,13 @@
 # HEALTHY at t=780 in Age 2, pop 16/16, money 932 (net +4/tick), 34 buildings,
 # same food and water, 0 rejected command. The treasury is 220 lower than the
 # Step068 figure; the milestones still pass.
+# Re-measured 2026-11-21 (wood chain opened, D7 draft): the age-1 arc now ends
+# with a lumber camp plus two parks on the (4,4) deposit, so this line enters
+# Age 2 with a working plank chain instead of an empty one. Measured t=780 in
+# Age 2: pop 16/16, money 579 (net +2/tick), 37 buildings, planks 598, food 40,
+# water 80, pollution 0. One age-2 milestone is still pending here — food60 at
+# 40/60 — because six farms feed sixteen mouths with a 5-tick reserve and no
+# more; the age-3 line answers it with two more farms, not this one.
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
@@ -47,6 +54,9 @@
 {"cmd":"build","type":"residence","x":23,"y":1,"road":false}
 {"cmd":"build","type":"residence","x":12,"y":2,"road":false}
 {"cmd":"build","type":"farm","x":10,"y":2,"road":false}
+{"cmd":"build","type":"lumberCamp","x":3,"y":4,"road":true}
+{"cmd":"build","type":"park","x":4,"y":3,"road":false}
+{"cmd":"build","type":"park","x":5,"y":4,"road":false}
 {"cmd":"tick","n":60}
 {"cmd":"assess"}
 {"cmd":"tick","n":120}

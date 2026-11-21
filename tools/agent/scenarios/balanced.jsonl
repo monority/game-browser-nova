@@ -28,6 +28,14 @@
 # spoiled 2, net +1/tick), water 80, pollution 0, money 617 -> 857, 0 rejected
 # command. The money differs because the park is no longer bought here; the
 # refused step used to lay its 5$ approach road anyway (measured 612 -> 852).
+# Re-measured 2026-11-21 (wood chain opened, D7 draft): this line now builds a
+# lumber camp beside the (4,4) deposit and two parks that tend it — 2 wood/tick
+# out, 2/tick regrown, the deposit stays at 100/100, so the workshops never
+# starve again and planks stop being a dead end. Measured t=660: HEALTHY, pop
+# 16/16, money 619 (net 0/tick), planks 358, 37 buildings (20 operational: the
+# camp and the two parks pay 3/tick of upkeep). The chain costs money on this
+# short arc; what it buys is planks, which is what housing is built from since
+# D3. The age-3 line is where it pays for itself.
 {"cmd":"init"}
 {"cmd":"tick","n":120}
 {"cmd":"do","command":{"kind":"researchTech","techId":"cropRotation"}}
@@ -49,6 +57,9 @@
 {"cmd":"build","type":"residence","x":23,"y":1,"road":false}
 {"cmd":"build","type":"residence","x":12,"y":2,"road":false}
 {"cmd":"build","type":"farm","x":10,"y":2,"road":false}
+{"cmd":"build","type":"lumberCamp","x":3,"y":4,"road":true}
+{"cmd":"build","type":"park","x":4,"y":3,"road":false}
+{"cmd":"build","type":"park","x":5,"y":4,"road":false}
 {"cmd":"tick","n":60}
 {"cmd":"assess"}
 {"cmd":"tick","n":120}

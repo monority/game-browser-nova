@@ -30,6 +30,16 @@
 # two-line patch — measured insertion at pop 17: upkeep -3/tick, money 0,
 # pollution 100, verdict CRITICAL — so re-planning this endgame is an open
 # decision, not a test fix. Until then the line settles at pop 17.
+# Re-measured 2026-11-21 (the wood chain, D7 draft): the endgame is answered,
+# and not by the workshop insertion that failed above. A lumber camp beside the
+# (4,4) deposit plus two parks that tend it is sustainable — 2 wood/tick out,
+# 2/tick regrown, deposit 100/100 — and it costs 1 plank and 50 money once. The
+# five residences are BUILT (pop 22/22) and the food60 milestone is answered by
+# two more farms at (9,2) and (13,2), because six farms hold at 40/60 with
+# sixteen mouths. Measured: age 3 opens at t=1141 with pop 22/22, money 1166
+# (net +2/tick), 51 buildings, food 116 (prod 31, eaten 22, net +4/tick), water
+# 74, planks 944, pollution 0, every age-2 milestone done. Three workplaces of
+# 25 stay unstaffed (workforce 22/25): the manpower wall of D7 remains.
 #
 # Measured (Step068, superseded by the re-measurement above): HEALTHY at t=1140
 # with pop 22/22, money 3295
@@ -61,6 +71,9 @@
 {"cmd":"build","type":"residence","x":23,"y":1,"road":false}
 {"cmd":"build","type":"residence","x":12,"y":2,"road":false}
 {"cmd":"build","type":"farm","x":10,"y":2,"road":false}
+{"cmd":"build","type":"lumberCamp","x":3,"y":4,"road":true}
+{"cmd":"build","type":"park","x":4,"y":3,"road":false}
+{"cmd":"build","type":"park","x":5,"y":4,"road":false}
 {"cmd":"tick","n":60}
 {"cmd":"assess"}
 {"cmd":"tick","n":120}
@@ -90,6 +103,8 @@
 {"cmd":"build","type":"residence","x":18,"y":4,"road":false}
 {"cmd":"build","type":"residence","x":20,"y":4,"road":false}
 {"cmd":"build","type":"residence","x":22,"y":4,"road":false}
+{"cmd":"build","type":"farm","x":9,"y":2,"road":true}
+{"cmd":"build","type":"farm","x":13,"y":2,"road":true}
 {"cmd":"tick","n":120}
 {"cmd":"assess"}
 {"cmd":"report"}
