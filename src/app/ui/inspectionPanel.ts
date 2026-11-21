@@ -24,6 +24,11 @@ export interface RemoveBuildingInfo {
   logistics?: string;
   /** Per-tick pollution contribution line (states only, Step056). */
   pollution?: string;
+  /**
+   * What this building does to the wood budget (2026-11-21): wood in reach for
+   * a camp, the anchor's trickle, the park's regrowth. States only.
+   */
+  wood?: string;
 }
 
 export interface RemoveRoadInfo {
@@ -142,6 +147,11 @@ export function createInspectionPanel(callbacks: {
         const pollution = staticNote(info.pollution, "nova-note--mb");
         pollution.dataset.pollution = info.id;
         element.appendChild(pollution);
+      }
+      if (info.wood) {
+        const wood = staticNote(info.wood, "nova-note--mb");
+        wood.dataset.wood = info.id;
+        element.appendChild(wood);
       }
       if (info.id === "colony-center") {
         element.appendChild(

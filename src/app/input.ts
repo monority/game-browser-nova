@@ -15,6 +15,7 @@ import { getStaffingOverview } from "@/application/queries/staffing.js";
 import { BUILDING_DEFINITIONS } from "@/content/buildings.js";
 import { BUILDING_DETAIL } from "./details.js";
 import { refusalLine } from "./refusals.js";
+import { depositLine, woodLine } from "@/application/queries/forest.js";
 import type { Ui } from "./ui.js";
 
 /**
@@ -99,8 +100,9 @@ export function attachInput(ctx: InputContext): {
       }
     }
     const key = cellKey(x, y);
-    const wood = state.woodDeposits[key];
-    if (wood && wood.remaining > 0) return `Wood deposit · ${wood.remaining}`;
+    // One home for the deposit reading: stock, ceiling and who tends it.
+    const wood = depositLine(state, x, y);
+    if (wood) return wood;
     const stone = state.stoneDeposits[key];
     if (stone && stone.remaining > 0) return `Stone deposit · ${stone.remaining}`;
     if (allRoadCells(state.roads).has(key)) return "Road";
@@ -126,6 +128,7 @@ export function attachInput(ctx: InputContext): {
           activity: staffing?.activityLine,
           logistics: logisticsLine(state, building),
           pollution: pollutionLine(building),
+          wood: woodLine(state, building),
         });
         return;
       }

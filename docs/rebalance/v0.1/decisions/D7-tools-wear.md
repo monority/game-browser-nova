@@ -62,11 +62,15 @@ unique) ; à `W = 10` il faut deux camps (la mécanique devient le centre du jeu
 
 **Mur 1 — le bois n'est jamais ouvert.** Sur les cinq lignes, les gisements
 sont **intacts** (`wood 100/100`, `stone 50/50`) : aucun camp, aucune carrière
-n'a été construit. Le seul bois de la colonie est le ruissellement du Centre
-(1/tick). Les stocks de planches en fin de ligne valent 0 à 5. Les outils pris
-sur le ruissellement (0,6 à 1,1 bois/tick) mangeraient **60 à 110 %** du seul
-bois existant : sans camp, A rend chaque ligne **pire** qu'aujourd'hui, pas
-meilleure.
+n'a été construit. Les stocks de planches en fin de ligne valent 0 à 5.
+
+Correction du 2026-11-21 : le ruissellement du Centre (1 bois/tick) ne compte
+pas ici — l'ancre du monde livré est en (23,23), **aucun gisement n'est
+orthogonal à elle**, donc ce débit vaut 0 et personne ne l'a jamais vu. La
+colonie n'a donc strictement aucun bois avant son premier camp : les outils
+(0,6 à 1,1 bois/tick) n'auraient rien à prendre, et A rendrait chaque ligne
+**pire** qu'aujourd'hui, pas meilleure. Ce trou d'information est corrigé la
+même semaine (voir §6).
 
 **Mur 2 — la main-d'œuvre est déjà prise.** `age3` affiche `workforce 17/22` :
 **5 postes ne sont pas staffés**. Un camp et un atelier d'outils ajoutent deux
@@ -140,6 +144,23 @@ un réglage par bâtiment ; la seconde est invisible et donc à éviter.
   est déjà en place ; le test de complétude échouera tant que la ligne
   manquera, ce qui est le comportement voulu).
 - `src/app/details.ts` : état d'un poste (outils dus dans N ticks / au repos).
+
+### Déjà livré le 2026-11-21 (le système du bois, avant l'usure)
+
+- `src/domain/resource/forest.ts` : la loi du bois en **une** maison — sites
+extracteurs (part de logistique, borne par la portée), parcs (repousse bornée
+par la place libre, lue **après** extraction puisque c'est l'ordre du tick),
+projection `extraction / repousse / net / ticksToEmpty`. Le compte à rebours
+marche la loi réelle et s'arrête sur un point fixe : un parc contre un camp
+laisse le dernier bois en place tous les ticks — une forêt durable, pas un
+compte à rebours.
+- `src/application/queries/forest.ts` : lecture unique pour l'UI (survol d'un
+gisement, ligne d'inspection du camp / du Centre / du parc, résumé de forêt).
+- `analysis.ts` : deux alertes qui n'existaient pas — camp staffé sans bois à
+portée (**warning**, il tient un ouvrier pour rien), et budget de forêt qui se
+vide (**info**, avec l'horizon).
+- `tests/forest.test.ts` : 10 tests (portée, place libre, point fixe, ancre sans
+gisement, copies des deux alertes).
 
 ## 7. Ce qui sera mesuré avant toute affirmation
 

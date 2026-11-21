@@ -33,6 +33,7 @@ import { foodTicksRemaining, projectFoodTick } from "@/domain/storage/spoilage.j
 import { forecastFoodReserve, type FoodReserveForecast } from "@/domain/storage/reserve.js";
 import type { ActiveEvent } from "@/domain/events/events.js";
 import { getStaffingOverview } from "./staffing.js";
+import { getForestOverview } from "./forest.js";
 
 /**
  * Derived analysis views (docs/DATA-CONTRACTS.md §5, docs/game/09-UI-UX.md).
@@ -315,6 +316,27 @@ export function getAlerts(
     alerts.push({
       severity: "info",
       message: `Food reserve: target ${reserve.target} > capacity ${reserve.capacity}`,
+    });
+  }
+
+  // Wood (2026-11-21): the forest was the one system with no alert and no
+  // overview, and two of its states are invisible without one — a staffed camp
+  // whose deposit is gone (a worker producing nothing) and a ground budget that
+  // is running down. The first is a WARNING because it is happening now; the
+  // second is INFORMATION, by the same rule the storage line follows: a colony
+  // with a camp and no park is a reachable, recoverable state, and turning it
+  // red would read as a fault the player cannot clear.
+  const forest = getForestOverview(state);
+  if (forest.starvedCamps > 0) {
+    alerts.push({
+      severity: "warning",
+      message: `Wood: ${forest.starvedCamps} camp(s) with no deposit in reach`,
+    });
+  }
+  if (forest.ticksToEmpty !== null) {
+    alerts.push({
+      severity: "info",
+      message: `Wood: ${forest.netPerTick}/tick · ${forest.remaining} in the ground → ${forest.ticksToEmpty} ticks`,
     });
   }
 
