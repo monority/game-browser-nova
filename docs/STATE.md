@@ -26,7 +26,7 @@ Never mark a feature complete without implementation and validation evidence.
 | Field | Value |
 |---|---|
 | Branch | `main` (origin: https://github.com/monority/game-browser-nova; default branch on GitHub, CI on `main`) |
-| HEAD | `a739589` — the last code commit this file describes (wear law written and measured, shipped off; wood system, 21/11). `docs/` became versioned on 20/11 (§Documentation), so this table now travels with the code it describes instead of living only on one machine. |
+| HEAD | `937eaf5` — the last commit this file describes (the D7 margin measurement; the code before it is `a739589`: wear law written and measured, shipped off, wood system, 21/11). `docs/` became versioned on 20/11 (§Documentation), so this table now travels with the code it describes instead of living only on one machine. |
 | Working tree | CLEAN, nothing held back as of 20/11 evening: `f3e7116` (D3/D6), `07c55f7` (W1 allocation + inspector), `77f73d9` (road adjacency by lookup, 4.9-5.4 s -> 2.8-2.9 s on a 3000-tick governed run), `cc55521` (save-loader bounds), `0a802b7` (vitest 4.1), `fa3374d` (probe and audit follow the road refactor), `2602ce2` (lint globals) are committed on `main`. Push state is whatever `git status` says — never encoded here. |
 
 | E2E on this sandbox | `LD_LIBRARY_PATH=~/.local/pwlibs/usr/lib/x86_64-linux-gnu:~/.local/lib node node_modules/@playwright/test/cli.js test e2e/<spec>.spec.ts` — without that path Chromium exits 127 on `libglib-2.0.so.0` and every journey fails at launch, not on an assertion. |
